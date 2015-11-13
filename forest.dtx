@@ -1,4 +1,4 @@
-% \CheckSum{12536}
+% \CheckSum{12654}
 % \iffalse meta-comment
 % forest.dtx
 %% `forest' is a `pgf/tikz'-based package for drawing (linguistic) trees.
@@ -442,16 +442,14 @@
 \makeatother
 \myisaspect{environment}{environment}{forest}
 \myisaspect{option}{option}{align,content,content format,node format,base,node options,phantom,anchor,calign,calign primary angle,calign secondary angle,calign primary child,calign secondary child,fit,grow,ignore,ignore edge,reversed,l,s,l sep,s sep,tier,x,y,child anchor,edge,edge label,edge path,parent anchor,name,tikz,tikz preamble,anchor,level,n,n',n children,id,max x,max y,min x,min y}
-\myisaspect{propagator}{propagator}{for,if,where,for tree,repeat,delay,for ancestors,for ancestors',for children,for descendants,for descendants',for all next,for all previous,for previous siblings,before typesetting nodes,before packing,before computing xy,before drawing tree,repeat}
+\myisaspect{propagator}{propagator}{for,if,where,for tree,repeat,delay,delay n,if have delayed,for ancestors,for ancestors',for children,for descendants,for descendants',for all next,for all previous,for previous siblings,before typesetting nodes,before packing,before computing xy,before drawing tree,repeat}
 \myisaspect{type}{type}{toks,autowrapped toks,keylist,dimen,count,boolean}%relative node name,node walk,step}
 \myisaspect{handler}{handler}{.pgfmath,.wrap value,.wrap pgfmath arg,.wrap $n$ pgfmath args,.wrap 2 pgfmath args,.wrap 3 pgfmath args,.wrap 4 pgfmath args,.wrap 5 pgfmath args,.wrap 6 pgfmath args,.wrap 7 pgfmath args,.wrap 8 pgfmath args,.wrap 9 pgfmath args}
 \myisaspect{key prefix}{key prefix}{if in ,where in ,if ,where ,not ,for }
 \myisaspect{key suffix}{key suffix}{',+,-,*,:,'+,'-,'*,':}
-\myisaspect{key}{}{afterthought,baseline,label,pin,alias,TeX,TeX',TeX'',no edge,typeset node,declare hook
-  keylist,repeat,use as bounding box,use as bounding box',draw tree box}
-\myisaspect{style}{style}{GP1}
+\myisaspect{key}{}{afterthought,baseline,label,pin,alias,TeX,TeX',TeX'',no edge,typeset node,repeat,use as bounding box,use as bounding box',draw tree box}
+\myisaspect{style}{style}{stages,typeset nodes stage,pack stage,compute xy stage,draw tree stage}
 \myisaspect{stage}{stage}{typeset nodes,typeset nodes',pack,compute xy,draw tree,draw tree'}
-\myisaspect{hook}{style}{before typesetting nodes hook,before packing hook,before computing xy hook,before drawing tree hook,after typesetting nodes hook,after packing hook,after computing xy hook,after drawing tree hook}
 \myisaspect{package option}{package option}{external,tikzcshack,tikzinstallkeys}
 \myisaspect{dynamic tree}{dynamic tree}{create,remove,prepend,append,insert after,insert before,set
   root,replace by,prepend',append',insert after',insert before',replace by',prepend'',append'',insert after'',insert before'',replace by'',copy name template}
@@ -498,7 +496,7 @@
     for tree={text opacity=0.2,draw opacity=0.2,edge={draw opacity=0.2}}}
 }
 
-\title{\FoRest;: a \PGF;/\TikZ;-based package for drawing linguistic trees\\\normalsize v1.01}
+\title{\FoRest;: a \PGF;/\TikZ;-based package for drawing linguistic trees\\\normalsize v1.02}
 \author{Sa\v so \v Zivanovi\'c\footnote{e-mail:
     \href{mailto:saso.zivanovic@guest.arnes.si}{saso.zivanovic@guest.arnes.si};
     web:
@@ -610,6 +608,10 @@
 % is definitely usable (and has been already used), the package and
 % its documentation are still under development: comments, criticism,
 % suggestions and code are all very welcome!
+%
+% \FoRest; is \href{http://www.ctan.org/pkg/forest}{available} at \href{http://www.ctan.org}{CTAN},
+% and I have also started a \href{https://github.com/sasozivanovic/forest-styles}{style repository}
+% at \href{https://github.com}{GitHub}.
 % 
 % \section{Tutorial}
 % \label{sec:tutorial}
@@ -762,6 +764,10 @@
 % local \TeX nician \dots\@ Furtunately, designing styles is not very
 % difficult once you know your \foRest; options.  If you write one,
 % please contribute!
+%
+% I have started a \href{https://github.com/sasozivanovic/forest-styles}{style repository} at
+% GitHub.  Hopefully, it will grow \dots\@ Check it out, download the styles \dots\ and contribute
+% them! 
 %
 % \subsection{Options}
 % \label{sec:options}
@@ -2984,6 +2990,12 @@
 % \begin{syntax}
 % \rkeyname[item]{delay}|=|\meta{keylist} Defers the processing of the \meta{keylist} until the next
 %   cycle.
+% \rkeyname[item]{delay n}|=|\meta{integer}\meta{keylist} Defers the processing of the
+%   \meta{keylist} for $n$ cycles.  $n$ may be $0$, and it may be given as a |pgfmath| expression.
+% \rkeyname[item]{if have delayed}|=|\meta{true keylist}\meta{false keylist}  If any options were
+%   delayed in the current cycle (more precisely, up to the point of the execution of this key),
+%   process \meta{true keylist}, otherwise process \meta{false keylist}.  (\ikeyname{delay n} will
+%   trigger ``true'' for the intermediate cycles.)
 % \rkeyname[item]{before typesetting nodes}|=|\meta{keylist}  Defers the processing of the
 %   \meta{keylist} to until just before the nodes are typeset.
 % \rkeyname[item]{before packing}|=|\meta{keylist}  Defers the processing of the
@@ -3008,88 +3020,105 @@
 %
 % \FoRest; does its job in several steps.  The normal course of events is the following:
 % \begin{enumerate}
-% \item\label{step:parsing-bracket} parsing the bracket representation of the tree (and storing it
-%   in a data structure)
-% \item\label{step:given-options} processing the given options (including the preamble, which is
-%   processed first, in the context of the root node)
-% \item\label{step:stages} processing style \rkeyname{stages}, which by default contains the
-%   following keys:
-% 
-%     \begin{syntax}\itemindent=0pt
-%     \rkeyname[item]{before typesetting nodes hook} \hfill
-%     |{|\ikeyname{process keylist}|=|\ikeyname{before typesetting nodes}|}|
-%     \rkeyname[item]{typeset nodes}
-%
-%     Obviously, the nodes must be measured before they can be packed.  Thus, each node is typeset
-%     in its own |tikzpicture| environment, saved in a box and its measures are taken.
-%     \rkeyname[item={{{{{}}}}}]{after typesetting nodes hook}
-%     \rkeyname[item]{before packing hook}\hfill|{|\ikeyname{process keylist}|=|\ikeyname{before packing}|}|
-%     \rkeyname[item]{pack}
-%
-%     The relative positions of the nodes are computed so that they don't overlap.  That's
-%     difficult.  The result: option \ikeyname{s} is set for all nodes.  (Sometimes, the value of
-%     \ikeyname{l} is adjusted as well.)
-%     \rkeyname[item={{{{{}}}}}]{after packing hook}
-%     \rkeyname[item]{before computing xy hook}\hfill|{|\ikeyname{process
-%     keylist}|=|\ikeyname{before computing xy}|}|
-%     \rkeyname[item]{compute xy}
-%
-%     Absolute positions, or rather, positions of the nodes relative to the root node are computed.
-%     That's easy.  The result: options \ikeyname{x} and \ikeyname{y} are set.
-%     \rkeyname[item={{{{{}}}}}]{after computing xy hook}
-%     \rkeyname[item]{before drawing tree hook}\hfill|{|\ikeyname{process
-%     keylist}|=|\ikeyname{before drawing tree}|}|
-%     \rkeyname[item]{draw tree}
-%
-%     All the nodes are poured in a single |tikzpicture|, using the boxes from stage \ikeyname{typeset
-%     nodes} and positions from stage \ikeyname{compute xy}.  They are followed by
-%     parent--child edges, custom code and details.  
-%     \rkeyname[item={{{{{}}}}}]{after drawing tree hook}
-%     \end{syntax}
+% \item\label{step:parsing-bracket} The bracket representation of the tree if parsed and stored in a
+%   data structure.
+% \item\label{step:given-options} The given options are processed, including the options in the
+%   preamble, which are processed first (in the context of the root node).
+% \item\label{step:typeset-nodes} Each node is typeset in its own |tikzpicture| environment, saved
+%   in a box and its measures are taken.
+% \item\label{step:pack} The nodes of the tree are \emph{packed}, i.e.\ the relative positions of the nodes are
+%   computed so that the nodes don't overlap.  That's difficult.  The result: option \ikeyname{s} is
+%   set for all nodes.  (Sometimes, the value of \ikeyname{l} is adjusted as well.)
+% \item\label{step:compute-xy} Absolute positions, or rather, positions of the nodes relative to the
+%   root node are computed.  That's easy.  The result: options \ikeyname{x} and \ikeyname{y} are
+%   set.
+% \item\label{step:draw-tree} The \TikZ; code that will draw the tree is produced.  (The nodes are
+%   drawn by using the boxes typeset in step~\ref{step:typeset-nodes}.)
 % \end{enumerate}
 %
-% All the user input comes into the system in steps~\ref{step:parsing-bracket} (the
-% hierarchical structure) and \ref{step:given-options} (the content).  The package does its work in
-% step~\ref{step:stages}, which consists of four \emph{stages}, where the work is really done, and
-% hooks before and after each stage, which provide a way to fine-tune the workflow.
+% Steps~\ref{step:parsing-bracket} and \ref{step:given-options} collect user input and are thus
+% ``fixed''.  However, the other steps, which do the actual work, are under user's control.
 %
-% By default, the \keyname{after ...} hooks do nothing, and the \keyname{before ...} hooks process
-% the deferred keylists.  For a simple example, see
-% example~\ref{ex:adjustxy}: the manual adjustment of \ikeyname{y} can only be done after the
-% absolute positions have been computed, so the processing of this option is deferred by
-% \ikeyname{before drawing tree}.  For a more realistic example, see the definition of style
-% \ikeyname{GP1}: 
-% before packing, \texttt{outer xsep} is set to a high (user determined) value to keep the $\times$s
-% uniformly spaced;  before drawing the tree, the \texttt{outer xsep} is set to \texttt{0pt} to make
-% the arrows look better.
+% First, hooks exist which make it possible (and easy) to change node's properties between the
+% processing stages.  For a simple example, see example~\ref{ex:adjustxy}: the manual adjustment of
+% \ikeyname{y} can only be done after the absolute positions have been computed, so the processing
+% of this option is deferred by \ikeyname{before drawing tree}.  For a more realistic example, see
+% the definition of style \ikeyname{GP1}: before packing, \texttt{outer xsep} is set to a high (user
+% determined) value to keep the $\times$s uniformly spaced; before drawing the tree, the
+% \texttt{outer xsep} is set to \texttt{0pt} to make the arrows look better.
 % 
-% Style
-% \ikeyname{stages} and the hook styles can be redefined.  Obviously, a style must be redefined
-% before it is processed, so its safest to do so either outside the
-% \ikeyname{forest} environment using macro \icmdname{forestset}, or in
-% stage~\ref{step:given-options} among the non-deferred keys.  The following keys might be useful
-% in a redefinition.  (\ikeyname{typeset nodes}, \ikeyname{pack} and \ikeyname{compute xy} are not
-% included in the list, since they were already fully described above.) 
+% Second, the execution of the processing stages \ref{step:typeset-nodes}--\ref{step:draw-tree} is
+% \emph{completely} under user's control.  To facilitate adjusting the processing flow, the approach
+% is twofold.  The outer level: \foRest; initiates the processing by executing style
+% \keyname{stages}, which by default executes the processing stages
+% \ref{step:typeset-nodes}--\ref{step:draw-tree}, preceding the execution of each stage by
+% processing the options embedded in temporal propagators \keyname{before ...} (see
+% \S\ref{ref:propagators}).  The inner level: each processing step is the sole resident of a
+% stage-style, which makes it easy to adjust the workings of a single step.  What follows is the
+% default content of style \keyname{stages}, including the default content of the individual
+% stage-styles.  
 % \begin{syntax}
-% \rkeyname[item]{draw tree'}  Like \ikeyname{draw tree}, but the node boxes (usually
-%   computed in stage \ikeyname{typeset nodes}) are included in the picture using \cmdname{copy}, not
-%   \cmdname{box}, thereby preserving them.
+%   \rkeyname[item]{stages}
+%   \begin{syntax}
+%     \item \ikeyname{process keylist}|=|\ikeyname{before typesetting nodes}
+%     \rkeyname[item]{typeset nodes stage}\hfill
+%       |{|\ikeyname{id={{for }}}\ikeyname{root'}|=|\ikeyname{typeset nodes}|}|
+%     \item \ikeyname{process keylist}|=|\ikeyname{before packing}
+%     \rkeyname[item]{pack stage}\hfill
+%       |{|\ikeyname{id={{for }}}\ikeyname{root'}|=|\ikeyname{pack}|}|
+%     \item \ikeyname{process keylist}|=|\ikeyname{before computing xy}
+%     \rkeyname[item]{compute xy stage}\hfill
+%       |{|\ikeyname{id={{for }}}\ikeyname{root'}|=|\ikeyname{compute xy}|}|
+%     \item \ikeyname{process keylist}|=|\ikeyname{before drawing tree}
+%     \rkeyname[item]{draw tree stage}\hfill
+%       |{|\ikeyname{id={{for }}}\ikeyname{root'}|=|\ikeyname{draw tree}|}|
+%   \end{syntax}
+% \end{syntax}
 %
-%   Using \keyname{draw tree} and \keyname{draw tree'} multiple times \emph{is} compatible with
-%   externalization.  
-% \rkeyname[item]{draw tree box}|=|[\meta{\TeX\ box}]  The picture drawn by the subsequent
-%   invocations of \ikeyname{draw tree} and \ikeyname{draw tree'} is put into \meta{\TeX\ box}.  If
-%   the argument is omitted, the pictures are typeset normally (the default).
-%
-%   Using this key \emph{is} compatible with externalization. 
+% Both style \keyname{stages} and the individual stage-styles may be freely modified by the user.
+% Obviously, a style must be redefined before it is processed, so it is safest to do so either
+% outside the \ikeyname{forest} environment (using macro \icmdname{forestset}) or in the preamble
+% (in a non-deferred fashion).
+% 
+% Here's the list of keys used either in the default processing or useful in an alternative
+% processing flow.
+% \begin{syntax}
+% \rkeyname[item]{typeset nodes} Typesets each node of the current node's subtree in its own
+%   |tikzpicture| environment.  The result is saved in a box and its measures are taken.
+% 
 % \rkeyname[item]{typeset nodes'}  Like \ikeyname{typeset nodes}, but the node box's content is not
-%   overwritten if it already exists.
+%   overwritten if the box already exists.
+%   
 % \rkeyname[item]{typeset node}  Typesets the \emph{current} node, saving the result in the node box.
 %
 %   This key can be useful also in the default \ikeyname{stages}.  If, for example, the node's content
 %   is changed and the node retypeset just before drawing the tree, the node will be positioned as if
 %   it contained the ``old'' content, but have the new content: this is how the constant distance
 %   between $\times$s is implemented in the \ikeyname{GP1} style.
+%
+% \rkeyname[item]{pack} The nodes of the tree are \emph{packed}, i.e.\ the relative positions of
+%   the nodes are computed so that the nodes don't overlap.  The result: option \ikeyname{s} is set
+%   for all nodes; sometimes (in tier alignment and for some values of \ikeyname{calign}), the value
+%   of some nodes' \ikeyname{l} is adjusted as well.
+%
+% \rkeyname[item]{pack'} ``Non-recursive'' packing: packs the children of the current node only.
+%   (Experimental, use with care, especially when combining with tier alignment.)
+%
+% \rkeyname[item]{compute xy} Computes the positions of the nodes relative to the (formal) root
+%   node.  The results are stored into options \ikeyname{x} and \ikeyname{y}.
+%
+% \rkeyname[item]{draw tree} Produces the \TikZ; code that will draw the tree.  First, any
+%   \TikZ; code given by \ikeyname{tikz preamble} is included.  Then, the nodes are drawn (using the
+%   boxes typeset in step~\ref{step:typeset-nodes}), followed by edges and custom code (see option
+%   \ikeyname{tikz}).
+%   
+% \rkeyname[item]{draw tree'} Like \ikeyname{draw tree}, but the node boxes are included in the
+%   picture using \cmdname{copy}, not \cmdname{box}, thereby preserving them.     
+%   
+% \rkeyname[item]{draw tree box}|=|[\meta{\TeX\ box}]  The picture drawn by the subsequent
+%   invocations of \ikeyname{draw tree} and \ikeyname{draw tree'} is put into \meta{\TeX\ box}.  If
+%   the argument is omitted, the subsequent pictures are typeset normally (the default).
+%
 % \rkeyname[item]{process keylist}|=|\meta{keylist option name}  Processes the keylist saved in
 %   option \meta{keylist option name} for all the nodes in the \emph{whole} tree.
 %
@@ -3581,9 +3610,10 @@
 % they were changed or deleted) is kept.  If you need a ``clean'' |.for| file, delete it and
 % recompile.  Deleting |-forest-|$n$|.pdf| will result in recompilation of a specific tree.
 %
-% Externalizing a \ikeyname{forest} environment with custom \ikeyname{stages} will only work if the
-% only externally visible products are the trees produced by \ikeyname{draw tree} and \ikeyname{draw
-% tree'} (with or without the optional argument).
+% Using \keyname{draw tree} and \keyname{draw tree'} multiple times \emph{is} compatible with
+% externalization, as is drawing the tree in the box (see \ikeyname{draw tree box}).  If you are
+% trying to externalize a \ikeyname{forest} environment which utilizes \ikeyname{TeX} to produce a
+% visible effect, you will probably need to use \ikeyname{TeX'} and/or \ikeyname{TeX''}.
 % 
 % \subsection{Package options}
 % \label{ref:package-options}
@@ -3896,6 +3926,16 @@
 % \section{Changelog}
 % 
 % \begin{description}
+% \item[v1.02 (2013/01/20)] \mbox{}
+%   \begin{compactitem}
+%   \item Reworked style \ikeyname{stages}: it's easier to modify the processing flow now.
+%   \item Individual stages must now be explicitely called in the context of some (usually root)
+%     node. 
+%   \item Added \ikeyname{delay n} and \ikeyname{if have delayed}.
+%   \item Added (experimental) \ikeyname{pack'}.
+%   \item Added reference to the \href{https://github.com/sasozivanovic/forest-styles}{style
+%     repository}.
+%   \end{compactitem}
 % \item[v1.01 (2012/11/14)] \mbox{}
 % 
 %   \begin{compactitem}
@@ -3921,7 +3961,7 @@
 % 
 % Identification.
 %    \begin{macrocode}
-\ProvidesPackage{forest}[2012/10/31 v1.01 Drawing (linguistic) trees]
+\ProvidesPackage{forest}[2013/01/20 v1.02 Drawing (linguistic) trees]
 
 \RequirePackage{tikz}[2010/10/13]
 \usetikzlibrary{shapes}
@@ -6527,27 +6567,19 @@
 %    \begin{macrocode}
 \forestset{
   stages/.style={
-    before typesetting nodes hook,
-    typeset nodes,
-    after typesetting nodes hook,
-    before packing hook,
-    pack,
-    after packing hook,
-    before computing xy hook,
-    compute xy,
-    after computing xy hook,
-    before drawing tree hook,
-    draw tree,
-    after drawing tree hook,
+    process keylist=before typesetting nodes,
+    typeset nodes stage,
+    process keylist=before packing,
+    pack stage,
+    process keylist=before computing xy,
+    compute xy stage,
+    process keylist=before drawing tree,
+    draw tree stage,
   },
-  before typesetting nodes hook/.style={process keylist=before typesetting nodes},
-  after typesetting nodes hook/.style={},
-  before packing hook/.style={process keylist=before packing},
-  after packing hook/.style={},
-  before computing xy hook/.style={process keylist=before computing xy},
-  after computing xy hook/.style={},
-  before drawing tree hook/.style={process keylist=before drawing tree},
-  after drawing tree hook/.style={},
+  typeset nodes stage/.style={for root'=typeset nodes},
+  pack stage/.style={for root'=pack},
+  compute xy stage/.style={for root'=compute xy},
+  draw tree stage/.style={for root'=draw tree},
   process keylist/.code={\forest@process@hook@keylist{#1}},
   declare keylist={given options}{},
   declare keylist={before typesetting nodes}{},
@@ -6556,29 +6588,35 @@
   declare keylist={before drawing tree}{},
   declare keylist={delay}{},
   delay/.append code={\forest@havedelayedoptionstrue},
+  delay n/.style 2 args={if={#1==0}{#2}{delay@n={#1}{#2}}},
+  delay@n/.style 2 args={
+    if={#1==1}{delay={#2}}{delay={delay@n/.wrap pgfmath arg={{##1}{#2}}{#1-1}}}
+  },
+  if have delayed/.code 2 args={%
+    \ifforest@havedelayedoptions\pgfkeysalso{#1}\else\pgfkeysalso{#2}\fi
+  },
   typeset nodes/.code={%
     \forest@drawtree@preservenodeboxes@false
-    \forest@node@Foreach{\forest@root}{\forest@node@typeset}},
+    \forest@node@foreach{\forest@node@typeset}},
   typeset nodes'/.code={%
     \forest@drawtree@preservenodeboxes@true
-    \forest@node@Foreach{\forest@root}{\forest@node@typeset}},
+    \forest@node@foreach{\forest@node@typeset}},
   typeset node/.code={%
     \forest@drawtree@preservenodeboxes@false
     \forest@node@typeset
   },  
-  pack/.code={%
-    \forest@fornode{\forest@root}{\forest@pack}},
-  compute xy/.code={%
-    \forest@fornode{\forest@root}{\forest@node@computeabsolutepositions}},
+  pack/.code={\forest@pack},
+  pack'/.code={\forest@pack@onlythisnode},
+  compute xy/.code={\forest@node@computeabsolutepositions},
   draw tree box/.store in=\forest@drawtreebox,
   draw tree box,
   draw tree/.code={%
     \forest@drawtree@preservenodeboxes@false
-    \forest@fornode{\forest@root}{\forest@node@drawtree}%
+    \forest@node@drawtree
   },
   draw tree'/.code={%
     \forest@drawtree@preservenodeboxes@true
-    \forest@fornode{\forest@root}{\forest@node@drawtree}%
+    \forest@node@drawtree
   },
 }
 \newtoks\forest@do@dynamics
@@ -6758,6 +6796,14 @@
       \forest@pack@sibling@uniform@applyreversed
     \fi
   \fi
+}
+\def\forest@pack@onlythisnode{%
+  \ifnum\forestove{n children}>0
+    \forest@pack@computetiers
+      \forest@pack@level@nonuniform
+      \forest@pack@aligntiers
+      \forest@pack@sibling@uniform@applyreversed  
+  \fi  
 }
 %    \end{macrocode}
 %    
