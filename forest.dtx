@@ -1,9 +1,9 @@
-% \CheckSum{12844}
+% \CheckSum{12854}
 % \iffalse meta-comment
 % forest.dtx
 %% `forest' is a `pgf/tikz'-based package for drawing (linguistic) trees.
 %%
-%% Copyright (c) 2013 Saso Zivanovic
+%% Copyright (c) 2015 Saso Zivanovic
 %%                    (Sa\v{s}o \v{Z}ivanovi\'{c})
 %% saso.zivanovic@guest.arnes.si
 %%
@@ -3967,6 +3967,10 @@
 % \section{Changelog}
 % 
 % \begin{description}
+% \item[v1.08 (2015/07/10)] \mbox{}
+%   \begin{compactitem}
+%   \item Fix externalization (compatibility with new |tikz| features).
+%   \end{compactitem}
 % \item[v1.07 (2015/05/29)] \mbox{}
 %   \begin{compactitem}
 %   \item Require package |elocalloc| for local boxes, which were previously defined by package |etex|.
@@ -4018,7 +4022,7 @@
 % \item[v1.0 (2012/10/31)] First public version
 % \end{description}
 %
-% \paragraph{Acknowledgements} Many thanks to the people who have reported bugs! In the
+% \paragraph{Acknowledgements} Many thanks to the \TeX\ SE community and the people who have reported bugs! In the
 % chronological order: Markus P\"ochtrager, Timothy Dozat, Ignasi Furio.\footnote{If you're in the
 % list but don't want to be, my apologies and please let me know about it!}
 %
@@ -4029,7 +4033,7 @@
 % 
 % Identification.
 %    \begin{macrocode}
-\ProvidesPackage{forest}[2015/05/29 v1.07 Drawing (linguistic) trees]
+\ProvidesPackage{forest}[2015/07/10 v1.08 Drawing (linguistic) trees]
 
 \RequirePackage{tikz}[2010/10/13]
 \usetikzlibrary{shapes}
@@ -9659,7 +9663,7 @@
 }
 \def\forest@includeexternal@check#1{%
   \tikzsetnextfilename{#1}%
-  \tikzexternal@externalizefig@systemcall@uptodatecheck
+  \IfFileExists{\tikzexternal@filenameprefix/#1}{\tikzexternal@file@isuptodatetrue}{\tikzexternal@file@isuptodatefalse}%
 }
 \def\makehashother{\catcode`\#=12}%
 \long\def\forest@external@setup#1{%
