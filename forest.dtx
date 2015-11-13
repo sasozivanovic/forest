@@ -1,4 +1,4 @@
-% \CheckSum{12832}
+% \CheckSum{12838}
 % \iffalse meta-comment
 % forest.dtx
 %% `forest' is a `pgf/tikz'-based package for drawing (linguistic) trees.
@@ -3967,6 +3967,10 @@
 % \section{Changelog}
 % 
 % \begin{description}
+% \item[v1.06 (2015/05/04)] \mbox{}
+%   \begin{compactitem}
+%   \item Load |etex| package: since v2.1a, |etoolbox| doesn't do it anymore.
+%   \end{compactitem}
 % \item[v1.05 (2014/03/07)] \mbox{}
 %   \begin{compactitem}
 %   \item Fix the node boundary code for rounded rectangle.  (Patch contributed by Paul Gaborit.)
@@ -4021,7 +4025,7 @@
 % 
 % Identification.
 %    \begin{macrocode}
-\ProvidesPackage{forest}[2014/03/07 v1.05 Drawing (linguistic) trees]
+\ProvidesPackage{forest}[2015/05/04 v1.06 Drawing (linguistic) trees]
 
 \RequirePackage{tikz}[2010/10/13]
 \usetikzlibrary{shapes}
@@ -4031,6 +4035,7 @@
 
 \RequirePackage{pgfopts}
 \RequirePackage{etoolbox}[2010/08/21]
+\RequirePackage{etex}
 \RequirePackage{environ}
 
  %\usepackage[trace]{trace-pgfkeys}
