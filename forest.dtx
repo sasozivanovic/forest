@@ -1,4 +1,4 @@
-% \CheckSum{12838}
+% \CheckSum{12844}
 % \iffalse meta-comment
 % forest.dtx
 %% `forest' is a `pgf/tikz'-based package for drawing (linguistic) trees.
@@ -3967,6 +3967,10 @@
 % \section{Changelog}
 % 
 % \begin{description}
+% \item[v1.07 (2015/05/29)] \mbox{}
+%   \begin{compactitem}
+%   \item Require package |elocalloc| for local boxes, which were previously defined by package |etex|.
+%   \end{compactitem}
 % \item[v1.06 (2015/05/04)] \mbox{}
 %   \begin{compactitem}
 %   \item Load |etex| package: since v2.1a, |etoolbox| doesn't do it anymore.
@@ -4025,7 +4029,7 @@
 % 
 % Identification.
 %    \begin{macrocode}
-\ProvidesPackage{forest}[2015/05/04 v1.06 Drawing (linguistic) trees]
+\ProvidesPackage{forest}[2015/05/29 v1.07 Drawing (linguistic) trees]
 
 \RequirePackage{tikz}[2010/10/13]
 \usetikzlibrary{shapes}
@@ -4035,7 +4039,7 @@
 
 \RequirePackage{pgfopts}
 \RequirePackage{etoolbox}[2010/08/21]
-\RequirePackage{etex}
+\RequirePackage{elocalloc}% for \locbox
 \RequirePackage{environ}
 
  %\usepackage[trace]{trace-pgfkeys}
