@@ -25,9 +25,6 @@
 %% and the derived file forest.sty.
 %%
 %
-% Changes:
-% \changes{v1.0}{2012/10/31}{First public version}
-%
 %<*driver>
 \documentclass[a4paper]{ltxdoc}
 \usepackage{fullpage}
@@ -501,7 +498,7 @@
     for tree={text opacity=0.2,draw opacity=0.2,edge={draw opacity=0.2}}}
 }
 
-\title{\FoRest;: a \PGF;/\TikZ;-based package for drawing linguistic trees\\\normalsize v1.0}
+\title{\FoRest;: a \PGF;/\TikZ;-based package for drawing linguistic trees\\\normalsize v1.01}
 \author{Sa\v so \v Zivanovi\'c\footnote{e-mail:
     \href{mailto:saso.zivanovic@guest.arnes.si}{saso.zivanovic@guest.arnes.si};
     web:
@@ -3837,6 +3834,10 @@
 % node requires its own \dots\ and consequently, I have freely used e\TeX\ constructs in the code
 % \dots
 %
+% \paragraph{\PGF; internals} \FoRest; relies on some details of \PGF; implementation, like the name
+% of the ``not yet positioned'' nodes.  Thus, a new bug might appear with the development of \PGF;.
+% If you notice one, please let me know.
+%
 % \paragraph{Edges cutting through sibling nodes}
 % \label{sec:cutting-edge}
 %
@@ -3891,7 +3892,28 @@
 %
 % Obviously, both examples also create the situation of an edge crossing some sibling node(s).
 % Again, I don't think anything sensible can be done about this, in general.
+%
+% \section{Changelog}
 % 
+% \begin{description}
+% \item[v1.01 (2012/11/14)] \mbox{}
+% 
+%   \begin{compactitem}
+%   \item Compatibility with the |standalone| package: temporarily disable the effect of
+%     |standalone|'s package option |tikz| while typesetting nodes.
+%   \item Require at least the [2010/08/21] (v2.0) release of package |etoolbox|.
+%   \item Require version [2010/10/13] (v2.10, rcs-revision 1.76) of \PGF;/\TikZ;.  Future
+%     compatibility: adjust to the change of the ``not yet positioned'' node name (2.10 |@|
+%     $\rightarrow$ 2.10-csv |PGFINTERNAL|).
+%   \item Add this changelog.
+%   \end{compactitem}
+% \item[v1.0 (2012/10/31)] First public version
+% \end{description}
+%
+% \paragraph{Acknowledgements} Many thanks to the people who have reported bugs! In the
+% chronological order: Markus P\"ochtrager, Timothy Dozat, Ignasi Furio.\footnote{If you're in the
+% list but don't want to be, my apologies and please let me know about it!}
+%
 % \newpage
 % \part{Implementation}
 %
@@ -3899,16 +3921,16 @@
 % 
 % Identification.
 %    \begin{macrocode}
-\ProvidesPackage{forest}[2012/10/31 v1.0 Drawing (linguistic) trees]
+\ProvidesPackage{forest}[2012/10/31 v1.01 Drawing (linguistic) trees]
 
-\RequirePackage{tikz}
+\RequirePackage{tikz}[2010/10/13]
 \usetikzlibrary{shapes}
 \usetikzlibrary{fit}
 \usetikzlibrary{calc}
 \usepgflibrary{intersections}
 
 \RequirePackage{pgfopts}
-\RequirePackage{etoolbox}
+\RequirePackage{etoolbox}[2010/08/21]
 \RequirePackage{environ}
 
  %\usepackage[trace]{trace-pgfkeys}
@@ -4167,6 +4189,12 @@
 \ifx\pgfpointintersectionoflines\forest@original@pgfpointintersectionoflines
   \let\pgfpointintersectionoflines\forest@patched@pgfpointintersectionoflines
 \fi
+
+ % hah: hacking forest --- it depends on some details of PGF implementation
+\def\forest@pgf@notyetpositioned{not yet positionedPGFINTERNAL}%
+\expandafter\ifstrequal\expandafter{\pgfversion}{2.10}{%
+  \def\forest@pgf@notyetpositioned{not yet positioned@}%
+}{}
 %    \end{macrocode}
 % 
 % \section{Utilities}
@@ -6598,7 +6626,22 @@
     \locbox\forest@temp@box
     \forestolet{box}\forest@temp@box
   }%
+  \def\forest@node@typeset@restore{}%
+  \ifdefined\ifsa@tikz\forest@standalone@hack\fi
   \forest@next
+  \forest@node@typeset@restore
+}
+\def\forest@standalone@hack{%
+  \ifsa@tikz
+    \let\forest@standalone@tikzpicture\tikzpicture
+    \let\forest@standalone@endtikzpicture\endtikzpicture
+    \let\tikzpicture\sa@orig@tikzpicture
+    \let\endtikzpicture\sa@orig@endtikzpicture
+    \def\forest@node@typeset@restore{%
+      \let\tikzpicture\forest@standalone@tikzpicture
+      \let\endtikzpicture\forest@standalone@endtikzpicture
+    }%
+  \fi
 }
 \newbox\forest@box
 \def\forest@node@typeset@{%
@@ -6610,32 +6653,32 @@
       \pgfpositionnodelater{\forest@positionnodelater@save}%
       \forest@temp@nodeformat
       \pgfinterruptpath
-      \pgfpointanchor{not yet positioned@\forest@nodename}{forestcomputenodeboundary}%
+      \pgfpointanchor{\forest@pgf@notyetpositioned\forest@nodename}{forestcomputenodeboundary}%
       \endpgfinterruptpath
       %\forest@compute@node@boundary\forest@temp
       %\xappto\forest@smuggle{\noexpand\forestoset{boundary}{\expandonce\forest@temp}}%
       \if\relax\forestove{parent anchor}\relax
-        \pgfpointanchor{not yet positioned@\forest@nodename}{center}%
+        \pgfpointanchor{\forest@pgf@notyetpositioned\forest@nodename}{center}%
       \else
-        \pgfpointanchor{not yet positioned@\forest@nodename}{\forestove{parent anchor}}%
+        \pgfpointanchor{\forest@pgf@notyetpositioned\forest@nodename}{\forestove{parent anchor}}%
       \fi
       \xappto\forest@smuggle{%
         \noexpand\forestoset{parent@anchor}{%
           \noexpand\noexpand\noexpand\pgf@x=\the\pgf@x\relax
           \noexpand\noexpand\noexpand\pgf@y=\the\pgf@y\relax}}%
       \if\relax\forestove{child anchor}\relax
-        \pgfpointanchor{not yet positioned@\forest@nodename}{center}%
+        \pgfpointanchor{\forest@pgf@notyetpositioned\forest@nodename}{center}%
       \else      
-        \pgfpointanchor{not yet positioned@\forest@nodename}{\forestove{child anchor}}%
+        \pgfpointanchor{\forest@pgf@notyetpositioned\forest@nodename}{\forestove{child anchor}}%
       \fi
       \xappto\forest@smuggle{%
         \noexpand\forestoeset{child@anchor}{%
           \noexpand\noexpand\noexpand\pgf@x=\the\pgf@x\relax
           \noexpand\noexpand\noexpand\pgf@y=\the\pgf@y\relax}}%
       \if\relax\forestove{anchor}\relax
-        \pgfpointanchor{not yet positioned@\forest@nodename}{center}%
+        \pgfpointanchor{\forest@pgf@notyetpositioned\forest@nodename}{center}%
       \else      
-        \pgfpointanchor{not yet positioned@\forest@nodename}{\forestove{anchor}}%
+        \pgfpointanchor{\forest@pgf@notyetpositioned\forest@nodename}{\forestove{anchor}}%
       \fi
       \xappto\forest@smuggle{%
         \noexpand\forestoeset{@anchor}{%
