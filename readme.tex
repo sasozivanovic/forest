@@ -1,12 +1,14 @@
 \documentclass{minimal}
 \usepackage{forest}
+\def\getforestyear#1/#2/#3 v#4 #5\getforestyear{#1}
+\edef\forestyear{\expandafter\expandafter\expandafter\getforestyear\csname ver@forest.sty\endcsname\getforestyear}
 \begin{document}
 \newwrite\readme
 \immediate\openout\readme=README.txt
 \immediate\write\readme{%
 LaTeX package: forest [\csname ver@forest.sty\endcsname]^^J%
 ^^J%
-Copyright (c) 2012 Saso Zivanovic^^J%
+Copyright (c) \forestyear\space Saso Zivanovic^^J%
 \space\space\space\space\space\space\space\space\space\space\space\space\space\space\space\space\space\space\space(Sa\string\v{s}o \string\v{Z}ivanovi\string\'{c})^^J%
 saso.zivanovic@guest.arnes.si^^J%
 ^^J%

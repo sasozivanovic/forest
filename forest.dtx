@@ -1,9 +1,9 @@
-% \CheckSum{12797}
+% \CheckSum{12819}
 % \iffalse meta-comment
 % forest.dtx
 %% `forest' is a `pgf/tikz'-based package for drawing (linguistic) trees.
 %%
-%% Copyright (c) 2012 Saso Zivanovic
+%% Copyright (c) 2013 Saso Zivanovic
 %%                    (Sa\v{s}o \v{Z}ivanovi\'{c})
 %% saso.zivanovic@guest.arnes.si
 %%
@@ -3967,6 +3967,10 @@
 % \section{Changelog}
 % 
 % \begin{description}
+% \item[v1.04 (2013/10/17)] \mbox{}
+%   \begin{compactitem}
+%   \item Fixed an \href{http://tex.stackexchange.com/questions/138986/error-using-tikzexternalize-with-forest/139145}{externalization bug}.
+%   \end{compactitem}
 % \item[v1.03 (2013/01/28)] \mbox{}
 %   \begin{compactitem}
 %   \item Bugfix: options of dynamically created nodes didn't get processed.
@@ -4013,7 +4017,7 @@
 % 
 % Identification.
 %    \begin{macrocode}
-\ProvidesPackage{forest}[2013/01/28 v1.03 Drawing (linguistic) trees]
+\ProvidesPackage{forest}[2013/10/17 v1.04 Drawing (linguistic) trees]
 
 \RequirePackage{tikz}[2010/10/13]
 \usetikzlibrary{shapes}
@@ -8120,11 +8124,15 @@
     \let\forest@original@tikz@parse@node\tikz@parse@node
     \let\tikz@parse@node\forest@tikz@parse@node
   \fi
-  \forest@drawtree@beginbox
-  \pgfkeysalso{/forest/begin draw}%
-  \forest@node@drawtree@
-  \pgfkeysalso{/forest/end draw}%
-  \forest@drawtree@endbox
+  \pgfkeysgetvalue{/forest/begin draw/.@cmd}\forest@temp@begindraw
+  \pgfkeysgetvalue{/forest/end draw/.@cmd}\forest@temp@enddraw
+  \edef\forest@marshal{%
+    \noexpand\forest@drawtree@beginbox
+    \expandonce{\forest@temp@begindraw\pgfkeysnovalue\pgfeov}%
+    \noexpand\forest@node@drawtree@
+    \expandonce{\forest@temp@enddraw\pgfkeysnovalue\pgfeov}%
+    \noexpand\forest@drawtree@endbox
+  }\forest@marshal
   \ifforesttikzcshack
     \let\tikz@parse@node\forest@original@tikz@parse@node
   \fi
@@ -9591,7 +9599,7 @@
   \edef\forest@marshal{%
     \noexpand\pgfutil@in@
       {\expandafter\detokenize\expandafter{\forest@temp}.}
-      {\expandafter\detokenize\expandafter{\jobname}.}%
+      {\expandafter\detokenize\expandafter{\pgfactualjobname}.}%
   }\forest@marshal
   \ifpgfutil@in@
   \else
