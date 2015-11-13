@@ -1,4 +1,4 @@
-% \CheckSum{12654}
+% \CheckSum{12797}
 % \iffalse meta-comment
 % forest.dtx
 %% `forest' is a `pgf/tikz'-based package for drawing (linguistic) trees.
@@ -441,14 +441,15 @@
   }}
 \makeatother
 \myisaspect{environment}{environment}{forest}
-\myisaspect{option}{option}{align,content,content format,node format,base,node options,phantom,anchor,calign,calign primary angle,calign secondary angle,calign primary child,calign secondary child,fit,grow,ignore,ignore edge,reversed,l,s,l sep,s sep,tier,x,y,child anchor,edge,edge label,edge path,parent anchor,name,tikz,tikz preamble,anchor,level,n,n',n children,id,max x,max y,min x,min y}
+\myisaspect{option}{option}{align,content,content format,node format,base,node options,phantom,anchor,calign,calign primary angle,calign secondary angle,calign primary child,calign secondary child,fit,grow,ignore,ignore edge,reversed,l,s,l sep,s sep,tier,x,y,child anchor,edge,edge label,edge path,parent anchor,name,tikz,anchor,level,n,n',n children,id,max x,max y,min x,min y}
 \myisaspect{propagator}{propagator}{for,if,where,for tree,repeat,delay,delay n,if have delayed,for ancestors,for ancestors',for children,for descendants,for descendants',for all next,for all previous,for previous siblings,before typesetting nodes,before packing,before computing xy,before drawing tree,repeat}
 \myisaspect{type}{type}{toks,autowrapped toks,keylist,dimen,count,boolean}%relative node name,node walk,step}
 \myisaspect{handler}{handler}{.pgfmath,.wrap value,.wrap pgfmath arg,.wrap $n$ pgfmath args,.wrap 2 pgfmath args,.wrap 3 pgfmath args,.wrap 4 pgfmath args,.wrap 5 pgfmath args,.wrap 6 pgfmath args,.wrap 7 pgfmath args,.wrap 8 pgfmath args,.wrap 9 pgfmath args}
 \myisaspect{key prefix}{key prefix}{if in ,where in ,if ,where ,not ,for }
 \myisaspect{key suffix}{key suffix}{',+,-,*,:,'+,'-,'*,':}
 \myisaspect{key}{}{afterthought,baseline,label,pin,alias,TeX,TeX',TeX'',no edge,typeset node,repeat,use as bounding box,use as bounding box',draw tree box}
-\myisaspect{style}{style}{stages,typeset nodes stage,pack stage,compute xy stage,draw tree stage}
+\myisaspect{style}{style}{stages,typeset nodes stage,pack stage,compute xy stage,draw tree
+  stage,math content}
 \myisaspect{stage}{stage}{typeset nodes,typeset nodes',pack,compute xy,draw tree,draw tree'}
 \myisaspect{package option}{package option}{external,tikzcshack,tikzinstallkeys}
 \myisaspect{dynamic tree}{dynamic tree}{create,remove,prepend,append,insert after,insert before,set
@@ -496,11 +497,19 @@
     for tree={text opacity=0.2,draw opacity=0.2,edge={draw opacity=0.2}}}
 }
 
-\title{\FoRest;: a \PGF;/\TikZ;-based package for drawing linguistic trees\\\normalsize v1.02}
+\def\getforestversion#1/#2/#3 v#4 #5\getforestversion{v#4}
+\edef\forestversion{\expandafter\expandafter\expandafter\getforestversion\csname ver@forest.sty\endcsname\getforestversion}
+
+\def\getforestdate#1/#2/#3 v#4 #5\getforestdate{#1/#2/#3}
+\edef\forestdate{\expandafter\expandafter\expandafter\getforestdate\csname ver@forest.sty\endcsname\getforestdate}
+
+\title{\FoRest;: a \PGF;/\TikZ;-based package for drawing linguistic trees\\\normalsize\forestversion}
 \author{Sa\v so \v Zivanovi\'c\footnote{e-mail:
     \href{mailto:saso.zivanovic@guest.arnes.si}{saso.zivanovic@guest.arnes.si};
     web:
     \href{http://spj.ff.uni-lj.si/zivanovic/}{http://spj.ff.uni-lj.si/zivanovic/}}}
+\def\settodayfromforestdateA#1/#2/#3 v#4 #5\settodayfromforestdateA{\def\year{#1}\def\month{#2}\def\day{#3}}
+\def\settodayfromforestdate{\expandafter\expandafter\expandafter\settodayfromforestdateA\csname ver@forest.sty\endcsname\settodayfromforestdateA}
 
 \begin{document}
   \DocInput{forest.dtx}
@@ -519,7 +528,7 @@
 %
 %
 %
-% \maketitle
+% {\settodayfromforestdate\maketitle}
 %
 % \begin{abstract}
 % \FoRest; is a \PGF;/\TikZ;-based package for drawing linguistic (and
@@ -2185,6 +2194,11 @@
 %   \ikeyname{node format} and macros \icmdname{forestoption} and \icmdname{foresteoption}; for an
 %   example, see option \ikeyname{align}.
 %
+% \rkeyname[item]{math content}  The content of the node will be typeset in a math environment.
+%
+% This style is just an abbreviation for \ikeyname{content
+% format}|={\ensuremath{\forestoption{content}}}|. 
+%
 % \rkeyname[item]{node format}|=|\meta{toks}
 %   \hfill|\noexpand\node|\\
 %   \mbox{}\hfill|[\forestoption{node options},anchor=\forestoption{anchor}]|\\
@@ -2768,10 +2782,43 @@
 %   \end{forest}.}
 % \end{forestexample}
 %
+% \rkeyname[item=\begin{tikzpicture}]{begin draw}|/.code=|\meta{toks: \TeX\ code}  \vspace{-\parskip}
+% \rkeyname[item=\end{tikzpicture}]{end draw}|/.code=|\meta{toks: \TeX\ code}
+%
+% The code produced by \ikeyname{draw tree} is put in the environment specified by \keyname{begin
+% draw} and \keyname{end draw}.  Thus, it is this environment, normally a |tikzpicture|, that does
+% the actual drawing.
+%
+% A common use of these keys might be to enclose the |tikzpicture| environment in a |center|
+% environment, thereby automatically centering all trees; or, to provide the \TikZ; code to execute
+% at the beginning and/or end of the picture.
+%
+% Note that \keyname{begin draw} and \keyname{end draw} are \emph{not} node options: they are
+% |\pgfkeys|' code-storing keys \citep[\S55.4.3--4]{tikzpgf2.10}.
+%
+%
+% \rkeyname[item={{{{{}}}}}]{begin forest}|/.code=|\meta{toks: \TeX\ code}  \vspace{-\parskip}
+% \rkeyname[item={{{{{}}}}}]{end forest}|/.code=|\meta{toks: \TeX\ code}
+%
+% The code stored in these (|\pgfkeys|) keys is executed at the beginning and end of the
+% \ikeyname{forest} environment / \icmdname{Forest} macro.  
+%
+% Using these keys is only effective \emph{outside} the \ikeyname{forest} environment, and the
+% effect lasts until the end of the current \TeX\ group.
+%
+% For example, executing \icmdname{forestset}|{begin forest/.code=\small}| will typeset all trees (and only
+% trees) in the small font size.  
+%
+%
 % \rkeyname[item]{fit to tree}  Fits the \TikZ; node to the current node's subtree.
 %
-% This key should be used as an option to \emph{\TikZ;'s} |node| operation, in the context of some
-% \foRest; node; see the example in footnote~\ref{fn:fit-to-tree}.
+% This key should be used like \keyname{/tikz/fit} of the \TikZ;'s fitting library
+% \citep[see][\S34]{tikzpgf2.10}: as an option to \emph{\TikZ;'s} |node| operation, the obvious
+% restriction being that \keyname{fit to tree} must be used in the context of some \foRest; node.
+% For an example, see footnote~\ref{fn:fit-to-tree}.
+%
+% This key works by calling \keyname{/tikz/fit} and providing it with the the coordinates of the
+% subtree's boundary.
 %
 % \rkeyname[item]{get min s tree boundary}|=|\meta{cs} \vspace{-\parskip}
 % \rkeyname[item]{get max s tree boundary}|=|\meta{cs}
@@ -2867,11 +2914,6 @@
 %   By default, bracket parser's afterthoughts feed the value of this option.  See
 %   \ikeyname{afterthought}. 
 %
-%   \rkeyname[item={{{{{}}}}}]{tikz preamble}|=|\meta{toks: \TikZ; code}
-%
-%   If the current node is the root of the tree that is being drawn (see stage \ikeyname{draw tree}),
-%   the code given to this option is prepended to the generated code.
-% 
 % \end{syntax}
 % 
 % \subsubsection{Propagators}
@@ -3107,10 +3149,9 @@
 % \rkeyname[item]{compute xy} Computes the positions of the nodes relative to the (formal) root
 %   node.  The results are stored into options \ikeyname{x} and \ikeyname{y}.
 %
-% \rkeyname[item]{draw tree} Produces the \TikZ; code that will draw the tree.  First, any
-%   \TikZ; code given by \ikeyname{tikz preamble} is included.  Then, the nodes are drawn (using the
-%   boxes typeset in step~\ref{step:typeset-nodes}), followed by edges and custom code (see option
-%   \ikeyname{tikz}).
+% \rkeyname[item]{draw tree} Produces the \TikZ; code that will draw the tree.  First, the nodes
+%   are drawn (using the boxes typeset in step~\ref{step:typeset-nodes}), followed by edges and
+%   custom code (see option \ikeyname{tikz}).
 %   
 % \rkeyname[item]{draw tree'} Like \ikeyname{draw tree}, but the node boxes are included in the
 %   picture using \cmdname{copy}, not \cmdname{box}, thereby preserving them.     
@@ -3926,6 +3967,17 @@
 % \section{Changelog}
 % 
 % \begin{description}
+% \item[v1.03 (2013/01/28)] \mbox{}
+%   \begin{compactitem}
+%   \item Bugfix: options of dynamically created nodes didn't get processed.
+%   \item Bugfix: the bracket parser was losing spaces before opening braces.
+%   \item Bugfix: a family of utility macros dealing with affixing token lists was not expanding
+%     content correctly.
+%   \item Added style \ikeyname{math content}.
+%   \item Replace key \keyname{tikz preamble} with more general \ikeyname{begin draw} and
+%     \ikeyname{end draw}.
+%   \item Add keys \ikeyname{begin forest} and \ikeyname{end forest}.
+%   \end{compactitem}
 % \item[v1.02 (2013/01/20)] \mbox{}
 %   \begin{compactitem}
 %   \item Reworked style \ikeyname{stages}: it's easier to modify the processing flow now.
@@ -3961,7 +4013,7 @@
 % 
 % Identification.
 %    \begin{macrocode}
-\ProvidesPackage{forest}[2013/01/20 v1.02 Drawing (linguistic) trees]
+\ProvidesPackage{forest}[2013/01/28 v1.03 Drawing (linguistic) trees]
 
 \RequirePackage{tikz}[2010/10/13]
 \usetikzlibrary{shapes}
@@ -4290,12 +4342,12 @@
 %    \begin{macrocode}
 \def\apptotoks#1#2{\expandafter#1\expandafter{\the#1#2}}
 \long\def\lapptotoks#1#2{\expandafter#1\expandafter{\the#1#2}}
-\def\eapptotoks#1#2{\edef\pot@temp{#2}\expandafter\expandafter\expandafter#1\expandafter\expandafter\expandafter{\expandafter\expandafter\the\expandafter#1\pot@temp}}
-\def\pretotoks#1#2{\toks@={#2}\expandafter\expandafter\expandafter#1\expandafter\expandafter\expandafter{\expandafter\expandafter\the\expandafter\toks@\the#1}}
+\def\eapptotoks#1#2{\edef\pot@temp{#2}\expandafter\expandafter\expandafter#1\expandafter\expandafter\expandafter{\expandafter\the\expandafter#1\pot@temp}}
+\def\pretotoks#1#2{\toks@={#2}\expandafter\expandafter\expandafter#1\expandafter\expandafter\expandafter{\expandafter\the\expandafter\toks@\the#1}}
 \def\epretotoks#1#2{\edef\pot@temp{#2}\expandafter\expandafter\expandafter#1\expandafter\expandafter\expandafter{\expandafter\pot@temp\the#1}}
 \def\gapptotoks#1#2{\expandafter\global\expandafter#1\expandafter{\the#1#2}}
-\def\xapptotoks#1#2{\edef\pot@temp{#2}\expandafter\expandafter\expandafter\global\expandafter\expandafter\expandafter#1\expandafter\expandafter\expandafter{\expandafter\expandafter\the\expandafter#1\pot@temp}}
-\def\gpretotoks#1#2{\toks@={#2}\expandafter\expandafter\expandafter\global\expandafter\expandafter\expandafter#1\expandafter\expandafter\expandafter{\expandafter\expandafter\the\expandafter\toks@\the#1}}
+\def\xapptotoks#1#2{\edef\pot@temp{#2}\expandafter\expandafter\expandafter\global\expandafter\expandafter\expandafter#1\expandafter\expandafter\expandafter{\expandafter\the\expandafter#1\pot@temp}}
+\def\gpretotoks#1#2{\toks@={#2}\expandafter\expandafter\expandafter\global\expandafter\expandafter\expandafter#1\expandafter\expandafter\expandafter{\expandafter\the\expandafter\toks@\the#1}}
 \def\xpretotoks#1#2{\edef\pot@temp{#2}\expandafter\expandafter\expandafter\global\expandafter\expandafter\expandafter#1\expandafter\expandafter\expandafter{\expandafter\pot@temp\the#1}}
 %    \end{macrocode}
 %    
@@ -4866,6 +4918,7 @@
   \bracket@Parse
 }
 \def\bracket@Parse@appendGroup#1{%
+  \bracket@Parse@appendSpace
   \ifcase\bracket@state\relax
     \apptotoks\bracket@content{{#1}}%
   \or
@@ -6160,6 +6213,10 @@
     \forest@node@setname{#1}%
   },
   alias/.code={\forest@node@setalias{#1}},
+  begin draw/.code={\begin{tikzpicture}},
+  end draw/.code={\end{tikzpicture}},
+  begin forest/.code={},
+  end forest/.code={},
   declare autowrapped toks={content}{},
   declare count={grow}{270},
   TeX={% a hack for grow-reversed connection, and compass-based grow specification
@@ -6236,12 +6293,12 @@
   declare keylist={node options}{},
   declare toks={tikz}{},
   afterthought/.style={tikz+={#1}},
-  declare toks={tikz preamble}{},
   label/.style={tikz={\path[late options={%
         name=\forestoption{name},label={#1}}];}},
   pin/.style={tikz={\path[late options={%
         name=\forestoption{name},pin={#1}}];}},
   declare toks={content format}{\forestoption{content}},
+  math content/.style={content format={\ensuremath{\forestoption{content}}}},
   declare toks={node format}{%
     \noexpand\node
     [\forestoption{node options},anchor=\forestoption{anchor}]%
@@ -6479,6 +6536,13 @@
 \def\forest@create@collectafterthought#1\forest@end@create@node{%
   \forestOletO{\forest@last@node}{delay}{\forest@last@node}{given options}%
   \forestOset{\forest@last@node}{given options}{}%
+  \forestOeappto{\forest@last@node}{delay}{,\unexpanded{#1}}%
+}
+\def\forest@create@collectafterthought#1\forest@end@create@node{%
+  \forest@node@Foreach{\forest@last@node}{%
+    \forestoleto{delay}{given options}%
+    \forestoset{given options}{}%
+  }%
   \forestOeappto{\forest@last@node}{delay}{,\unexpanded{#1}}%
 }
 \def\forest@remove@node#1{%
@@ -8057,10 +8121,9 @@
     \let\tikz@parse@node\forest@tikz@parse@node
   \fi
   \forest@drawtree@beginbox
-  \tikz{%
-    \forestove{tikz preamble}%
-    \forest@node@drawtree@
-  }%
+  \pgfkeysalso{/forest/begin draw}%
+  \forest@node@drawtree@
+  \pgfkeysalso{/forest/end draw}%
   \forest@drawtree@endbox
   \ifforesttikzcshack
     \let\tikz@parse@node\forest@original@tikz@parse@node
@@ -9484,8 +9547,8 @@
 % Most of the code in this section deals with externalization. 
 %
 %    \begin{macrocode}
-\newenvironment{forest}{\Collect@Body\forest@env}{}
-\long\def\Forest{\@ifnextchar*{\forest@nogroup}{\forest@group}}
+\newenvironment{forest}{\pgfkeysalso{/forest/begin forest}\Collect@Body\forest@env}{}
+\long\def\Forest{\pgfkeysalso{/forest/begin forest}\@ifnextchar*{\forest@nogroup}{\forest@group}}
 \def\forest@group#1{{\forest@env{#1}}}
 \def\forest@nogroup*#1{\forest@env{#1}}
 \newif\ifforest@externalize@tree@
@@ -9653,6 +9716,7 @@
   \forest@node@Compute@numeric@ts@info{\forest@root}%
   \forestset{process keylist=given options}%
   \forestset{stages}%
+  \pgfkeysalso{/forest/end forest}%
   \ifforest@was@tikzexternalwasenable
     \tikzexternalenable
   \fi
