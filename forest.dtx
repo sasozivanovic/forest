@@ -1,4 +1,4 @@
-% \CheckSum{12878}
+% \CheckSum{12884}
 % \iffalse meta-comment
 % forest.dtx
 %% `forest' is a `pgf/tikz'-based package for drawing (linguistic) trees.
@@ -3967,6 +3967,11 @@
 % \section{Changelog}
 % 
 % \begin{description}
+% \item[v1.0.10 (2015/07/22)] \mbox{}
+%   \begin{compactitem}
+%   \item Bugfix: a left-over debugging |\typeout| command was interfering with a |forest| within |tabular|, see \href{http://tex.stackexchange.com/questions/256509/odd-incompatibility-between-multi-line-forest-nodes-and-tabular}{this question on TeX.SE}.
+%   \item A somewhat changed versioning scheme \dots
+%   \end{compactitem}
 % \item[v1.09 (2015/07/15)] \mbox{}
 %   \begin{compactitem}
 %   \item Bugfix: child alignment was not done in nodes with a single child, see \href{http://tex.stackexchange.com/questions/255309/elementary-forest-question-meaning-of-calign-parent-anchor-and-child-anchor}{this question on TeX.SE}.
@@ -4037,7 +4042,7 @@
 % 
 % Identification.
 %    \begin{macrocode}
-\ProvidesPackage{forest}[2015/07/15 v1.09 Drawing (linguistic) trees]
+\ProvidesPackage{forest}[2015/07/15 v1.0.10 Drawing (linguistic) trees]
 
 \RequirePackage{tikz}[2010/10/13]
 \usetikzlibrary{shapes}
@@ -7047,7 +7052,6 @@
 %    \end{macrocode}
 % No need to run packing, but we still need to align the children.
 %    \begin{macrocode}
-\typeout{DEBUG calign: \forestove{content} --- \forestove{calign}}%
       \csname forest@calign@\forestove{calign}\endcsname
     \fi
   \fi
