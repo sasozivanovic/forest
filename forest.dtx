@@ -1,4 +1,4 @@
-% \CheckSum{12854}
+% \CheckSum{12878}
 % \iffalse meta-comment
 % forest.dtx
 %% `forest' is a `pgf/tikz'-based package for drawing (linguistic) trees.
@@ -3967,6 +3967,10 @@
 % \section{Changelog}
 % 
 % \begin{description}
+% \item[v1.09 (2015/07/15)] \mbox{}
+%   \begin{compactitem}
+%   \item Bugfix: child alignment was not done in nodes with a single child, see \href{http://tex.stackexchange.com/questions/255309/elementary-forest-question-meaning-of-calign-parent-anchor-and-child-anchor}{this question on TeX.SE}.
+%   \end{compactitem}
 % \item[v1.08 (2015/07/10)] \mbox{}
 %   \begin{compactitem}
 %   \item Fix externalization (compatibility with new |tikz| features).
@@ -4033,7 +4037,7 @@
 % 
 % Identification.
 %    \begin{macrocode}
-\ProvidesPackage{forest}[2015/07/10 v1.08 Drawing (linguistic) trees]
+\ProvidesPackage{forest}[2015/07/15 v1.09 Drawing (linguistic) trees]
 
 \RequirePackage{tikz}[2010/10/13]
 \usetikzlibrary{shapes}
@@ -7038,6 +7042,14 @@
     \else
       \pack@sibling@uniform@main{last}{first}{previous}{next}%
     \fi
+  \else
+    \ifnum\forestove{n children}=1
+%    \end{macrocode}
+% No need to run packing, but we still need to align the children.
+%    \begin{macrocode}
+\typeout{DEBUG calign: \forestove{content} --- \forestove{calign}}%
+      \csname forest@calign@\forestove{calign}\endcsname
+    \fi
   \fi
 }
 %    \end{macrocode}
@@ -7248,143 +7260,147 @@
 % node edges. 
 %    \begin{macrocode}
 \csdef{forest@calign@fixed angles}{%
-  \edef\forest@ca@first@child{\forest@node@nornbarthchildid{\forestove{calign primary child}}}%
-  \edef\forest@ca@second@child{\forest@node@nornbarthchildid{\forestove{calign secondary child}}}%
-  \ifnum\forestove{reversed}=1
-    \let\forest@temp\forest@ca@first@child
-    \let\forest@ca@first@child\forest@ca@second@child
-    \let\forest@ca@second@child\forest@temp
-  \fi
-  \forestOget{\forest@ca@first@child}{l}\forest@ca@first@l
-  \forestOget{\forest@ca@second@child}{l}\forest@ca@second@l
-  \pgfmathsetlengthmacro\forest@ca@desired@s@distance{%
-    tan(\forestove{calign secondary angle})*\forest@ca@second@l
-    -tan(\forestove{calign primary angle})*\forest@ca@first@l
-  }%
-  \forestOget{\forest@ca@first@child}{s}\forest@ca@first@s
-  \forestOget{\forest@ca@second@child}{s}\forest@ca@second@s
-  \pgfmathsetlengthmacro\forest@ca@actual@s@distance{%
-    \forest@ca@second@s-\forest@ca@first@s}%
-  \ifdim\forest@ca@desired@s@distance>\forest@ca@actual@s@distance\relax
-    \ifdim\forest@ca@actual@s@distance=0pt
-      \pgfmathsetlength\pgfutil@tempdima{tan(\forestove{calign primary angle})*\forest@ca@second@l}%
-      \pgfmathsetlength\pgfutil@tempdimb{\forest@ca@desired@s@distance/(\forestove{n children}-1)}%
-      \forest@node@foreachchild{%
-        \forestoeset{s}{\the\pgfutil@tempdima}%
-        \advance\pgfutil@tempdima\pgfutil@tempdimb
-      }%
-      \def\forest@calign@anchor{0pt}%
+  \ifnum\forestove{n children}>1
+    \edef\forest@ca@first@child{\forest@node@nornbarthchildid{\forestove{calign primary child}}}%
+    \edef\forest@ca@second@child{\forest@node@nornbarthchildid{\forestove{calign secondary child}}}%
+    \ifnum\forestove{reversed}=1
+      \let\forest@temp\forest@ca@first@child
+      \let\forest@ca@first@child\forest@ca@second@child
+      \let\forest@ca@second@child\forest@temp
+    \fi
+    \forestOget{\forest@ca@first@child}{l}\forest@ca@first@l
+    \forestOget{\forest@ca@second@child}{l}\forest@ca@second@l
+    \pgfmathsetlengthmacro\forest@ca@desired@s@distance{%
+      tan(\forestove{calign secondary angle})*\forest@ca@second@l
+      -tan(\forestove{calign primary angle})*\forest@ca@first@l
+    }%
+    \forestOget{\forest@ca@first@child}{s}\forest@ca@first@s
+    \forestOget{\forest@ca@second@child}{s}\forest@ca@second@s
+    \pgfmathsetlengthmacro\forest@ca@actual@s@distance{%
+      \forest@ca@second@s-\forest@ca@first@s}%
+    \ifdim\forest@ca@desired@s@distance>\forest@ca@actual@s@distance\relax
+      \ifdim\forest@ca@actual@s@distance=0pt
+        \pgfmathsetlength\pgfutil@tempdima{tan(\forestove{calign primary angle})*\forest@ca@second@l}%
+        \pgfmathsetlength\pgfutil@tempdimb{\forest@ca@desired@s@distance/(\forestove{n children}-1)}%
+        \forest@node@foreachchild{%
+          \forestoeset{s}{\the\pgfutil@tempdima}%
+          \advance\pgfutil@tempdima\pgfutil@tempdimb
+        }%
+        \def\forest@calign@anchor{0pt}%
+      \else
+        \pgfmathsetmacro\forest@ca@ratio{%
+          \forest@ca@desired@s@distance/\forest@ca@actual@s@distance}%
+        \forest@node@foreachchild{%
+          \pgfmathsetlengthmacro\forest@temp{\forest@ca@ratio*\forestove{s}}%
+          \forestolet{s}\forest@temp
+        }%
+        \pgfmathsetlengthmacro\forest@calign@anchor{%
+          -tan(\forestove{calign primary angle})*\forest@ca@first@l}%
+      \fi
     \else
-      \pgfmathsetmacro\forest@ca@ratio{%
-        \forest@ca@desired@s@distance/\forest@ca@actual@s@distance}%
-      \forest@node@foreachchild{%
-        \pgfmathsetlengthmacro\forest@temp{\forest@ca@ratio*\forestove{s}}%
-        \forestolet{s}\forest@temp
-      }%
-      \pgfmathsetlengthmacro\forest@calign@anchor{%
-        -tan(\forestove{calign primary angle})*\forest@ca@first@l}%
+      \ifdim\forest@ca@desired@s@distance<\forest@ca@actual@s@distance\relax
+        \pgfmathsetlengthmacro\forest@ca@ratio{%
+          \forest@ca@actual@s@distance/\forest@ca@desired@s@distance}%
+        \forest@node@foreachchild{%
+          \pgfmathsetlengthmacro\forest@temp{\forest@ca@ratio*\forestove{l}}%
+          \forestolet{l}\forest@temp
+        }%
+        \forestOget{\forest@ca@first@child}{l}\forest@ca@first@l
+        \pgfmathsetlengthmacro\forest@calign@anchor{%
+          -tan(\forestove{calign primary angle})*\forest@ca@first@l}%
+      \fi
     \fi
-  \else
-    \ifdim\forest@ca@desired@s@distance<\forest@ca@actual@s@distance\relax
-      \pgfmathsetlengthmacro\forest@ca@ratio{%
-        \forest@ca@actual@s@distance/\forest@ca@desired@s@distance}%
-      \forest@node@foreachchild{%
-        \pgfmathsetlengthmacro\forest@temp{\forest@ca@ratio*\forestove{l}}%
-        \forestolet{l}\forest@temp
-      }%
-      \forestOget{\forest@ca@first@child}{l}\forest@ca@first@l
-      \pgfmathsetlengthmacro\forest@calign@anchor{%
-        -tan(\forestove{calign primary angle})*\forest@ca@first@l}%
-    \fi
+    \forest@calign@s@shift{-\forest@calign@anchor}%
   \fi
-  \forest@calign@s@shift{-\forest@calign@anchor}%
 }
 \csdef{forest@calign@fixed edge angles}{%
-  \edef\forest@ca@first@child{\forest@node@nornbarthchildid{\forestove{calign primary child}}}%
-  \edef\forest@ca@second@child{\forest@node@nornbarthchildid{\forestove{calign secondary child}}}%
-  \ifnum\forestove{reversed}=1
-    \let\forest@temp\forest@ca@first@child
-    \let\forest@ca@first@child\forest@ca@second@child
-    \let\forest@ca@second@child\forest@temp
-  \fi
-  \forestOget{\forest@ca@first@child}{l}\forest@ca@first@l
-  \forestOget{\forest@ca@second@child}{l}\forest@ca@second@l
-  \forestoget{parent@anchor}\forest@ca@parent@anchor
-  \forest@ca@parent@anchor
-  \edef\forest@ca@parent@anchor@s{\the\pgf@x}%
-  \edef\forest@ca@parent@anchor@l{\the\pgf@y}%
-  \forestOget{\forest@ca@first@child}{child@anchor}\forest@ca@first@child@anchor
-  \forest@ca@first@child@anchor
-  \edef\forest@ca@first@child@anchor@s{\the\pgf@x}%
-  \edef\forest@ca@first@child@anchor@l{\the\pgf@y}%
-  \forestOget{\forest@ca@second@child}{child@anchor}\forest@ca@second@child@anchor
-  \forest@ca@second@child@anchor
-  \edef\forest@ca@second@child@anchor@s{\the\pgf@x}%
-  \edef\forest@ca@second@child@anchor@l{\the\pgf@y}%
-  \pgfmathsetlengthmacro\forest@ca@desired@second@edge@s{tan(\forestove{calign secondary angle})*%
-    (\forest@ca@second@l-\forest@ca@second@child@anchor@l+\forest@ca@parent@anchor@l)}%
-  \pgfmathsetlengthmacro\forest@ca@desired@first@edge@s{tan(\forestove{calign primary angle})*%
-    (\forest@ca@first@l-\forest@ca@first@child@anchor@l+\forest@ca@parent@anchor@l)}
-  \pgfmathsetlengthmacro\forest@ca@desired@s@distance{\forest@ca@desired@second@edge@s-\forest@ca@desired@first@edge@s}%
-  \forestOget{\forest@ca@first@child}{s}\forest@ca@first@s
-  \forestOget{\forest@ca@second@child}{s}\forest@ca@second@s
-  \pgfmathsetlengthmacro\forest@ca@actual@s@distance{%
-    \forest@ca@second@s+\forest@ca@second@child@anchor@s
-    -\forest@ca@first@s-\forest@ca@first@child@anchor@s}%
-  \ifdim\forest@ca@desired@s@distance>\forest@ca@actual@s@distance\relax
-    \ifdim\forest@ca@actual@s@distance=0pt
-      \forestoget{n children}\forest@temp@n@children
-      \forest@node@foreachchild{%
-        \forestoget{child@anchor}\forest@temp@child@anchor
-        \forest@temp@child@anchor
-        \edef\forest@temp@child@anchor@s{\the\pgf@x}%
-        \pgfmathsetlengthmacro\forest@temp{%
-          \forest@ca@desired@first@edge@s+(\forestove{n}-1)*\forest@ca@desired@s@distance/(\forest@temp@n@children-1)+\forest@ca@first@child@anchor@s-\forest@temp@child@anchor@s}%
-        \forestolet{s}\forest@temp
-      }%
-      \def\forest@calign@anchor{0pt}%
+  \ifnum\forestove{n children}>1
+    \edef\forest@ca@first@child{\forest@node@nornbarthchildid{\forestove{calign primary child}}}%
+    \edef\forest@ca@second@child{\forest@node@nornbarthchildid{\forestove{calign secondary child}}}%
+    \ifnum\forestove{reversed}=1
+      \let\forest@temp\forest@ca@first@child
+      \let\forest@ca@first@child\forest@ca@second@child
+      \let\forest@ca@second@child\forest@temp
+    \fi
+    \forestOget{\forest@ca@first@child}{l}\forest@ca@first@l
+    \forestOget{\forest@ca@second@child}{l}\forest@ca@second@l
+    \forestoget{parent@anchor}\forest@ca@parent@anchor
+    \forest@ca@parent@anchor
+    \edef\forest@ca@parent@anchor@s{\the\pgf@x}%
+    \edef\forest@ca@parent@anchor@l{\the\pgf@y}%
+    \forestOget{\forest@ca@first@child}{child@anchor}\forest@ca@first@child@anchor
+    \forest@ca@first@child@anchor
+    \edef\forest@ca@first@child@anchor@s{\the\pgf@x}%
+    \edef\forest@ca@first@child@anchor@l{\the\pgf@y}%
+    \forestOget{\forest@ca@second@child}{child@anchor}\forest@ca@second@child@anchor
+    \forest@ca@second@child@anchor
+    \edef\forest@ca@second@child@anchor@s{\the\pgf@x}%
+    \edef\forest@ca@second@child@anchor@l{\the\pgf@y}%
+    \pgfmathsetlengthmacro\forest@ca@desired@second@edge@s{tan(\forestove{calign secondary angle})*%
+      (\forest@ca@second@l-\forest@ca@second@child@anchor@l+\forest@ca@parent@anchor@l)}%
+    \pgfmathsetlengthmacro\forest@ca@desired@first@edge@s{tan(\forestove{calign primary angle})*%
+      (\forest@ca@first@l-\forest@ca@first@child@anchor@l+\forest@ca@parent@anchor@l)}
+    \pgfmathsetlengthmacro\forest@ca@desired@s@distance{\forest@ca@desired@second@edge@s-\forest@ca@desired@first@edge@s}%
+    \forestOget{\forest@ca@first@child}{s}\forest@ca@first@s
+    \forestOget{\forest@ca@second@child}{s}\forest@ca@second@s
+    \pgfmathsetlengthmacro\forest@ca@actual@s@distance{%
+      \forest@ca@second@s+\forest@ca@second@child@anchor@s
+      -\forest@ca@first@s-\forest@ca@first@child@anchor@s}%
+    \ifdim\forest@ca@desired@s@distance>\forest@ca@actual@s@distance\relax
+      \ifdim\forest@ca@actual@s@distance=0pt
+        \forestoget{n children}\forest@temp@n@children
+        \forest@node@foreachchild{%
+          \forestoget{child@anchor}\forest@temp@child@anchor
+          \forest@temp@child@anchor
+          \edef\forest@temp@child@anchor@s{\the\pgf@x}%
+          \pgfmathsetlengthmacro\forest@temp{%
+            \forest@ca@desired@first@edge@s+(\forestove{n}-1)*\forest@ca@desired@s@distance/(\forest@temp@n@children-1)+\forest@ca@first@child@anchor@s-\forest@temp@child@anchor@s}%
+          \forestolet{s}\forest@temp
+        }%
+        \def\forest@calign@anchor{0pt}%
+      \else
+        \pgfmathsetmacro\forest@ca@ratio{%
+          \forest@ca@desired@s@distance/\forest@ca@actual@s@distance}%
+        \forest@node@foreachchild{%
+          \forestoget{child@anchor}\forest@temp@child@anchor
+          \forest@temp@child@anchor
+          \edef\forest@temp@child@anchor@s{\the\pgf@x}%
+          \pgfmathsetlengthmacro\forest@temp{%
+            \forest@ca@ratio*(%
+              \forestove{s}-\forest@ca@first@s
+              +\forest@temp@child@anchor@s-\forest@ca@first@child@anchor@s)%
+            +\forest@ca@first@s
+            +\forest@ca@first@child@anchor@s-\forest@temp@child@anchor@s}%
+          \forestolet{s}\forest@temp
+        }%
+        \pgfmathsetlengthmacro\forest@calign@anchor{%
+          -tan(\forestove{calign primary angle})*(\forest@ca@first@l-\forest@ca@first@child@anchor@l+\forest@ca@parent@anchor@l)%
+          +\forest@ca@first@child@anchor@s-\forest@ca@parent@anchor@s
+        }%
+      \fi
     \else
-      \pgfmathsetmacro\forest@ca@ratio{%
-        \forest@ca@desired@s@distance/\forest@ca@actual@s@distance}%
-      \forest@node@foreachchild{%
-        \forestoget{child@anchor}\forest@temp@child@anchor
-        \forest@temp@child@anchor
-        \edef\forest@temp@child@anchor@s{\the\pgf@x}%
-        \pgfmathsetlengthmacro\forest@temp{%
-          \forest@ca@ratio*(%
-            \forestove{s}-\forest@ca@first@s
-            +\forest@temp@child@anchor@s-\forest@ca@first@child@anchor@s)%
-          +\forest@ca@first@s
-          +\forest@ca@first@child@anchor@s-\forest@temp@child@anchor@s}%
-        \forestolet{s}\forest@temp
-      }%
-      \pgfmathsetlengthmacro\forest@calign@anchor{%
-        -tan(\forestove{calign primary angle})*(\forest@ca@first@l-\forest@ca@first@child@anchor@l+\forest@ca@parent@anchor@l)%
-        +\forest@ca@first@child@anchor@s-\forest@ca@parent@anchor@s
-      }%
+      \ifdim\forest@ca@desired@s@distance<\forest@ca@actual@s@distance\relax
+        \pgfmathsetlengthmacro\forest@ca@ratio{%
+          \forest@ca@actual@s@distance/\forest@ca@desired@s@distance}%
+        \forest@node@foreachchild{%
+          \forestoget{child@anchor}\forest@temp@child@anchor
+          \forest@temp@child@anchor
+          \edef\forest@temp@child@anchor@l{\the\pgf@y}%
+          \pgfmathsetlengthmacro\forest@temp{%
+            \forest@ca@ratio*(%
+              \forestove{l}+\forest@ca@parent@anchor@l-\forest@temp@child@anchor@l)
+              -\forest@ca@parent@anchor@l+\forest@temp@child@anchor@l}%
+          \forestolet{l}\forest@temp
+        }%
+        \forestOget{\forest@ca@first@child}{l}\forest@ca@first@l
+        \pgfmathsetlengthmacro\forest@calign@anchor{%
+          -tan(\forestove{calign primary angle})*(\forest@ca@first@l+\forest@ca@parent@anchor@l-\forest@temp@child@anchor@l)%
+          +\forest@ca@first@child@anchor@s-\forest@ca@parent@anchor@s
+        }%
+      \fi
     \fi
-  \else
-    \ifdim\forest@ca@desired@s@distance<\forest@ca@actual@s@distance\relax
-      \pgfmathsetlengthmacro\forest@ca@ratio{%
-        \forest@ca@actual@s@distance/\forest@ca@desired@s@distance}%
-      \forest@node@foreachchild{%
-        \forestoget{child@anchor}\forest@temp@child@anchor
-        \forest@temp@child@anchor
-        \edef\forest@temp@child@anchor@l{\the\pgf@y}%
-        \pgfmathsetlengthmacro\forest@temp{%
-          \forest@ca@ratio*(%
-            \forestove{l}+\forest@ca@parent@anchor@l-\forest@temp@child@anchor@l)
-            -\forest@ca@parent@anchor@l+\forest@temp@child@anchor@l}%
-        \forestolet{l}\forest@temp
-      }%
-      \forestOget{\forest@ca@first@child}{l}\forest@ca@first@l
-      \pgfmathsetlengthmacro\forest@calign@anchor{%
-        -tan(\forestove{calign primary angle})*(\forest@ca@first@l+\forest@ca@parent@anchor@l-\forest@temp@child@anchor@l)%
-        +\forest@ca@first@child@anchor@s-\forest@ca@parent@anchor@s
-      }%
-    \fi
+    \forest@calign@s@shift{-\forest@calign@anchor}%
   \fi
-  \forest@calign@s@shift{-\forest@calign@anchor}%
 }
 %    \end{macrocode}
 %
