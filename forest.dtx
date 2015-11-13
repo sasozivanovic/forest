@@ -1,4 +1,4 @@
-% \CheckSum{12819}
+% \CheckSum{12832}
 % \iffalse meta-comment
 % forest.dtx
 %% `forest' is a `pgf/tikz'-based package for drawing (linguistic) trees.
@@ -3967,6 +3967,10 @@
 % \section{Changelog}
 % 
 % \begin{description}
+% \item[v1.05 (2014/03/07)] \mbox{}
+%   \begin{compactitem}
+%   \item Fix the node boundary code for rounded rectangle.  (Patch contributed by Paul Gaborit.)
+%   \end{compactitem}
 % \item[v1.04 (2013/10/17)] \mbox{}
 %   \begin{compactitem}
 %   \item Fixed an \href{http://tex.stackexchange.com/questions/138986/error-using-tikzexternalize-with-forest/139145}{externalization bug}.
@@ -4017,7 +4021,7 @@
 % 
 % Identification.
 %    \begin{macrocode}
-\ProvidesPackage{forest}[2013/10/17 v1.04 Drawing (linguistic) trees]
+\ProvidesPackage{forest}[2014/03/07 v1.05 Drawing (linguistic) trees]
 
 \RequirePackage{tikz}[2010/10/13]
 \usetikzlibrary{shapes}
@@ -8029,7 +8033,17 @@
   \forest@mt{north east}%
   \forest@lt{south west}%
 }%  
-\cslet{forest@compute@node@boundary@rounded rectangle}\forest@compute@node@boundary@rectangle
+\csdef{forest@compute@node@boundary@rounded rectangle}{%
+  \forest@mt{east}%
+  \forest@lt{north east}%
+  \forest@lt{north}%
+  \forest@lt{north west}%
+  \forest@lt{west}%
+  \forest@lt{south west}%
+  \forest@lt{south}%
+  \forest@lt{south east}%
+  \forest@lt{east}%
+}%
 \csdef{forest@compute@node@boundary@chamfered rectangle}{%
   \forest@mt{before south west}%
   \forest@mt{after south west}%
