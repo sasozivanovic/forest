@@ -1,0 +1,790 @@
+% \CheckSum{12884}
+% \iffalse meta-comment
+% forest-index.dtx
+%% `forest-index' is an indexing system for the documentation of package `forest', using the package itself.
+%%
+%% Copyright (c) 2015 Saso Zivanovic
+%%                    (Sa\v{s}o \v{Z}ivanovi\'{c})
+%% saso.zivanovic@guest.arnes.si
+%%
+%% This work may be distributed and/or modified under the
+%% conditions of the LaTeX Project Public License, either version 1.3
+%% of this license or (at your option) any later version.
+%% The latest version of this license is in
+%% 
+%%   http://www.latex-project.org/lppl.txt
+%%   
+%% and version 1.3 or later is part of all distributions of LaTeX
+%% version 2005/12/01 or later.
+%%
+%% This work has the LPPL maintenance status `maintained'.
+%% 
+%% The Current Maintainer of this work is Saso Zivanovic.
+%%
+%% This file is a part of package `forest'. For the list of files
+%% constituting the package see main source file of the package,
+%% forest.dtx.
+%%
+% \fi
+%
+% \newcommand\entry[1]{{``#1''}}
+%
+% \subsection{\protect{\texttt{forest-index}}}
+% \label{sec:forest-index}
+%
+% The indexing system used to document the \foRest; package uses the
+% package itself quite heavily.  While this might be a bit surprising
+% at first sight, as indexing draws no trees, the indexing package
+% illustrates the usage of some of the more exotic features and
+% usage-cases of the \foRest; package, which is why its source is
+% included in this documentation.\footnote{Indexing with this package
+% makes the compilation very slow, so I cannot whole-heartedly
+% recommend it, but I still hope that it will make a useful example.}
+%
+% This package has three main functions:
+% \begin{itemize}
+% \item It is possible to index subentries using a \emph{short form}
+%   of their index key, i.e.\ without referring to their ancestor
+%   entries.  For example, instead of writing |\index{option>content}|
+%   one can simply write |\index{content}|.  (Obviously, the subentry
+%   must \entry{content} be defined as belonging to entry
+%   \entry{option} first. This is done using
+%   |\indexdef{option>content}|.)  This works for all keys which are a
+%   subentry of a single entry.
+% \item All subentries are automatically entered as main entries as
+%   well, with a qualificator of which entry they belong to.  So,
+%   |\index{option>content}| produces two index entries: entry
+%   \entry{option} with subentry \entry{content} and entry
+%   \entry{content \scriptsize option}.  This works for an arbitrary
+%   number of subentry levels.
+% \item Entries can be given options that format the appearance of the
+%   entry and/or its descendants in both text and index. (Entries that
+%   format the appearance of their descendants are called categories
+%   below.)
+% \item If |hyperref| package is loaded, the following hyperlinks are
+%   created besides the standard ones linking the page numbers in
+%   index to text:
+%   \begin{enumerate*}[(i)]
+%   \item entries in text link to the definition in text,
+%   \item definitions in the text link to the index entry,
+%   \item categories in index are cross-linked.
+%   \end{enumerate*}
+% 
+% \end{itemize}
+%
+% The \foRest; package mainly enters the picture with respect to the
+% entry formatting. A simple (narrow) tree is built containing an entry
+% and all its ancestors.  Formatting instructions are then processed
+% using \foRest;'s option processing mechanisms.
+%
+% Finally, note that this package might change without retaining
+% backwards compatibility, and that changes of this package will not
+% be entered into the changelog.
+% 
+% Identification.
+%    \begin{macrocode}
+\ProvidesPackage{forest-index}
+\RequirePackage{forest}
+%    \end{macrocode}
+% Remember the original \LaTeX's |\index| command.
+%    \begin{macrocode}
+\let\forestindex@LaTeX@index\index
+%    \end{macrocode}
+%    
+% \subsubsection*{The user interface macros}
+%
+% \DescribeMacro{\index} is the general purpose macro.
+% \DescribeMacro{\indexdef} and \DescribeMacro{\indexex} are
+% shorthands for indexing definitions and
+% examples. \DescribeMacro{\indexitem} is a combination of |\indexdef|
+% and the |\item| of the |lstdoc| package. It automatically indexes
+% the command being documented.  \DescribeMacro{\indexset} neither
+% typesets or indexes the entry, but only configures it; it is usually
+% used to configure categories.  All these macros parse their
+% arguments using |xparse|. The arguments, listed in the reverse
+% order:
+% \begin{itemize}
+% \item The final argument, which is the only mandatory argument, is a
+%   comma-separated list of index keys.
+% \item The boolean switch |>| just before the mandatory argument
+%   signals that the keys are given in the full form. Otherwise, keys
+%   without a level separator are considered short.
+% \item Indexing options are given by the |[|optional |]| argument.
+% \item The first |(|optional|)| argument of:
+%   \begin{compactitem}
+%   \item |\indexitem|: specifies the default value of the command.
+%   \item |\index|: is used to
+%     provide ``early'' options.
+%   \end{compactitem}
+% \end{itemize}
+%
+% Among the options of these commands, three keylists are of special
+% importance: |index_key_format|, |index_form_format| and
+% |print_format|.  These hold instructions on how to format the index
+% key, the form of the entry in the index and the form of the entry in
+% the main text.  They work by modifying the contents of an
+% \indexex{autowrapped toks} register |result|.  
+%
+% An example: how macros are indexed in this documentation. Style
+% |macro| defined below does everything needed to format a macro name:
+% it detokenizes the given name (in case the name contains some funny
+% characters), prefixes the backslash, wraps in in the typewriter
+% font, adds color and hyperlink (the final two styles are defined in
+% below this package).  Note the usage of |\protect|: it is needed
+% because we want to use these styles to format entries not just in
+% the main next, but also in the index.
+% \lstinputregion{forest-doc.tex}{index_macro_style} Then, we
+% configure the main level entry \entry{macro}: the child of this
+% entry will be formatted (both in index and in the main text) using
+% the previously defined style.
+% \lstinputregion{forest-doc.tex}{index_macro_category} Usage is then
+% simple: we write |\indexex{macro>forestoption}| (or simply
+% |\indexex{forestoption}| to get \indexex{forestoption}.
+% 
+%    \begin{macrocode}
+\DeclareDocumentCommand\indexdef{O{} t> m}{%
+  \IfBooleanTF{#2}
+    {\let\forestindex@resolvekey\forestindex@resolvekey@long}
+    {\let\forestindex@resolvekey\forestindex@resolvekey@shortorlong}%
+  \forestindex@index{definition}{#1}{#3}}
+\DeclareDocumentCommand\indexex{O{} t> m}{%
+  \IfBooleanTF{#2}
+    {\let\forestindex@resolvekey\forestindex@resolvekey@long}
+    {\let\forestindex@resolvekey\forestindex@resolvekey@shortorlong}%
+  \forestindex@index{example}{#1}{#3}}
+\DeclareDocumentCommand\indexitem{D(){} O{} t> m}{%
+  \IfBooleanTF{#3}
+    {\let\forestindex@resolvekey\forestindex@resolvekey@long}
+    {\let\forestindex@resolvekey\forestindex@resolvekey@shortorlong}%
+  \forestindex@index{definition}{default={#1},print format=item,#2}{#4}}
+\DeclareDocumentCommand\indexset{O{} t> m}{%
+  \IfBooleanTF{#2}
+    {\let\forestindex@resolvekey\forestindex@resolvekey@long}
+    {\let\forestindex@resolvekey\forestindex@resolvekey@shortorlong}%
+  \forestindex@index{not print,not index,definition}{set={#1}}{#3}}
+\DeclareDocumentCommand\index{D(){} O{} t> m}{%
+  \IfBooleanTF{#3}
+    {\let\forestindex@resolvekey\forestindex@resolvekey@long}
+    {\let\forestindex@resolvekey\forestindex@resolvekey@shortorlong}%
+  \forestindex@index{#1}{#2}{#4}%
+}
+%    \end{macrocode}
+% All UI macros call this macro.
+% \begin{arguments}
+% \item early option keylist
+% \item late option keylist
+% \item a comma-sep list of forest index key (full or short form). A
+%   key can be given an argument using |key=argument| syntax. How the
+%   argument is used is up to the user.  For example, the
+%   \entry{environment} entry of the \foRest; documentation uses it to
+%   typeset the contents of the environment:
+%   \lstinputregion{forest-doc.tex}{forest_environment_doc}
+% \end{arguments}
+%    \begin{macrocode}
+\def\forestindex@index#1#2#3{%
+%    \end{macrocode}
+% Partition the index keylist into single keys.
+%    \begin{macrocode}
+  \forcsvlist{\forestindex@forkey{#1}{#2}}{#3}%
+}
+\def\forestindex@forkey#1#2#3{%
+%    \end{macrocode}
+% Short-key resolution. The result is stored into |\forestindex@fullkey|.
+%    \begin{macrocode}
+  \forestindex@resolvekey{#3}%
+%    \end{macrocode}
+% Call the central processing command, style |@index|. See how
+% \indexex{process args} is used to expand (once) the last argument.
+%    \begin{macrocode}
+  \forestset{@index/.process args={__o}{#1}{#2}{\forestindex@fullkey}}%
+}
+\forestset{
+%    \end{macrocode}
+% \subsubsection*{Declarations}
+%
+% Should we print and/or index the entry? For example,
+% |\index[not_print]{...}| will index silently (as \LaTeX's |\index|
+% command does).
+%    \begin{macrocode}
+  declare boolean register=print,
+  declare boolean register=index,
+%    \end{macrocode}
+% Options |name|, |content|, |key| and |argument| hold info about the
+% current entry. We need to declare only the latter two, the former
+% two we steal from \foRest;.
+%    \begin{macrocode}
+  declare toks={key}{},
+  declare toks={argument}{},
+%    \end{macrocode}
+% These options will hold first the initial, and then the calculated
+% values of the index key, index form and the form in text.  When
+% (late) options are executed, these options are initialized to the
+% value of option |key|; it is safe to modify them at this point.
+% Afterwards, they will be further processed by keylists
+% |index_key_format|, |index_form_format| and |print_format|,
+% respectively.
+%    \begin{macrocode}
+  declare toks={index key}{},
+  declare toks={index form}{},
+  declare toks={print form}{},
+%    \end{macrocode}
+% The customization of entries' appearance is done by specifying the
+% following three keylists.  The keylists work by modifying register
+% |result|.
+%    \begin{macrocode}
+  declare keylist={index key format}{},
+  declare keylist={index format}{},
+  declare keylist={print format}{},
+  declare autowrapped toks register=result,
+%    \end{macrocode}
+% Some shorthands.
+%    \begin{macrocode}
+  format'/.style={print format'={#1}, index format'={#1}},
+  format/.style={print format={#1}, index format={#1}},
+  format+/.style={print format+={#1}, index format+={#1}},
+  +format/.style={+print format={#1}, +index format={#1}},
+  form/.style={print form={#1},index form={#1}},
+  form+/.style={print form+={#1},index form+={#1}},
+  +form/.style={+print form={#1},+index form={#1}},
+%    \end{macrocode}
+% Entry types are normal (default), definition, example.  Only
+% definitions are special, as their options are automatically saved.
+%    \begin{macrocode}
+  declare toks register=index entry type,
+  definition/.style={index entry type=definition},
+  normal/.style={index entry type=normal},
+  example/.style={index entry type=example},
+  normal,
+%    \end{macrocode}
+% This option is used internally to store the hyper ids.
+%    \begin{macrocode}
+  declare toks={index@hypertarget}{},
+  every index begin/.style={},
+  every index end/.style={},
+%    \end{macrocode}
+% Some formatting tools need to know whether we're typesetting text or
+% index: this info is stored in the |stage| register.\indexex[margin]{declare toks register}
+%    \begin{macrocode}
+  declare toks register=stage,
+%    \end{macrocode}
+%    
+% \subsubsection*{The central processing command}
+% \begin{arguments}
+% \item early option keylist (these are only used to define category
+%   ``@unknown'' at the end of this package)
+% \item late option keylist
+% \item index key (full form)
+% \end{arguments}
+%    \begin{macrocode}
+  @index/.style n args={3}{
+%    \end{macrocode}
+% Set the defaults.
+%    \begin{macrocode}
+    print, index, index entry type=normal, set'={},
+%    \end{macrocode}
+% Create the tree structure:
+% |[entry[subentry[subsubentry...]]]|. Three options of every node
+% created:
+% \begin{compactitem}
+% \item |key| contains the key of the (sub)entry
+% \item |name| contains the full path to the (sub)entry
+% \item |arguments| contains the arguments given to the (sub)entry's key
+% \item |content| contains the full key, with arguments for all but
+%   the most deeply embedded subentry
+% \end{compactitem}
+% \indexex{for step=\indexex{nodewalk}} is used because
+% |create@subentry@node| walks down the created tree. At |if n=0|
+% below, we're thus positioned at the lowest node.\indexex[margin]{option>nodewalk}
+%    \begin{macrocode}
+    for nodewalk={
+%    \end{macrocode}
+% The components of the full key are separated using \indexex{split},
+% with different keys being executed for the first component and the
+% rest.
+%    \begin{macrocode}
+      split={#3}{>}{create@main@entry@node, create@subentry@node},
+%    \end{macrocode}
+% Remove the argument from the most deeply embedded subentry.
+%    \begin{macrocode}
+      if n=0{
+        content/.option=key,
+      }{
+        content/.wrap 2 pgfmath args={##1>##2}{content("!parent")}{key},
+      }
+    }{},
+    for root'={
+%    \end{macrocode}
+% Option |print_form| is what will be typeset in the text.  Option
+% |index_key| is the key that will be used for sorting the
+% index. Option |index_form| is what will be typeset in the index. All
+% these are initialized to the |key|.  See how
+% \indexex{handler>option} is used to assign an option value to
+% another option.
+%    \begin{macrocode}
+      for tree={
+        print form/.option=key,
+        index key/.option=key,
+        index form/.option=key,
+      },
+%    \end{macrocode}
+% Below, \indexex{node key>on invalid} is set to \indexex{value=on invalid>fake} at four points.
+% This is so we won't get in trouble when |\indexset|ting the
+% categories: when the category formatting code will try to step into
+% the child, it will fail as the child does not exist when |\indexset|
+% is called for the category; but we ignore the failure.
+%
+% Go to the the most deeply embedded subentry.\indexex[margin]{first leaf'}
+%    \begin{macrocode}
+      for first leaf'={
+%    \end{macrocode} 
+% Execute every index options and the given early options.
+%    \begin{macrocode}
+        on invalid={fake}{
+          every index begin,
+          #1,
+        },
+%    \end{macrocode}
+% Ancestors are walked in the \indexex{reverse} order (top down).  At
+% every node, the saved configuration is executed (if it exists).
+%    \begin{macrocode}
+        for reverse={ancestors}{on invalid={fake}{@@index/\forestoption{name}/.try}},
+%    \end{macrocode}
+% We don't execute the saved configuration for definitions, as
+% definitions are where the configuration is set.
+%    \begin{macrocode}
+        if index entry type={definition}{}{%
+          on invalid={fake}{@@index/\forestoption{name}/.try},
+        },
+%    \end{macrocode}
+% Execute late (well, normal) options. See the discussion about early
+% options above.
+%    \begin{macrocode}
+        on invalid={fake}{
+          #2,
+          every index end
+        },
+%    \end{macrocode}
+% Remember the given config for the rest of the document.
+%    \begin{macrocode}
+        if set={}{}{save@session},
+%    \end{macrocode}
+% If we're at a definition, save the config into the auxiliary file.
+%    \begin{macrocode}
+        if index entry type={definition}{save@foridx}{},
+      },
+      stage={},
+%    \end{macrocode}
+% Create hyperlink targets of the form |.entry.subentry.subsubentry...|.
+%
+% \FoRest; points:
+% \begin{enumerate*}[(i)]
+% \item the generic conditional \indexex{if},
+% \item handler \index[print form=wrap 2 pgfmath args]{wrap $n$ pgfmath args},
+% \item long nodewalk in the relative node name, which is an argument
+%   to a |pgfmath| option function, automatically created for the
+%   |index@hypertarget| option declared in this package.
+% \end{enumerate*}
+%    \begin{macrocode}
+      if={index()||print()}{
+        index@hypertarget/.expanded={.\forestoption{index key}},
+        for descendants={
+          index@hypertarget/.wrap 2 pgfmath args={##1.##2}%
+              {index@hypertarget("!parent")}{index_key},
+        },
+      }{},
+%    \end{macrocode}
+% Index.
+%    \begin{macrocode}
+      if index={
+        begingroup,
+        stage=index,
+%    \end{macrocode}
+% For each (sub)entry, format the |index_key| using the instructions
+% in |index_key_format|.
+%    \begin{macrocode}
+        for tree={
+          result/.option=index key,
+          process keylist'={index key format}{current},
+          index key/.register=result,
+        },
+%    \end{macrocode}
+% For each (sub)entry, format the |index_form| using the instructions
+% in |index_form_format|.
+%    \begin{macrocode}
+        for tree={
+          result/.option=index form,
+          process keylist'={index format}{current},
+          index form/.register=result,
+        },
+%    \end{macrocode}
+% Create an index entry for all nodes where |index_form| is non-empty.
+%    \begin{macrocode}
+        where index form={}{}{
+%    \end{macrocode}
+% All the ancestor nodes with an non-empty |index_form| will be
+% appended (in script size, as a hyperlink) to the |index_form| of the
+% current node.
+%    \begin{macrocode}
+          if n=0{
+            temptoksb={},
+          }{
+            temptoksc={},
+            for ancestors={
+              if index form={}{}{
+                temptoksb+/.expanded={\forestregister{temptoksc}%
+                  \noexpand\protect\noexpand\hyperlinknocolor{%
+                    \forestoption{index@hypertarget}}{\forestoption{index form}}},
+                temptoksc={,\space},
+              },
+            },
+            if temptoksb={}{}{
+              +temptoksb={\protect\space\begingroup\protect\scriptsize},
+              temptoksb+={\endgroup},
+            },
+          },
+          temptoksa={},
+          result={},
+          if n children=0{tempboola}{not tempboola},
+          where index form={}{}{
+%    \end{macrocode}
+% If the (outer) current node has no children, make it the hypertarget
+% that the definitions in text will point to.
+%    \begin{macrocode}
+            if tempboola={temptoksd/.expanded={\noexpand\protect\noexpand\hypertarget{%
+                  \forestoption{index@hypertarget}}{}}}{temptoksd={}},
+%    \end{macrocode}
+% Add the (inner) current node to the index entry of the (outer) current node.
+%    \begin{macrocode}
+            result+/.expanded={%
+              \forestregister{temptoksa}%
+              \forestoption{index key}%
+              =\forestoption{index form}%
+              \forestregister{temptoksd}%
+              \forestregister{temptoksb}%
+            },
+            temptoksa={>},
+            temptoksb={},
+          },
+%    \end{macrocode}
+% Do the actual indexing.
+%    \begin{macrocode}
+          result+/.expanded={|indexpagenumber\forestregister{index entry type}},
+          TeX/.expanded={\noexpand\forestindex@LaTeX@index{\forestregister{result}}},
+        },
+        endgroup
+      }{},
+      if print={
+        begingroup,
+        stage=print,
+%    \end{macrocode}
+% For each (sub)entry, format the |print_form| using the instructions
+% in |print_form_format|.
+%    \begin{macrocode}
+        for tree={
+          result/.option=print form,
+          process keylist'={print format}{current},
+          print form/.register=result,
+        },
+%    \end{macrocode}
+% Typeset the entry in the text.
+%    \begin{macrocode}
+        for first leaf'={TeX={\forestoption{print form}}},
+        endgroup,
+      }{},
+    }
+  },
+%    \end{macrocode}
+% Create the main entry node and set to be the root.
+%    \begin{macrocode}
+  create@main@entry@node/.style={% #1 = subentry
+    set root={[]},
+    do dynamics, for root'={process delayed=tree},
+    root',
+    setup@entry@node={#1}
+  },
+%    \end{macrocode}
+% Create a subentry node and move into it.
+%    \begin{macrocode}
+  create@subentry@node/.style={
+    append={[]},
+    do dynamics, for root'={process delayed=tree},
+    n=1,
+    setup@entry@node={#1}
+  },
+%    \end{macrocode}
+% Parse \#1 into |key| and |argument|, and assign |name| and |content|.
+%    \begin{macrocode}
+  setup@entry@node/.style={
+    options={
+      split={#1}{=}{key,argument},
+      if n=0{
+        name'/.option=key,
+        content={#1},
+      }{
+        name'/.wrap 2 pgfmath args={##1>##2}{name("!parent")}{key},
+        content/.wrap pgfmath arg={##1>#1}{content("!parent")},
+      },
+    }
+  },
+}
+%    \end{macrocode}
+% \subsubsection*{Saving and loading the options}
+%    \begin{macrocode}
+\forestset{
+%    \end{macrocode}
+% This register holds whatever we need to remember.
+%    \begin{macrocode}
+  declare keylist register=set,
+%    \end{macrocode}
+% Besides storing the keylist in the register, also immediately
+% execute it.\indexex[margin]{Autoforward register}.
+%    \begin{macrocode}
+  Autoforward register={set}{##1},
+%    \end{macrocode}
+% Remember things by saving them in a global style.
+%    \begin{macrocode}
+  save@session/.style={@@index/\forestoption{name}/.global style/.register=set},
+%    \end{macrocode}
+% Save thinks to the auxiliary file.
+%    \begin{macrocode}
+  save@foridx/.style={
+%    \end{macrocode}
+% Don't save entries of unknown category.
+%    \begin{macrocode}
+    if={strequal(name("!root"),"@unknown")}{}{
+%    \end{macrocode}
+% Don't save if nothing is set.
+%    \begin{macrocode}
+      if set={}{}{
+        TeX={%
+          \immediate\write\forestindex@out{%
+            \string\indexloadsettings{\forestoption{name}}{\forestregister{set}}%
+          }%
+        },
+      },
+%    \end{macrocode}
+% Save the full form of the key in the auxiliary file. Obviously, do
+% it only for subentries.  The full form contains whatever arguments
+% were given to the non-last component.
+%    \begin{macrocode}
+      if={strequal(key(),content())}{}{
+        TeX={%
+          \immediate\write\forestindex@out{%
+            \string\indexdefineshortkey{\forestoption{key}}{\forestoption{content}}%
+          }%  
+        }
+      }
+    }
+  },
+}
+%    \end{macrocode}
+% Load settings from the auxiliary file into the global style.  Warn
+% if anything was configured more than once (e.g.\ by |\indexdef|ing
+% the same key twice).
+%    \begin{macrocode}
+\def\indexloadsettings#1#2{%
+  \pgfkeysifdefined{/forest/@@index/#1/.@cmd}{%
+    \forestindex@loadsettings@warning{#1}%
+  }{}%
+  \forestset{@@index/#1/.global style={#2}}%
+}
+\def\forestindex@loadsettings@warning#1{%
+  \PackageWarning{forest-index}{Forest index key "#1" was configured more than once!
+    I'm using the last configuration.}%
+}
+%    \end{macrocode}
+% Load the full form of a short key from the auxiliary file. Out of
+% kindness for the end user, remember all the full keys corresponding
+% to a short key: this will make a more informative warning below.
+%    \begin{macrocode}
+\def\indexdefineshortkey#1#2{%
+  \def\forestindex@temp@short{#1}%
+  \def\forestindex@temp@long{#2}%
+  \ifx\forestindex@temp@short\forestindex@temp@long
+  \else
+    \ifcsdef{index@long@#1}{%
+      \global\cslet{index@long@#1}\relax
+      \csgappto{index@alllong@#1}{,#2}%
+    }{%
+      \global\csgdef{index@long@#1}{#2}%
+      \global\csgdef{index@alllong@#1}{#2}%
+    }%
+  \fi
+}
+%    \end{macrocode}
+% \subsubsection*{Short key resolution}
+%
+% Nothing to do for a long key.
+%    \begin{macrocode}
+\def\forestindex@resolvekey@long#1{\def\forestindex@fullkey{#1}}
+%    \end{macrocode}
+% Decide whether a key is short or long based on the absence or
+% presence of the level separator |>|.
+%    \begin{macrocode}
+\def\forestindex@resolvekey@shortorlong#1{%
+  \pgfutil@in@>{#1}%
+  \ifpgfutil@in@
+    \expandafter\def\expandafter\forestindex@fullkey
+  \else
+    \expandafter\forestindex@resolvekey@short
+  \fi
+  {#1}%
+}
+%    \end{macrocode}
+% Before resolving the short key, we need to split the user input into
+% the key and the argument. The latter is then appended to the full
+% key (which can, in principle, contain arguments for other components
+% as well).
+%    \begin{macrocode}
+\def\forestindex@resolvekey@short#1{%
+  \forestset{split={#1}{=}{index@resolveshortkey@key,index@resolveshortkey@arg}}%
+}
+\forestset{
+  index@resolveshortkey@key/.code={%
+    \ifcsvoid{index@long@#1}{%
+      \forestindex@resolveshortkey@warning{#1}%
+      \def\forestindex@fullkey{@unknown>#1}%
+    }{%
+      \letcs\forestindex@fullkey{index@long@#1}%
+    }%
+  },
+  index@resolveshortkey@arg/.code={%
+    \appto\forestindex@fullkey{=#1}%
+  },
+}
+\def\forestindex@resolveshortkey@warning#1{%
+  \PackageWarning{forest-index}{Cannot resolve short forest index key "#1".
+    These are the definitions I found (from the previous run):
+    "\csuse{index@alllong@#1}"}%
+}
+%    \end{macrocode}
+% \subsubsection*{Formatting styles}
+% 
+% Define default colors for index entry types and provide a style that
+% typesets the entry in text (but not index) in the desired color.
+%    \begin{macrocode}
+\forestset{
+  normal color/.initial=blue,
+  definition color/.initial=red,
+  example color/.initial=darkgreen,
+  print in color/.style={if stage={print}{result=\protect\textcolor{%
+        \pgfkeysvalueof{/forest/#1 color}}{##1}}{}},
+  print in color/.default=\forestregister{index entry type},
+%    \end{macrocode}
+% Use this style in |..._format| keylists if you want the index
+% entries to be hyperlinks to the definition, and the definition to be
+% a hyperlink to the index.
+%    \begin{macrocode}
+  hyper/.style={
+    if stage={index}{}{
+      if index entry type={definition}{
+        result/.expanded={\noexpand\hypertarget{\forestoption{name}}%
+          {\noexpand\hyperlink{\forestoption{index@hypertarget}}{\forestregister{result}}}}
+      }{
+        result/.expanded=\noexpand\hyperlink{\forestoption{name}}{\forestregister{result}}
+      }
+    }
+  },
+}
+%    \end{macrocode}
+% Color page numbers in the index, with or without |hyperref| package.
+%    \begin{macrocode}
+\ifdef\hyperpage{%
+  \newcommand\indexpagenumbernormal[1]{{%
+      \hypersetup{linkcolor=\pgfkeysvalueof{/forest/normal color}}\hyperpage{#1}}}
+  \newcommand\indexpagenumberdefinition[1]{{%
+      \hypersetup{linkcolor=\pgfkeysvalueof{/forest/definition color}}\hyperpage{#1}}}
+  \newcommand\indexpagenumberexample[1]{{%
+      \hypersetup{linkcolor=\pgfkeysvalueof{/forest/example color}}\hyperpage{#1}}}
+}{
+  \newcommand\indexpagenumbernormal[1]{%
+    \textcolor{\pgfkeysvalueof{/forest/normal color}}{#1}}
+  \newcommand\indexpagenumberdefinition[1]{%
+    \textcolor{\pgfkeysvalueof{/forest/definition color}}{#1}}
+  \newcommand\indexpagenumberexample[1]{%
+    \textcolor{\pgfkeysvalueof{/forest/example color}}{#1}}
+}
+%    \end{macrocode}
+% Provide dummy |\hyper...| commands if |hyperref| is not loaded.
+%    \begin{macrocode}
+\providecommand\hyperlink[2]{#2}
+\providecommand\hypertarget[2]{#2}
+\providecommand\hypersetup[1]{}
+%    \end{macrocode}
+% This is used by entry qualifiers: we want them to be hyperlinks, but black.
+%    \begin{macrocode}
+\newcommand\hyperlinknocolor[2]{{\hypersetup{linkcolor=black}\hyperlink{#1}{#2}}}
+%    \end{macrocode}
+%    
+% Use style |item| to have the index entry (in text) function as the
+% |\item| of a |lstdoc|'s |syntax| environment.
+%    \begin{macrocode}
+\forestset{
+  declare toks register=default,
+  default={},
+  item/.style={result/.wrap 4 pgfmath args={%
+      \item[,##2,##3]{##4}%
+    }{}{default}{print_form("!parent")}{result},
+  },
+}
+%    \end{macrocode}
+% 
+% \subsubsection*{Utilities}
+%    
+% We will need a global version of several |pgfkeys| commands.
+%    \begin{macrocode}
+\pgfkeys{/handlers/.global style/.code=\pgfkeys{\pgfkeyscurrentpath/.global code=\pgfkeysalso{#1}}}
+\pgfkeysdef{/handlers/.global code}{\pgfkeysglobaldef{\pgfkeyscurrentpath}{#1}}
+\long\def\pgfkeysglobaldef#1#2{%
+  \long\def\pgfkeys@temp##1\pgfeov{#2}%
+  \pgfkeysgloballet{#1/.@cmd}{\pgfkeys@temp}%
+  \pgfkeysglobalsetvalue{#1/.@body}{#2}%
+}
+\def\pgfkeysgloballet#1#2{%
+  \expandafter\global\expandafter\let\csname pgfk@#1\endcsname#2%
+}
+\long\def\pgfkeysglobalsetvalue#1#2{%
+  \pgfkeys@temptoks{#2}\expandafter\xdef\csname pgfk@#1\endcsname{\the\pgfkeys@temptoks}%
+}
+%    \end{macrocode}
+% Begin and end group, \foRest;-style:
+%    \begin{macrocode}
+\forestset{
+  begingroup/.code={\begingroup},
+  endgroup/.code={\endgroup},
+}
+%    \end{macrocode}
+%    
+% \subsubsection*{Initialize}
+%
+% Declare category ``@unknown''.
+%    \begin{macrocode}
+\index(not print,not index)[%
+    set={
+      index key=unknown,
+      form={\textbf{unknown!!}},
+      for first={format={result/.expanded=\noexpand\textbf{\forestregister{result}??}}}
+    },
+  ]>{@unknown}
+%    \end{macrocode}
+% Load the auxiliary file made in the previous compilation, and open
+% it for writing to save data from this compilation.
+%    \begin{macrocode}
+\def\forestindex@filename{\jobname.foridx}
+\IfFileExists{\forestindex@filename}{%
+  \input\forestindex@filename
+}{}%
+\newwrite\forestindex@out
+\immediate\openout\forestindex@out=\forestindex@filename
+\AtEndDocument{%
+  \immediate\closeout\forestindex@out
+}
+\endinput
+%    \end{macrocode}
+%    
+%%% \iffalse
+%%% Local Variables:
+%%% mode: doctex
+%%% TeX-master: "forest-doc.tex"
+%%% End:
+%%% \fi

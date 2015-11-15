@@ -1,0 +1,126 @@
+\ProvidesPackage{forest-compat}
+
+\def\forest@deprecated#1{%
+  \PackageWarning{forest}{Compatibility mode for #1}%
+}
+\forestset{@@deprecated/.code={\forest@deprecated{#1}}}
+\def\forestcompat#1{\pgfqkeys{/forest/@compat}{#1}}
+\forestcompat{
+  most/.style={1.0-most},
+  all/.style={1.0-all},
+  none/.style={},
+  silent/.style={\def\forest@deprecated##1{}},
+  %%% begin listing region: compat_1.0
+  1.0-most/.style={
+    1.0-triangle,1.0-linear,1.0-nodewalk,1.0-ancestors,
+    1.0-fittotree,1.0-for,1.0-forall
+  },
+  1.0-all/.style={
+    1.0-most,
+    1.0-forstep,1.0-rotate,1.0-stages,1.0-name
+  },
+  %%% end listing region: compat_1.0
+  1.0-triangle/.style={
+    /forest/triangle/.style={
+      @@deprecated={key "triangle" from v1.0.x. Use key "roof" from library "linguistics" instead},
+      edge path'={%
+        (.parent first)--(!u.children)--(.parent last)--cycle
+      }
+    }
+  },
+  1.0-linear/.style={
+    /forest/define long step={linear next}{autostep}{%
+      \forest@deprecated{nodewalk step "linear next" from v1.0. Use key "next node" instead.}%
+      \edef\forest@cn{\forest@node@linearnextid}},
+    /forest/define long step={linear previous}{autostep}{%
+      \forest@deprecated{nodewalk step "linear previous" from v1.0. Use key "previous node" instead.}%
+      \edef\forest@cn{\forest@node@linearpreviousid}},
+  },
+  1.0-nodewalk/.style={
+    /forest/node walk/before walk/.style={},
+    /forest/node walk/every step/.style={},
+    /forest/node walk/after walk/.style={},
+    /forest/node walk/.style={
+      @@deprecated={key "node walk" from v1.0. Use key "nodewalk" instead.},
+      /forest/node walk/before walk,
+      /forest/nodewalk/before walk/.style={/forest/node walk/before walk},
+      /forest/nodewalk/every step/.style={/forest/node walk/every step},
+      /forest/nodewalk/after walk/.style={/forest/node walk/after walk},
+      /forest/nodewalk/node walk/.style={before walk,for nodewalk={####1,options={/forest/nodewalk/after walk}}{/forest/nodewalk/every step}},
+      for nodewalk={##1,options={/forest/nodewalk/after walk}}{/forest/nodewalk/every step},
+    },
+  },
+  1.0-ancestors/.style={
+    /forest/for ancestors'/.style={
+      @@deprecated={key "for ancestors'" from v1.0.x.  Use key "for current and ancestors" instead.},
+      for current and ancestors={##1}},
+  },
+  1.0-fittotree/.style={%
+    tikz/fit to tree/.style={inner sep=0pt,fit to=tree}
+  },
+  1.0-for/.style={
+    /forest/for/.code 2 args={%  #1 = nodewalk, #2 = after walk keylist
+      \forest@deprecated{Key "for" (from v1.0)}%
+      \forest@forthis{\forest@nodewalk{##1,options={##2}}{}}%
+    }
+  },
+  1.0-forall/.style={
+    /forest/for all next/.style={
+      @@deprecated={Key "for all next" from v1.0.x.  Use key "for following siblings" instead.},
+      for following siblings={##1}},
+    /forest/for all previous/.style={
+      @@deprecated={Key "for all previous" from v1.0.x.  Use key "for preceding siblings" instead.},
+      for preceding siblings={##1}},
+  },
+  1.0-forstep/.code={%
+    \def\forest@forstepwrapper##1##2{%
+      \def\forest@nodewalk@config@everystep@method{independent}%
+      \def\forest@nodewalk@config@history@method{independent}%
+      \edef\forest@marshal{%
+        \def\noexpand\forest@nodewalk@config@oninvalid{compatfake}%
+        \unexpanded{\forest@Nodewalk{##1}{##2}}%
+        \def\noexpand\forest@cn{\forest@cn}%
+        \def\noexpand\forest@nodewalk@config@oninvalid{\forest@nodewalk@config@oninvalid}%
+      }\forest@marshal
+    }%
+  },
+  1.0-rotate/.style={
+    /forest/undef option=rotate,
+  },
+  1.0-stages/.style={
+    /forest/stages/.style={
+      process keylist=before typesetting nodes,
+      typeset nodes stage,
+      process keylist=before packing,
+      pack stage,
+      process keylist=before computing xy,
+      compute xy stage,
+      process keylist=before drawing tree,
+      draw tree stage,
+    },
+    /forest/TeX={%
+      \def\forest@defstages##1{%
+        \def\forest@stages{%
+          begin forest,
+          for root'={
+            process keylist register=default preamble,
+            process keylist register=preamble
+          },
+          process keylist=given options,
+          ##1,
+          end forest
+        }%
+      }%
+    },
+  },
+  1.0-name/.code={%
+    \def\forest@node@setname##1{%
+      \forestoeset{name}{##1}%
+      \csedef{forest@id@of@##1}{\forest@cn}%
+    }%
+    \def\forest@node@setalias##1{%
+      \csedef{forest@id@of@##1}{\forest@cn}%    
+    }%
+  },
+}
+\expandafter\forestcompat\expandafter{\forest@compat}

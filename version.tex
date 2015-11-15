@@ -1,0 +1,15 @@
+\documentclass{minimal}
+\usepackage{forest}
+\def\getforestversion#1/#2/#3 v#4 #5\getforestversion{#4}
+\edef\forestversion{\expandafter\expandafter\expandafter\getforestversion\csname ver@forest.sty\endcsname\getforestversion}
+\begin{document}
+\newwrite\version
+\immediate\openout\version=VERSION.txt
+\immediate\write\version{\forestversion}
+\immediate\closeout\version
+\end{document}
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: t
+%%% End: 

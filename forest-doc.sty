@@ -1,0 +1,217 @@
+\ProvidesPackage{forest-doc}
+\RequirePackage{lstdoc}
+\RequirePackage{pgfkeys}
+\RequirePackage{forest-index}
+% if you want index support, load package "forest-index", but later
+
+\lstset{language={[LaTeX]TeX},tabsize=4,gobble=2,%
+  basicstyle=\small\ttfamily,basewidth=0.51em,boxpos=c,pointstyle=\pstyle,moredelim=[is][\pstyle]{~}{~}}
+%\lst@InstallKeywords{p}{point}{pointstyle}\relax{keywordstyle}{}ld
+\def\pstyle{\color{darkgreen}}
+\def\itemnosep{\vspace{-1.4ex}}
+\lstset{
+  rangebeginprefix=\ \ \%\%\%\ begin\ listing\ region:\ ,
+  rangebeginsuffix=,
+  rangeendprefix=\ \ \%\%\%\ end\ listing\ region:\ ,
+  rangeendsuffix=,
+  includerangemarker=false,
+  keepspaces=true,
+}
+\newcommand\lstinputregion[3][]{\lstinputlisting[linerange=#3-#3,#1]{#2}}
+\def\lst@outputspace{{\ifx\lst@bkgcolor\empty\color{white}\else\lst@bkgcolor\fi\lst@visiblespace}}% this works for acroread, but not for atril :-(
+
+\lstnewenvironment{forestexample}[1][]{%
+  \PackageWarning{forest-doc}{Compiling example}{}%
+  \global\let\lst@intname\@empty
+  \gdef\lst@sample{}%
+  \def\forestexample@layout{tree on left}%
+  \def\forestexample@treebin{box}%
+  \pgfqkeys{/forestexample}{label format,#1}%
+  \pgfkeysgetvalue{/forestexample/counter}\forestexample@temp
+  \ifdefempty\forestexample@temp{}{\addtocounter{\forestexample@temp}{1}}%
+  \setbox\lst@samplebox=\hbox\bgroup
+  \pgfkeysvalueof{/forestexample/tree prefix}%
+  \lst@BeginAlsoWriteFile{\jobname.tmp}%
+}{%
+  \lst@EndWriteFile
+  \pgfkeysvalueof{/forestexample/tree suffix}%
+  \egroup
+  \global\setbox\codebox=\box\lst@samplebox
+  \global\setbox
+    \treebox
+    \csname forestexample@treebin@\forestexample@treebin\endcsname
+  \pgfkeys{/forestexample/do layout/.expanded=\forestexample@layout}%
+}
+\pgfqkeys{/forestexample}{%
+  .unknown/.code={\lstset{\pgfkeyscurrentname={#1}}},
+  index/.code={\indexex[not print]{#1}},
+  index>/.code={\indexex[not print]>{#1}},
+  code prefix/.code={\gdef\lst@sample{#1}},
+  tree prefix/.initial={},
+  tree suffix/.initial={},
+  counter/.initial=lstlisting,
+  no label/.style={counter={}},
+  label format/.store in=\@currentlabel,
+  label format/.default={(\arabic{\pgfkeysvalueof{/forestexample/counter}})},
+  tree width/.initial={\dimexpr\linewidth-\wd\codebox-
+    \glueexpr\pgfkeysvalueof{/forestexample/center skip}\relax\relax},
+  layout/.store in=\forestexample@layout,
+  tree bin/.store in=\forestexample@treebin,
+  do layout/.is choice,
+  do layout/export/.code={%
+    \pgfkeysgetvalue{/forestexample/counter}\forestexample@temp
+    \ifdefempty\forestexample@temp{}{\addtocounter{\forestexample@temp}{-1}}%
+  },
+  left skip/.initial={\glueexpr 0pt plus .4\linewidth minus \marginparsep + 0pt minus \@totalleftmargin + 0pt minus .75\marginparwidth},
+  center skip/.initial={3em plus 0.1\linewidth minus 2em},
+  right skip/.initial={0pt plus .4\linewidth},
+  tree left skip/.initial=0pt,
+  tree right skip/.initial=0pt,
+  code left skip/.initial=0pt,
+  code right skip/.initial=0pt,
+  label y offset/.initial={\height-1ex}, % looks better to me this way
+  do layout/tree on left/.code={%
+    \begin{list}{}{\leftmargin 0pt}
+    \item
+      \@tempdima=\ifdim\totalht\treebox>\totalht\codebox
+        \dimexpr0.5 \totalht\treebox\relax
+      \else
+        \dimexpr0.5 \totalht\codebox\relax
+      \fi
+      \mbox{%
+        \mbox{\hbox to \linewidth{%
+          \hskip\pgfkeysvalueof{/forestexample/left skip}\relax
+          \textvcenter{\box\treebox}%
+          \hskip\pgfkeysvalueof{/forestexample/center skip}\relax
+          \hbox{\hskip-\@totalleftmargin\box\codebox\hskip\@totalleftmargin}%
+          \hskip\pgfkeysvalueof{/forestexample/right skip}\relax
+        }}%
+      \forestexample@label
+      }%
+    \end{list}
+  },
+  v sep/.initial={1ex},
+  align/.initial=center,
+  do layout/tree on top/.code={%
+    \begin{list}{}{\leftmargin 0pt \parsep 0pt \itemsep \pgfkeysvalueof{/forestexample/v sep}\relax}
+    \item \forestexample@align{tree}\forestexample@label
+    \item \forestexample@align{code}
+    \end{list}
+  },
+  do layout/tree on bottom/.code={%
+    \begin{list}{}{\leftmargin 0pt \parsep 0pt \itemsep \pgfkeysvalueof{/forestexample/v sep}\relax}
+    \item \forestexample@align{code}\forestexample@label
+    \item \forestexample@align{tree}
+    \end{list}
+  },
+  do layout/only tree/.code={%
+    \forestexample@align{tree}\forestexample@label
+  },
+  do layout/only code/.code={%
+    \forestexample@align{code}\forestexample@label
+  },
+}
+\newbox\treebox
+\newbox\codebox
+\def\forestexample@treebin@box{%
+  \hbox{\lst@sampleInput}%
+}
+\def\forestexample@treebin@minipage{%
+  \hbox{%
+    \begin{minipage}{\pgfkeysvalueof{/forestexample/tree width}}%
+      \lst@sampleInput
+    \end{minipage}%
+  }%
+}
+\def\forestexample@label{%
+  \pgfkeysgetvalue{/forestexample/counter}\forestexample@temp
+  \ifdefempty\forestexample@temp{}{%
+    \makebox[0pt][l]{%
+      \hskip-\linewidth
+      \hskip-\@totalleftmargin
+      \hskip\textwidth
+      \hskip\marginparsep
+      \raisebox
+        {\dimexpr\@tempdima+\depth-\pgfkeysvalueof{/forestexample/label y offset}}%
+        {\hbox to 0pt{\scriptsize\@currentlabel}}%
+    }%
+  }%
+}
+\def\forestexample@align#1{%
+  \pgfkeysgetvalue{/forestexample/align}\forestexample@temp
+  \mbox{\hbox to \linewidth{%
+      \csname forestexample@align@left@\forestexample@temp\endcsname
+      \hspace*{\pgfkeysvalueof{/forestexample/#1 left skip}}%
+      \mbox{\expandafter\box\csname #1box\endcsname}%
+      \hspace*{\pgfkeysvalueof{/forestexample/#1 right skip}}%
+      \csname forestexample@align@right@\forestexample@temp\endcsname
+    }}%
+}
+\def\forestexample@align@left@left{}
+\def\forestexample@align@right@left{}
+\def\forestexample@align@left@right{\hfill}
+\def\forestexample@align@right@right{}
+\def\forestexample@align@left@center{\hfill}
+\def\forestexample@align@right@center{\hfill}
+\newcommand\forestexampleimport[1][]{%
+  \def\forestexample@layout{tree on left}%
+  \pgfkeysgetvalue{/forestexample/counter}\forestexample@temp
+  \ifdefempty\forestexample@temp{}{\addtocounter{\forestexample@temp}{1}}%
+  \pgfqkeys{/forestexample}{%
+    label format,
+    do layout/.expanded=\forestexample@layout
+  }%
+}
+
+\def\totalht#1{\dimexpr\ht#1 + \dp#1\relax}
+\def\textvcenter#1{\raisebox{\dimexpr .5\depth-.5\height}{#1}}
+
+% For some reason, lstdoc's version kills all spaces in defaults ...
+\def\lst@syntaxlabel@#1>#2\relax
+    %{\edef\lst@temp{\zap@space#2 \@empty}}
+    {\edef\lst@temp{#2}}
+
+
+
+
+\def\getforestversion#1/#2/#3 v#4 #5\getforestversion{v#4}
+\edef\forestversion{%
+\expandafter\expandafter\expandafter\getforestversion
+  \csname ver@forest.sty\endcsname\getforestversion}
+
+\def\settodayfromforestdateA#1/#2/#3 v#4 #5\settodayfromforestdateA{\def\year{#1}\def\month{#2}\def\day{#3}}
+\def\settodayfromforestdate{\expandafter\expandafter\expandafter\settodayfromforestdateA\csname ver@forest.sty\endcsname\settodayfromforestdateA}
+
+\def\TikZ;{{\rm Ti\emph{k}Z}}
+\def\PGF;{\textsc{pgf}}
+\def\foRest;{\textsc{Forest}}
+\def\FoRest;{\textsc{Forest}}
+
+\let\keyname\texttt
+\newcommand\cmdname[1]{\texttt{\char\escapechar#1}}
+
+\gdef\greaterthan{>}
+\def\gobbleone#1{}
+
+\newcommand{\Repeat}[1]{% from tex.se http://tex.stackexchange.com/a/16194/16819
+  \expandafter\@Repeat\expandafter{\the\numexpr #1\relax}%
+}
+\def\@Repeat#1{%
+  \ifnum#1>0
+    \expandafter\@@Repeat\expandafter{\the\numexpr #1-1\expandafter\relax\expandafter}%
+  \else
+    \expandafter\@gobble
+  \fi
+}
+\def\@@Repeat#1#2{%
+  \@Repeat{#1}{#2}#2%
+}
+\def\spaces#1{\Repeat{#1}\space}  
+    
+
+%%% Local Variables:
+%%% mode: latex
+%%% fill-column: 100
+%%% TeX-command-default: "Make PDF"
+%%% TeX-master: "forest-doc"
+%%% End:

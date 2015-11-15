@@ -1,0 +1,486 @@
+% \CheckSum{12884}
+% \iffalse meta-comment
+% forest-libs.dtx
+%% `forest-libs' is a collection of libraries for package `forest'.
+%%
+%% Copyright (c) 2015 Saso Zivanovic
+%%                    (Sa\v{s}o \v{Z}ivanovi\'{c})
+%% saso.zivanovic@guest.arnes.si
+%%
+%% This work may be distributed and/or modified under the
+%% conditions of the LaTeX Project Public License, either version 1.3
+%% of this license or (at your option) any later version.
+%% The latest version of this license is in
+%% 
+%%   http://www.latex-project.org/lppl.txt
+%%   
+%% and version 1.3 or later is part of all distributions of LaTeX
+%% version 2005/12/01 or later.
+%%
+%% This work has the LPPL maintenance status `maintained'.
+%% 
+%% The Current Maintainer of this work is Saso Zivanovic.
+%%
+%% This work consists of the files forest.dtx and forest.ins
+%% and the derived file forest.sty.
+%%
+% \fi
+%
+% \section{Libraries}
+%
+% This chapter contains not only the reference of commands found in libraries and some examples of
+% their usage, but also their definitions. This is done in the hope that these definitions, being
+% mostly styles, will be useful as examples of the core features of the package.  I even managed to
+% comment them a bit \dots
+%
+% \paragraph{Disclaimer.}  At least in the initial stages of a library's development, the function
+% and interface of macros and keys defined in a library might change without backwards compatibility
+% support!
+%
+%    \begin{macrocode}
+\RequirePackage{forest}
+%    \end{macrocode}
+%
+%\iffalse
+%<*linguistics>
+%\fi
+% \librarysection{linguistics}
+%    \begin{macrocode}
+\ProvidesForestLibrary{linguistics}
+%    \end{macrocode}
+%
+% Defaults:
+%    \begin{macrocode}
+\forestset{
+  libraries/linguistics/defaults/.style={
+    default preamble={
+%    \end{macrocode}
+% Edges of the children will ``meet'' under the node:
+%    \begin{macrocode}
+     sn edges,
+%    \end{macrocode}
+% The root of the tree will be aligned with the text \dots\ or, more commonly, the example number.
+%    \begin{macrocode}
+     baseline,
+%    \end{macrocode}
+% Enable (centered) multi-line nodes.
+%    \begin{macrocode}
+     for tree={align=center},
+    },
+  },
+}
+%    \end{macrocode}
+%    
+% There's no linguistics without c-command \dots
+% \begin{syntax}
+% \indexitem{step>c-commanded} Visit all the nodes c-commanded\footnote{C-command is a basic relation
+%   of generative syntax: a node c-commands its siblings and their subtrees.} by the current node.
+% \indexitem{step>c-commanders} Visit all the c-commanders of the current node, starting from the closest.
+%
+% \begin{forestexample}[tree bin=minipage,index={branch',c-commanded}]
+%   ``manual'' c-command:\\[1ex]
+%   \begin{forest} 
+%     [VP
+%       [DP[John]]
+%       [V'
+%         [V, draw, for c-commanded={draw,circle}
+%           [sent]
+%         ]
+%         [DP[Mary]]
+%         [DP[D[a]][NP[letter]]]
+%       ]
+%     ]
+%   \end{forest}
+% \end{forestexample}
+%
+% See how \indexex{branch'} is used to define |c-commanded|, and how \indexex{while nodewalk valid} and \indexex{nodewalk key>fake} are combined in the definition of |c-commanders|.
+%    \begin{macrocode}
+\forestset{
+  define long step={c-commanded}{style}{branch'={siblings,descendants}},
+  define long step={c-commanders}{style}{while nodewalk valid={parent}{siblings,fake=parent}},
+}
+%    \end{macrocode}
+%
+% 
+%
+% \indexitem{node key>sn edges}
+% 
+% In linguistics, most people want the parent-child edge to go from the \emph{s}outh of the parent
+% to the \emph{n}orth of the child.  This is achieved by this (badly named) style, which makes the
+% entire (sub)tree have such edges.
+%
+% However, this style does not refer to the |south| and |north| anchor
+% of the parent and the child node directly.  If it did so, it would
+% only work for trees with standard linguistic \index{grow}|=-90|.
+% So we rather use \FoRest;'s ``growth'' anchors:
+% \index{anchor>children} always faces the children and
+% \index{anchor>parent} always faces the parent, so the edge
+% will always be between them, as desired.
+%
+% \begin{forestexample}[index={anchor>south,anchor>north,option>parent anchor,option>child anchor}]
+%   \begin{forest}
+%     [bad![VP,no edge, for tree={grow=90, edge=red},
+%       for tree={parent anchor=south, child anchor=north} % bad
+%     [DP][V'[V][DP]]]]
+%   \end{forest}
+%   \begin{forest}
+%     [good![VP, no edge, for tree={grow=90, edge=green},
+%                ~sn edges~                                 % good!
+%     [DP][V'[V][DP]]]]
+%   \end{forest}
+% \end{forestexample}
+%    \begin{macrocode}
+\forestset{
+  sn edges/.style={
+    for tree={
+      parent anchor=children, child anchor=parent
+    }
+  },
+}
+%    \end{macrocode}
+%
+% \indexitem{node key>roof}   Makes the edge to parent a triangular roof. 
+%    \begin{macrocode}
+\forestset{
+  roof/.style={edge path'={%
+      (.parent first)--(!u.children)--(.parent last)--cycle
+    }
+  },
+}
+%    \end{macrocode}
+%
+% \indexitem{node key>nice empty nodes}
+%
+% We often need empty nodes: tree (a) shows how they look like by
+% default: ugly.
+%
+% First, we don't want the gaps: we change the shape of empty nodes to coordinate.  We get tree (b).
+%
+% Second, the empty nodes seem too close
+% to the other (especially empty) nodes (this is a result of a small
+% default |s_sep|).  We could use a greater \index{s sep}, but a better solution seems
+% to be to use |calign=node_angle|.  The result is shown in (c). 
+%
+% However, at the transitions from empty to non-empty nodes, tree (c)
+% above seems to zigzag (although the base points of the spine nodes
+% are perfectly in line), and the edge to the empty node left to VP
+% seems too long (it reaches to the level of VP's base, while we'd
+% prefer it to stop at the same level as the edge to VP itself).  The
+% first problem is solved by substituting |node_angle| for
+% |edge_angle|; the second one, by anchoring siblings of
+% empty nodes at north.
+% 
+% \begin{forestexample}[label=ex:niceemptynodes,layout=tree on bottom,index={fixed angles,fixed edge angles,calign,tree,delay,where option,content,for step,step>parent,step>children,option>anchor}]
+%   \forestset{
+%     xlist/.style={
+%       phantom,
+%       for children={no edge,replace by={[,append,
+%           delay={content/.wrap pgfmath arg={\@alph{##1}.}{n()+#1}}
+%           ]}}
+%     },
+%     xlist/.default=0
+%   }
+%   \begin{forest}
+%     [,~xlist~,
+%     for tree={after packing node={s+=0.1pt}}, % hack!!!
+%       [CP,                                                               %(a)
+%         [][[][[][VP[DP[John]][V'[V[loves]][DP[Mary]]]]]]]
+%       [CP, delay={where content={}{shape=coordinate}{}}                  %(b)
+%         [][[][[][VP[DP[John]][V'[V[loves]][DP[Mary]]]]]]]
+%       [CP, for tree={calign=fixed angles},                               %(c)
+%            delay={where content={}{shape=coordinate}{}}
+%         [][[][[][VP[DP[John]][V'[V[loves]][DP[Mary]]]]]]]
+%       [CP, ~nice empty nodes~                                              %(d)
+%         [][[][[][VP[DP[John]][V'[V[loves]][DP[Mary]]]]]]]
+%     ]
+%   \end{forest}
+% \end{forestexample}
+%
+%    \begin{macrocode}
+\forestset{
+  nice empty nodes/.style={
+    for tree={calign=fixed edge angles},
+    delay={where content={}{shape=coordinate,for parent={
+          for children={anchor=north}}}{}}
+  },
+}
+%    \end{macrocode}
+%    
+%   \indexitem{node key>draw brackets}   Outputs the bracket representation of the tree.
+%   \indexitem{node key>draw brackets compact}
+%   \itemnosep
+%   \indexitem{node key>draw brackets wide} These keys control whether the brackets have extra
+%   spaces around them (|wide|) or not (|compact|).
+%    \begin{macrocode}
+\providecommand\text[1]{\mbox{\scriptsize#1}}
+\forestset{
+  draw brackets compact/.code={\let\drawbracketsspace\relax},
+  draw brackets wide/.code={\let\drawbracketsspace\space},
+  draw brackets/.style={
+%    \end{macrocode}
+% There's stuff to do both before (output the opening bracket and the content) and after (output the
+% closing bracket) processing the children, so we use \indexex{for tree'}.
+%    \begin{macrocode}
+    for tree'={
+      TeX={[%
+%    \end{macrocode}
+% Complication: \index{content format} must be expanded in advance, to correctly process tabular environments implicitely loaded by \index{align}|=|\index{value=align>center}, which is the default in this library.  (Not that one would want a multiline output in the bracket representation, but it's better than crashing.)
+%    \begin{macrocode}
+        \edef\forestdrawbracketscontentformat{\foresteoption{content format}}%
+      },
+      if n children=0{
+        TeX={\drawbracketsspace\forestdrawbracketscontentformat\drawbracketsspace}
+      }{
+        TeX={\textsubscript{\text{\forestdrawbracketscontentformat}}\drawbracketsspace}
+      },
+    }{
+      TeX={]\drawbracketsspace},
+    }
+  },
+  draw brackets wide
+}
+%    \end{macrocode}
+% \end{syntax}
+% 
+% \subsubsection{GP1}
+%
+% \begin{syntax}
+%   \indexitem{node key>GP1}
+%   
+% For Government Phonology (v1) representations. Here, the big trick
+% is to evenly space $\times$s by having a large enough |outer_xsep|
+% (adjustable), and then, before drawing (timing control option
+% |before_drawing_tree|), setting |outer_xsep| back to 0pt.  The last step
+% is important, otherwise the arrows between $\times$s won't draw!
+%
+% An example of an ``embedded'' |GP1| style:
+% \begin{forestexample}[layout=tree on bottom,index={where option,tier,for step,step>children,content,tikz,option>l,dimen+,no edge},index>={!}]
+%   \begin{forest}
+%     myGP1/.style={
+%       ~GP1~,
+%       delay={where tier={x}{
+%           for children={content=\textipa{##1}}}{}},
+%       tikz={\draw[dotted](.south)--
+%             (!1.north west)--(!l.north east)--cycle;},
+%       for children={l+=5mm,no edge}
+%     }
+%     [VP[DP[John,tier=word,myGP1
+%             [O[x[dZ]]]
+%             [R[N[x[6]]]]
+%             [O[x[n]]]
+%             [R[N[x]]]
+%     ]][V'[V[loves,tier=word,myGP1
+%              [O[x[l]]]
+%              [R[N[x[a]]]]
+%              [O[x[v]]]
+%              [R[N[x]]]
+%              [O[x[z]]]
+%              [R[N[x]]]
+%     ]][DP[Mary,tier=word,myGP1
+%            [O[x[m]]]
+%            [R[N[x[e]]]]
+%            [O[x[r]]]
+%            [R[N[x[i]]]]
+%     ]]]]
+%   \end{forest}%
+% \end{forestexample}
+%
+% And an example of annotations.
+% \begin{forestexample}
+%   \begin{forest}[,phantom,s sep=1cm
+%     [{[ei]}, GP1
+%       [R[N[x[A,~el~[I,~head~,~associate=N~]]][x]]]
+%     ]
+%     [{[mars]}, GP1
+%       [O[x[m]]]
+%       [R[N[x[a]]][x,~encircle~,densely dotted[r]]]
+%       [O[x,~encircle~,~govern=<~[s]]]
+%       [R,~fen~[N[x]]]
+%     ]
+%   ]\end{forest} 
+% \end{forestexample}
+%
+%    \begin{macrocode}
+\newbox\standardnodestrutbox
+\setbox\standardnodestrutbox=\hbox to 0pt{\phantom{\forestOve{standard node}{content}}}
+\def\standardnodestrut{\copy\standardnodestrutbox}
+\forestset{
+  GP1/.style 2 args={
+    for n={1}{baseline},
+    s sep=0pt, l sep=0pt,
+    for descendants={
+      l sep=0pt, l={#1},
+      anchor=base,calign=first,child anchor=north,
+      inner xsep=1pt,inner ysep=2pt,outer sep=0pt,s sep=0pt,
+    },
+    delay={
+      if content={}{phantom}{for children={no edge}},
+      for tree={
+        if content={O}{tier=OR}{},
+        if content={R}{tier=OR}{},
+        if content={N}{tier=N}{},
+        if content={x}{
+          tier=x,content={$\times$},outer xsep={#2},
+          for tree={calign=center},
+          for descendants={content format={\noexpand\standardnodestrut\forestoption{content}}},
+          before drawing tree={outer xsep=0pt,delay={typeset node}},
+          s sep=4pt
+        }{},
+      },
+    },
+    before drawing tree={where content={}{parent anchor=center,child anchor=center}{}},
+  },
+  GP1/.default={5ex}{8.0pt},
+  associate/.style={%
+    tikz+={\draw[densely dotted](!)--(!#1);}},
+  spread/.style={
+    before drawing tree={tikz+={\draw[dotted](!)--(!#1);}}},
+  govern/.style={
+    before drawing tree={tikz+={\draw[->](!)--(!#1);}}},
+  p-govern/.style={
+    before drawing tree={tikz+={\draw[->](.north) to[out=150,in=30] (!#1.north);}}},
+  no p-govern/.style={
+    before drawing tree={tikz+={\draw[->,loosely dashed](.north) to[out=150,in=30] (!#1.north);}}},
+  encircle/.style={before drawing tree={circle,draw,inner sep=0pt}},
+  fen/.style={pin={[font=\footnotesize,inner sep=1pt,pin edge=<-]10:\textsc{Fen}}},
+  el/.style={content=\textsc{\textbf{##1}}},
+  head/.style={content=\textsc{\textbf{\underline{##1}}}}
+}
+%    \end{macrocode}
+% \end{syntax}
+%\iffalse
+%</linguistics>
+%\fi
+%
+%
+%
+%\iffalse
+%<*edges>
+%\fi
+% \librarysection{edges}
+%    \begin{macrocode}
+\ProvidesForestLibrary{edges}
+%    \end{macrocode}
+% 
+% \begin{syntax}
+% 
+% \indexitem{node key>forked edge}
+%
+%   Sets a forked edge to the current node.  Arbitrary growth direction and node rotation are
+%   supported.
+%
+%   Using this key does \emph{not} change the current values of \index{option>parent anchor} and
+%   \index{option>child anchor}.
+%   
+% \indexitem{node key>forked edges}
+%
+%   Sets forked edges to the entire (sub)tree rooted in the current node.  Arbitrary growth
+%   direction and node rotation are supported.
+%
+%   \index{option>parent anchor} and \index{option>child anchor} are set appropriately.
+%   
+% \end{syntax}
+% 
+% \begin{forestexample}[index={for step,tree,grow',forked edges}]
+%   \begin{forest}
+%     for tree={grow'=0,draw},
+%     forked edges,
+%     [/
+%       [home
+%         [saso
+%           [Download]
+%           [TeX]
+%         ]
+%         [alja]
+%         [joe]
+%       ]
+%       [usr
+%         [bin]
+%         [share]
+%       ]
+%     ]
+%   \end{forest}  
+% \end{forestexample}
+%
+% See how \indexex{anchor>parent anchor} and \indexex{anchor>parent anchor} are used in the
+% definition of |forked_edge| to easily take care of arbitrary \index{grow} and \index{rotate}.
+%    \begin{macrocode}
+\forestset{
+  forked edge/.style={
+    edge={rotate/.pgfmath=grow()},
+    edge path'={(!u.parent anchor) -- ++(2mm,0) |- (.child anchor)},
+  },
+  forked edges/.style={
+    for tree={parent anchor=children},
+    for descendants={child anchor=parent,forked edge}
+  },
+}
+%    \end{macrocode}
+%
+% \begin{syntax}
+%   \indexitem{node key>folder}
+%   
+%   Folder-like tree, in all directions (well, cardinal directions work perfectly; the others await
+%   the sensitivity of packing to |edge path|), supporting node rotation and reversed children.
+% \end{syntax}
+% 
+% \begin{forestexample}[index={for step,tree,grow',folder}]
+%   \begin{forest}
+%     for tree={grow'=0,~folder~,draw}
+%     [/
+%       [home
+%         [saso
+%           [Download]
+%           [TeX]
+%         ]
+%         [alja]
+%         [joe]
+%       ]
+%       [usr
+%         [bin]
+%         [share]
+%       ]
+%     ]
+%   \end{forest}
+% \end{forestexample}
+%    \begin{macrocode}
+\forestset{
+  declare dimen register=folder indent,
+  folder indent=.45em,
+  folder/.style={
+    parent anchor=parent last,
+    anchor=parent first,
+    calign=child,
+    calign primary child=1,
+    for children={
+      child anchor=parent,
+      anchor=parent first,
+      edge={rotate/.pgfmath=grow()},
+      edge path'/.expanded={
+        ([xshift=\forestregister{folder indent}]!u.parent anchor) |- (.child anchor)
+      },
+    },
+    after packing node={
+      if n children=0{}{
+        tempdiml=l_sep()-l("!1"),
+        tempdims={-abs(max_s("","")-min_s("",""))-s_sep()},
+        for children={
+          l+=tempdiml,
+          s+=tempdims()*(reversed()-0.5)*2,
+        },
+      },
+    },
+  }
+}
+%    \end{macrocode}
+%\iffalse
+%</edges>
+%\fi
+% \forestset{every index end/.style={}}
+% \endinput
+% Local Variables:
+% mode: doctex
+% TeX-command-default: "sty"
+% fill-column: 100
+% TeX-master: "forest"
+% End:
