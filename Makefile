@@ -28,7 +28,7 @@ forest-doc.pdf: forest-doc.tex.success $(dtx) $(doc-sty) $(doc-other)
 	@echo
 	@echo Pass 1 ...
 	$(call compile, $(<:.success=))
-ifeq ($(SINGLEPASS),"no")
+ifneq ($(SINGLEPASS),yes)
 	@echo
 	@echo Pass 2 ...
 	$(call compile, $(<:.success=))
@@ -43,7 +43,7 @@ forest.pdf: forest.dtx.success forest.sty
 	$(call externalize, $(<:.success=))
 	@echo Pass 1 ...
 	$(call compile, $(<:.success=))
-ifeq ($(SINGLEPASS),"no")
+ifneq ($(SINGLEPASS),yes)
 	@echo
 	@echo Pass 2 ...
 	$(call compile, $(<:.success=))
@@ -51,7 +51,7 @@ endif
 	@echo Compilation successful!
 	@touch -r $(<:.success=) $<
 
-externalize = if [[ -n "$(EXTERNALIZE)" ]] ; then \
+externalize = if [[ "$(EXTERNALIZE)" == 'yes' ]] ; then \
 	echo Externalization is ON. ; echo "\\tikzexternalize" > $1-externalize.tex ; else \
 	echo Externalization is OFF. ; echo "" > $1-externalize.tex ; fi 
 

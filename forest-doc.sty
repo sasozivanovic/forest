@@ -52,7 +52,7 @@
   counter/.initial=lstlisting,
   no label/.style={counter={}},
   label format/.store in=\@currentlabel,
-  label format/.default={(\arabic{\pgfkeysvalueof{/forestexample/counter}})},
+  label format/.default={\arabic{\pgfkeysvalueof{/forestexample/counter}}},
   tree width/.initial={\dimexpr\linewidth-\wd\codebox-
     \glueexpr\pgfkeysvalueof{/forestexample/center skip}\relax\relax},
   layout/.store in=\forestexample@layout,
@@ -133,7 +133,7 @@
       \hskip\marginparsep
       \raisebox
         {\dimexpr\@tempdima+\depth-\pgfkeysvalueof{/forestexample/label y offset}}%
-        {\hbox to 0pt{\scriptsize\@currentlabel}}%
+        {\hbox to 0pt{\scriptsize(\@currentlabel)}}%
     }%
   }%
 }

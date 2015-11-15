@@ -30,9 +30,9 @@ explore*
 forest.tex
 CHECKSUM
 VERSION
-README
 versions
 forest-externalize.tex
 *.success
 *.foridx
 *.checksum
+tex.stackexchange.com/*

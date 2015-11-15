@@ -531,7 +531,7 @@ writing its name before the first (opening) bracket of the tree.
   ]\end{forest}
 \end{forestexample}
 Of course, someone needs to develop the style --- you, me, your local \TeX nician \dots\@
-Furtunately, designing styles is not very difficult once you know get the hang of \foRest;, if you
+Fortunately, designing styles is not very difficult once you get the hang of \foRest;, if you
 write one, please contribute!  Some macros relating to various fields are collected in
 \emph{libraries} that are distributed alongside the main package.  This is the case for the
 \index{GP1} style used above, which is defined in the |linguistics| library.  The simplest way to
@@ -608,7 +608,7 @@ the value is either empty (meaning a smartly determined border point
 from the child will arrive to this node, not where the node's edge to its parent will start!)
 
 Option \index{tier} is what makes the
-skeletal points $\times$ in example \ref{ex:gp1-frost} align horizontally although they
+skeletal points $\times$ in example (\ref{ex:gp1-frost}) align horizontally although they
 occur at different levels in the logical structure of the tree.
 Using option \index{tier} is very simple: just set |tier=tier_name| at
 all the nodes that you want to align horizontally.  Any tier name
@@ -641,12 +641,12 @@ details, see \cite[\S16]{tikzpgf2.10}.}
   \end{forest}
 \end{forestexample}
 
-Let's have another look at example \ref{ex:gp1-frost}.  You will note that the skeletal
+Let's have another look at example (\ref{ex:gp1-frost}).  You will note that the skeletal
 positions were input by typing |x|s, while the result looks like
 this: $\times$ (input as |\times| in math mode). Obviously, the
 content of the node can be changed.  Even more, it can be
 manipulated: added to, doubled, boldened, emphasized, etc.  We will
-demonstrate this by making example \ref{ex:numerals-manual} a bit
+demonstrate this by making example (\ref{ex:numerals-manual}) a bit
 fancier: we'll write the input in the arabic numbers and have
 \LaTeX\ convert it to the other formats.  We'll start with the
 easiest case of roman numerals: to get them, we can use the (plain)
@@ -690,7 +690,7 @@ the value of \meta{option} equals \meta{value}.  If so, \meta{true options} are
 processed, otherwise \meta{false options}.  The \index{where option=\meta{option}} keys are
 the same, but do this for the every node in the subtree; informally
 speaking, |where| = |for_tree| + |if|.  To see this in action,
-consider the rewrite of the \index{tier} example \ref{ex:tier-manual} from above.  We don't set
+consider the rewrite of the \index{tier} example (\ref{ex:tier-manual}) from above.  We don't set
 the tiers manually, but rather put the terminal nodes (option
 \index{n children} is a read-only option containing the number
 of children) on tier \keyname{word}.\footnote{We could omit the braces around \texttt{0} because
@@ -716,7 +716,7 @@ If you're inside a \index{for step=\index{tree}}, you probably want to use \inde
 Finally, let's talk about styles. Styles are simply collections of
 options.  (They are not actually defined in the \foRest; package, but
 rather inherited from |pgfkeys|.)  If you often want to have non-default 
-parent/child anchors, say south/north as in example \ref{ex:tier-manual}, you would save some
+parent/child anchors, say south/north as in example (\ref{ex:tier-manual}), you would save some
 typing by defining a style.  Styles are defined using \PGF;'s handler 
 |.style|, like shown below.\footnote{Style \index{sn edges} is actually already defined by library \reflibrary{linguistics}. The definition there is a bit more generic.}
 \begin{forestexample}[index={tier,option>parent anchor,option>child anchor}]
@@ -1263,7 +1263,7 @@ only letter with non-zero depth in the tree.  Since only \index{l sep} (which is
 throughout the tree) controls the vertical positioning, Adj, child of Ad\emph{j}P, is pushed lower
 than the other nodes on level 2.  If the content of the nodes is variable enough (various heights
 and depths), the cumulative effect can be quite strong, see the right tree of example
-\ref{ex:misalignments}.
+(\ref{ex:misalignments}).
 
 Setting only a default \index{l sep} thus does not work well enough in general.  The same
 is true for the reverse possibility, setting a default \index{option>l} (and leaving \index{l sep} at 0).  In the example below, the depth of the multiline node (anchored at the top
@@ -1273,14 +1273,14 @@ Sometimes, misalignment is much preferred \dots
   \mbox{}\begin{forest}
     [default
       [first child[a][b][c]]
-      [second child\\\scriptsize(a copy),
+      [second child\\[-1ex]\scriptsize(a copy),
        align=center[a][b][c]]
     ]
   \end{forest}\\
   \begin{forest} for tree={l sep=0}
     [{\texttt{l sep}=0}
       [first child[a][b][c]]
-      [second child\\\scriptsize(a copy),
+      [second child\\[-1ex]\scriptsize(a copy),
                    align=center[a][b][c]]
     ]
   \end{forest}
@@ -1298,7 +1298,7 @@ By default, \foRest; sets the standard node to be a node containing letters d an
 representations consist mainly of letters, and in the \TeX's default Computer Modern font, d is the
 highest letter (not character!), and j the deepest, so this decision guarantees that trees
 containing only letters will look nice.  If the tree contains many parentheses, like the right
-tree of example \ref{ex:misalignments}, the default will of course fail
+tree of example (\ref{ex:misalignments}), the default will of course fail
 and the standard node needs to be modified.  But for many applications, including nodes with
 indices, the default works.
 
@@ -1308,9 +1308,9 @@ see \ref{ref:standard-node}.
 \subsection{Advanced option setting}
 \label{tut:advanced-option-setting}
 
-We have already seen that the value of options can be manipulated: in \ref{ex:romannumeral} we have
+We have already seen that the value of options can be manipulated: in (\ref{ex:romannumeral}) we have
 converted numeric content from arabic into roman numerals using the \emph{wrapping} mechanism
-|content=\romannumeral#1|; in \ref{ex:l*}, we have tripled the value of |l|
+|content=\romannumeral#1|; in (\ref{ex:l*}), we have tripled the value of |l|
 by saying |l*=3|.  In this section, we will learn about the mechanisms for setting and
 referring to option values offered by \foRest;.
 
@@ -1335,7 +1335,7 @@ yielding an integer
 in the range from $-30$ to $30$.  Similiarly, \index{dimen+=l} adds a random float
 in the $[-5,5]$ range to the current value of \index{option>l}.
 
-Example \ref{ex:spread-s} demonstrated that information about
+Example (\ref{ex:spread-s}) demonstrated that information about
 the node, like the node's level, can be accessed within |pgfmath| expressions.  All
 options are accessible in this way, i.e.\ every option has a corresponding |pgfmath| function.
 For example, we could rotate the node based on its content:
@@ -1391,7 +1391,7 @@ Note the underscore |__| character in |n__children|: in |pgfmath| function names
 apostrophes and other non-alphanumeric characters from option names are all replaced by
 underscores. 
 
-As another example, let's make the numerals example \ref{ex:numerals-simple} a bit fancier.
+As another example, let's make the numerals example (\ref{ex:numerals-simple}) a bit fancier.
 The numeral type is read off the parent's content and used to construct the appropriate control
 sequence (|\@arabic|, |\@roman| and |\@alph|).  (Also, the numbers are not specified in content
 anymore: we simply read the sequence number \index{option>n}.  And, to save some horizontal space for the
@@ -2897,8 +2897,8 @@ A dynamic tree operation is made in two steps:
 \item A consequence of this approach is that nested dynamic tree keys take several cycles to
   complete.  Therefore, be careful when using \index{delay} and dynamic tree keys
   simultaneously: in such a case, it is often safer to use \index{before typesetting nodes}
-  instead of \index{delay}, see example \ref{ex:append}.
-\item Examples: title page (in style |random tree|) and \ref{ex:ex:niceemptynodes} (in style
+  instead of \index{delay}, see example (\ref{ex:append}).
+\item Examples: title page (in style |random tree|) and (\ref{ex:ex:niceemptynodes}) (in style
   |xlist|).
 \end{advise}
 
@@ -3042,7 +3042,7 @@ Steps~\ref{step:parsing-bracket} collects user input and is thus ``fixed''.  How
 steps, which do the actual work, are under user's control.
 
 First, hooks exist which make it possible (and easy) to change node's properties between the
-processing stages.  For a simple example, see example~\ref{ex:adjustxy}: the manual adjustment of
+processing stages.  For a simple example, see example~(\ref{ex:adjustxy}): the manual adjustment of
 \index{y} can only be done after the absolute positions have been computed, so the processing
 of this option is deferred by \index{before drawing tree}.  For a more realistic example, see
 the definition of style \index{GP1}: before packing, \texttt{outer xsep} is set to a high (user
@@ -3115,12 +3115,22 @@ processing flow.
 \indexitem{stage>compute xy} Computes the positions of the nodes relative to the (formal) root
   node.  The results are stored into options \index{x} and \index{y}.
 
-\indexitem{stage>draw tree} Produces the \TikZ; code that will draw the tree.  First, the nodes
-  are drawn (using the boxes typeset in step~\ref{step:typeset-nodes}), followed by edges and
-  custom code (see option \index{tikz}).
-  
-\indexitem{stage>draw tree'} Like \index{draw tree}, but the node boxes are included in the
-  picture using \cmdname{copy}, not \cmdname{box}, thereby preserving them.     
+\indexitem{stage>draw tree}
+\itemnosep
+\indexitem{stage>draw tree'}
+  Produces the \TikZ; code that will draw the tree.
+
+  The procedure uses the node boxes typeset in step~\ref{step:typeset-nodes}.  The |'| variant
+  includes the node boxes in the picture using \cmdname{copy}, not \cmdname{box}, thereby preserving
+  them.
+
+  By default, the nodes are drawn first, followed by edges and finally custom code given by
+  \index{tikz}.  However, the whole procedure is fully customizable via style \indexdef{style>draw
+    tree method}, originally defined like shown below.  To draw in individual node, edge (to parent)
+  or custom (\index{tikz}) code, \indexdef{node key>draw tree node}, \indexdef{node key>draw tree
+    edge} and \indexdef{node key>draw tree tikz} are used, respectively.
+
+  \lstinputregion{forest.dtx}{draw_tree_method}
   
 \indexitem{node key>draw tree box}|=|[\meta{\TeX\ box}]  The picture drawn by the subsequent
   invocations of \index{draw tree} and \index{draw tree'} is put into \meta{\TeX\ box}.  If
@@ -3416,7 +3426,7 @@ used.
 \subsection{Registers}
 \label{sec:registers}
 
-\FoRest; v1.1 introduces another concept similar to options: \emph{registers}. Unlike option values,
+\FoRest; v2.0 introduces another concept similar to options: \emph{registers}. Unlike option values,
 register values are not specific to each node. (We're trying to avoid the word global here, as
 registers are not global in the \TeX nical sense of transcending groups.)  Otherwise, register function precisely as options.
 
@@ -4538,6 +4548,7 @@ tree (manually added \TikZ; nodes are thus excluded).
 \indexitem{anchor>children last}, \indexdef{anchor>children last}\itemnosep
 \indexitem{anchor>last}, \indexdef{anchor>last}\itemnosep
 \indexitem{anchor>parent last}, \indexdef{anchor>parent last}
+Growth direction based anchors.
 
   \TikZ;'s ``compass anchors'' |east|, |north| etc.\ resolve to coordinates on the border of the
   node facing east, north etc.\ (for the shapes that define these anchors).  The above \FoRest;'s
@@ -4850,10 +4861,10 @@ anchor,option>anchor,anchor>anchor,calign,for step,tree,s sep,option>l,n childre
 \subsection{Changelog}
 \label{sec:changelog}
 
-\subsubsection{v1.1}
+\subsubsection{v2.0}
 
 \begin{description}
-\item[v1.1 (2015/11/??)] \mbox{}
+\item[v2.0 (2015/11/??)] \mbox{}
   
   Backwards incompatible changes (\emph{without} a \index{compat} key --- sorry!):
   \begin{itemize}
@@ -4899,7 +4910,7 @@ anchor,option>anchor,anchor>anchor,calign,for step,tree,s sep,option>l,n childre
   \item |compat=|\indexdef{option of=compat>1.0-name}
 
     Documentation of v1.0 requested that node names be unique, but this was not enforced by the
-    package, sometimes leading to errors.  v1.1 enforces node name uniqueness. If this causes
+    package, sometimes leading to errors.  v2.0 enforces node name uniqueness. If this causes
     problems, use this compatibility key.  In most cases using \index{name'} instead of
     \index{option>name} should fix the problem without using compatibility mode.
     
@@ -4907,7 +4918,7 @@ anchor,option>anchor,anchor>anchor,calign,for step,tree,s sep,option>l,n childre
     
     \begin{tabularx}{\linewidth}{lll}
       old&new&\index{compat} key\\\hline
-      \keyname{node walk}&\index{for step=nodewalk}\footnote{Nodewalks are much improved in v1.1, so some syntax and keys are different than in v1.0!}&\indexdef{option of=compat>1.0-nodewalk}\\
+      \keyname{node walk}&\index{for step=nodewalk}\footnote{Nodewalks are much improved in v2.0, so some syntax and keys are different than in v1.0!}&\indexdef{option of=compat>1.0-nodewalk}\\
       \keyname{for}&\index{for step=\index{group}}&\indexdef{option of=compat>1.0-for}\\
       \keyname{for all next}&\index{for step=\index{following siblings}}&\indexdef{option of=compat>1.0-forall}\\
       \keyname{for all previous}&\index{for step=\index{preceding siblings}}&\indexdef{option of=compat>1.0-forall}\\
@@ -4915,7 +4926,7 @@ anchor,option>anchor,anchor>anchor,calign,for step,tree,s sep,option>l,n childre
       (\keyname{for}) \keyname{linear next}&(\index{for step}) \index{next node}&\indexdef{option of=compat>1.0-linear}\\
       (\keyname{for}) \keyname{linear previous}&(\index{for step}) \index{previous node}&\indexdef{option of=compat>1.0-linear}\\
       \keyname{triangle}&\index{roof} (library \reflibrary{linguistics})&\indexdef{option of=compat>1.0-triangle}\\
-      \keyname{/tikz/fit to tree}&\index{fit to}\keyname{=}\index{tree}\footnote{The v1.0 key \keyname{/tikz/fit to tree} also set \keyname{inner sep=0}; the v1.1 key \index{fit to} does not do that.}&\indexdef{option of=compat>1.0-fittotree}\\
+      \keyname{/tikz/fit to tree}&\index{fit to}\keyname{=}\index{tree}\footnote{The v1.0 key \keyname{/tikz/fit to tree} also set \keyname{inner sep=0}; the v2.0 key \index{fit to} does not do that.}&\indexdef{option of=compat>1.0-fittotree}\\
       \keyname{begin forest}, \keyname{end forest}&none (use \index{stages}&\index{1.0-stages}\\
       \keyname{end forest}, \keyname{end forest}&none (use \index{stages}&\index{1.0-stages}\\
     \end{tabularx}
@@ -4940,7 +4951,8 @@ anchor,option>anchor,anchor>anchor,calign,for step,tree,s sep,option>l,n childre
   \item Implemented sorting of children, see \S\ref{ref:dynamic}.
   \item Introduced registers, see \S\ref{sec:registers}.
   \item Implemented handlers \index{handler>option}, \index{handler>register} and \index{process args}.
-  \item Implemented several friends to \index{process keylist}, and introduced \index{processing order}.
+  \item Implemented several friends to \index{process keylist}, introduced \index{processing order}s
+    and \index{draw tree method}.
   \item Added the optional argument |(|\meta{stages}|)| to the \index{forest} environment and
     \index{Forest} macro.
   \item Implemented \index{autoforward}ing.

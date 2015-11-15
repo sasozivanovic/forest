@@ -75,7 +75,7 @@
 % 
 % Identification.
 %    \begin{macrocode}
-\ProvidesPackage{forest}[2015/11/01 v1.1.0rc1 Drawing (linguistic) trees]
+\ProvidesPackage{forest}[2015/11/14 v2.0.0rc2 Drawing (linguistic) trees]
 
 \RequirePackage{tikz}[2013/12/13]
 \usetikzlibrary{shapes}
@@ -4820,15 +4820,15 @@
     process keylist=before drawing tree,
     draw tree stage
   },
-}
-  %%% end listing region: stages
-\forestset{
   typeset nodes stage/.style={for root'=typeset nodes},
   pack stage/.style={for root'=pack},
   compute xy stage/.style={for root'=compute xy},
   draw tree stage/.style={for root'=draw tree},
+}
+  %%% end listing region: stages
+\forestset{
   process keylist/.code={%
-    \forest@process@hook@keylist{#1}{#1 processing order/.try,processing order/.retry}},
+    \forest@process@hook@keylist{#1}{#1 processing order/.try,processing order/.lastretry}},
   process keylist'/.code 2 args={\forest@process@hook@keylist@nodynamics{#1}{#2}},
   process keylist''/.code 2 args={\forest@process@hook@keylist@{#1}{#2}},
   process keylist register/.code={\forest@process@keylist@register{#1}},
@@ -4870,10 +4870,16 @@
   },
   typeset nodes/.code={%
     \forest@drawtree@preservenodeboxes@false
-    \forest@node@foreach{\forest@node@typeset}},
+    \forest@nodewalk
+      {typeset nodes processing order/.try,processing order/.lastretry}%
+      {TeX={\forest@node@typeset}}%
+    },
   typeset nodes'/.code={%
     \forest@drawtree@preservenodeboxes@true
-    \forest@node@foreach{\forest@node@typeset}},
+    \forest@nodewalk
+      {typeset nodes processing order/.try,processing order/.lastretry}%
+      {TeX={\forest@node@typeset}}%
+    },
   typeset node/.code={%
     \forest@drawtree@preservenodeboxes@false
     \forest@node@typeset
@@ -4891,6 +4897,28 @@
     \forest@drawtree@preservenodeboxes@true
     \forest@node@drawtree
   },
+  %%% begin listing region: draw_tree_method
+  draw tree method/.style={
+    for nodewalk={
+      draw tree nodes processing order/.try,
+      draw tree processing order/.retry,
+      processing order/.lastretry
+    }{draw tree node},
+    for nodewalk={
+      draw tree edges processing order/.try,
+      draw tree processing order/.retry,
+      processing order/.lastretry
+    }{draw tree edge},
+    for nodewalk={
+      draw tree tikz processing order/.try,
+      draw tree processing order/.retry,
+      processing order/.lastretry
+    }{draw tree tikz}
+  },
+  %%% end listing region: draw_tree_method
+  draw tree node/.code={\forest@draw@node},
+  draw tree edge/.code={\forest@draw@edge},
+  draw tree tikz/.code={\forest@draw@tikz},
   for nodewalk={processing order/.style={tree}}{},
   %given options processing order/.style={processing order},
   %before typesetting nodes processing order/.style={processing order},
@@ -6419,7 +6447,7 @@
   \fi
 }
 \def\forest@node@drawtree@{%
-  \forest@node@foreach{\forest@draw@node}%
+  \forest@forthis{\forestset{draw tree method}}%
   \forest@node@Ifnamedefined{forest@baseline@node}{%
     \edef\forest@temp{%
       \noexpand\pgfsetbaselinepointlater{%
@@ -6429,8 +6457,6 @@
       }%
     }\forest@temp
   }{}%
-  \forest@node@foreachdescendant{\forest@draw@edge}%
-  \forest@node@foreach{\forest@draw@tikz}%
 }
 \def\forest@draw@node{%
   \ifnum\forestove{phantom}=0
@@ -6445,10 +6471,12 @@
   \fi
 }
 \def\forest@draw@edge{%
-  \ifnum\forestove{phantom}=0
-    \ifnum\forestOve{\forestove{@parent}}{phantom}=0
-      \edef\forest@temp{\forestove{edge path}}%
-      \forest@temp
+  \ifnum\forest@cn=\forest@root\relax\else
+    \ifnum\forestove{phantom}=0
+      \ifnum\forestOve{\forestove{@parent}}{phantom}=0
+        \edef\forest@temp{\forestove{edge path}}%
+        \forest@temp
+      \fi
     \fi
   \fi
 }

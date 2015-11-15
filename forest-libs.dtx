@@ -109,13 +109,35 @@
 % to the \emph{n}orth of the child.  This is achieved by this (badly named) style, which makes the
 % entire (sub)tree have such edges.
 %
-% However, this style does not refer to the |south| and |north| anchor
-% of the parent and the child node directly.  If it did so, it would
-% only work for trees with standard linguistic \index{grow}|=-90|.
-% So we rather use \FoRest;'s ``growth'' anchors:
-% \index{anchor>children} always faces the children and
-% \index{anchor>parent} always faces the parent, so the edge
-% will always be between them, as desired.
+% \begin{forestexample}
+%   \begin{forest}
+%     sn edges
+%     [VP
+%       [DP]
+%       [V'
+%         [V]
+%         [DP]
+%       ]
+%     ]
+%   \end{forest}
+% \end{forestexample}
+% 
+%    \begin{macrocode}
+\forestset{
+  sn edges/.style={
+    for tree={
+      parent anchor=children, child anchor=parent
+    }
+  },
+}
+%    \end{macrocode}
+%
+% A note on implementation. Despite its name, this style does not refer to the |south| and |north|
+% anchor of the parent and the child node directly.  If it did so, it would only work for trees with
+% standard linguistic \index{grow}|=-90|.  So we rather use \FoRest;'s growth direction based
+% anchors: \index{anchor>children} always faces the children and \index{anchor>parent} always faces
+% the parent, so the edge will always be between them, and the normal, upward growing trees will
+% look good as well.
 %
 % \begin{forestexample}[index={anchor>south,anchor>north,option>parent anchor,option>child anchor}]
 %   \begin{forest}
@@ -129,15 +151,6 @@
 %     [DP][V'[V][DP]]]]
 %   \end{forest}
 % \end{forestexample}
-%    \begin{macrocode}
-\forestset{
-  sn edges/.style={
-    for tree={
-      parent anchor=children, child anchor=parent
-    }
-  },
-}
-%    \end{macrocode}
 %
 % \indexitem{node key>roof}   Makes the edge to parent a triangular roof. 
 %    \begin{macrocode}
@@ -151,24 +164,25 @@
 %
 % \indexitem{node key>nice empty nodes}
 %
-% We often need empty nodes: tree (a) shows how they look like by
-% default: ugly.
+% We often need empty nodes: tree (\ref{ex:niceemptynodes}a) shows how they look like by default:
+% ugly.
 %
-% First, we don't want the gaps: we change the shape of empty nodes to coordinate.  We get tree (b).
+% First, we don't want the gaps: we change the shape of empty nodes to coordinate.  We get tree
+% (\ref{ex:niceemptynodes}b).
 %
 % Second, the empty nodes seem too close
 % to the other (especially empty) nodes (this is a result of a small
 % default |s_sep|).  We could use a greater \index{s sep}, but a better solution seems
-% to be to use |calign=node_angle|.  The result is shown in (c). 
+% to be to use |calign=node_angle|.  The result is shown in (\ref{ex:niceemptynodes}c). 
 %
-% However, at the transitions from empty to non-empty nodes, tree (c)
-% above seems to zigzag (although the base points of the spine nodes
+% However, at the transitions from empty to non-empty nodes, tree (\ref{ex:niceemptynodes}c)
+% seems to zigzag (although the base points of the spine nodes
 % are perfectly in line), and the edge to the empty node left to VP
 % seems too long (it reaches to the level of VP's base, while we'd
 % prefer it to stop at the same level as the edge to VP itself).  The
 % first problem is solved by substituting |node_angle| for
 % |edge_angle|; the second one, by anchoring siblings of
-% empty nodes at north.
+% empty nodes at north.  Voilà, (\ref{ex:niceemptynodes}d)!
 % 
 % \begin{forestexample}[label=ex:niceemptynodes,layout=tree on bottom,index={fixed angles,fixed edge angles,calign,tree,delay,where option,content,for step,step>parent,step>children,option>anchor}]
 %   \forestset{
@@ -377,7 +391,11 @@
 %   Sets forked edges to the entire (sub)tree rooted in the current node.  Arbitrary growth
 %   direction and node rotation are supported.
 %
-%   \index{option>parent anchor} and \index{option>child anchor} are set appropriately.
+%   \index{option>parent anchor} and \index{option>child anchor} are set to \index{children} and
+%   \index{parent}, repectively.
+%
+%   \indexitem{option>fork sep} The \index{forest cs:l}-distance between the parent anchor and the
+%   fork.
 %   
 % \end{syntax}
 % 
@@ -406,9 +424,10 @@
 % definition of |forked_edge| to easily take care of arbitrary \index{grow} and \index{rotate}.
 %    \begin{macrocode}
 \forestset{
+  declare dimen={fork sep}{0.5em},
   forked edge/.style={
     edge={rotate/.pgfmath=grow()},
-    edge path'={(!u.parent anchor) -- ++(2mm,0) |- (.child anchor)},
+    edge path'={(!u.parent anchor) -- ++(\forestoption{fork sep},0) |- (.child anchor)},
   },
   forked edges/.style={
     for tree={parent anchor=children},
@@ -418,10 +437,22 @@
 %    \end{macrocode}
 %
 % \begin{syntax}
-%   \indexitem{node key>folder}
-%   
-%   Folder-like tree, in all directions (well, cardinal directions work perfectly; the others await
-%   the sensitivity of packing to |edge path|), supporting node rotation and reversed children.
+%   \indexitem{node key>folder} The children of the node are drawn like folders.
+%
+%   All growth directions are supported (well, cardinal directions work perfectly; the others await
+%   the sensitivity of packing to \index{edge path}), as well as node rotation and \index{reversed}
+%   order of children.
+%
+%   The outlook of the folder can be influenced by setting standard \foRest;'s options \index{l sep}
+%   and \index{s sep} any time before packing, or \index{option>l} and \index{option>s} after
+%   packing.  Setting \index{option>l} and \index{option>s} before packing will have no influence on
+%   the layout of the tree.
+%
+%   \begin{syntax}
+%     \indexitem(.45em){register>folder indent}|=|\meta{dimen} Specifies the shift of the parent's
+%     side of the edge in the \index{forest cs>l}-direction.
+%   \end{syntax}
+%
 % \end{syntax}
 % 
 % \begin{forestexample}[index={for step,tree,grow',folder}]
