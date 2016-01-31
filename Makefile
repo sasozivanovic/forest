@@ -5,15 +5,16 @@ EXTERNALIZE = yes
 ins = forest.ins forest-doc.ins
 dtx = $(shell grep -Poh '\\from{(.*?)}' $(ins) | sed 's/\\from{\(.*\)}/\1/;' | sort | uniq)
 
-package-sty = $(shell grep -Poh '\\file{(.*?)}' $(ins) | sed 's/\\file{\(.*\)}/\1/;') \
-	forest-compat.sty
+package-nonderived-sty = forest-compat.sty
 package-tex = 
 package-other =
 package-pdf = forest.pdf
+package-derived-sty = $(shell grep -Poh '\\file{(.*?)}' $(ins) | sed 's/\\file{\(.*\)}/\1/;')
+package-sty = $(package-nonderived-sty) $(package-derived-sty)
 
 doc-tex = forest-doc.tex
 doc-sty = forest-doc.sty
-doc-other = forest-doc.ist
+doc-other = forest-doc.ist ~/texmf/bibtex/bib/local/tex.bib
 doc-pdf = forest-doc.pdf
 
 tex = $(package-tex) $(doc-tex)
@@ -23,7 +24,7 @@ pdf = $(package-pdf) $(doc-pdf)
 
 %.success: % ;
 
-forest-doc.pdf: forest-doc.tex.success $(dtx) $(doc-sty) $(doc-other)
+forest-doc.pdf: forest-doc.tex forest-doc.tex.success $(dtx) $(doc-sty) $(doc-other) forest-doc-test.tex
 	$(call externalize, $(<:.success=))
 	@echo
 	@echo Pass 1 ...
@@ -38,6 +39,9 @@ ifneq ($(SINGLEPASS),yes)
 endif
 	@echo Compilation successful!
 	@touch -r $< $<.success
+
+forest-doc-test.tex:
+	[[ -a $@ ]] || touch $@
 
 forest.pdf: forest.dtx.success forest.sty 
 	$(call externalize, $(<:.success=))
@@ -58,7 +62,7 @@ externalize = if [[ "$(EXTERNALIZE)" == 'yes' ]] ; then \
 compile = pdflatex -synctex=1 -interaction $(INTERACTION) $(1) && \
 	( bibtex $(basename $1) || ( echo bibtex failed! && true ) ) && \
 	( if [[ -f $(basename $1).idx ]] ; then makeindex -s forest-doc.ist $(basename $1) ; fi || ( echo makeindex failed! && true ) ) && \
-	cp $(basename $1).pdf $(basename $1).bak.pdf
+	if [[ `pdfinfo $(basename $1).pdf | sed -n '/^Pages:/s/^Pages: *//p'` > 10 ]] ; then cp $(basename $1).pdf $(basename $1).bak.pdf ; fi
 
 forest.sty: forest.dtx forest.ins
 	tex forest.ins >/dev/null
@@ -92,24 +96,28 @@ versiondir: VERSION
 versiondirremove: VERSION
 	@if [[ -d versions && -d versions/`cat VERSION` ]] ; then read -p "Remove forest v`cat VERSION` (y/n)? " jane ; if [ "$$jane" = "y" ] ; then rm -r versions/`cat VERSION` ; echo Removed it! ; else echo "Ok, I won't!" ; exit 1; fi ; fi
 
-forest%.dtx.checksum: forest%.dtx
+%.dtx.checksum: %.dtx
 	@cat $< | tr -cd '\\' |wc -m > $@
 	@sed -ne '1 s/^% *\\CheckSum{\([0-9\]*\)\} *$$/\1/p;' $< | \
 		if ! diff $@ - >/dev/null ; then \
 			checksum=`cat $@` ; \
 			echo Fixing checksum in $< to $$checksum ; \
-			sed -ie "1 s/\\CheckSum{\([0-9]*\)}/\\CheckSum{$$checksum}/;" forest.dtx ; \
+			sed -ie "1 s/\\CheckSum{\([0-9]*\)}/\\CheckSum{$$checksum}/;" $< ; \
 		fi
 
+
+nocheckexternalization : ;
 
 checkexternalization :
 	@echo Checking if externalization is off ...
 	@if grep '^[^%]\\tikzexternalize$$' forest-doc.tex >/dev/null || [[ "$(EXTERNALIZE)" == 'yes' ]] ; then echo ; echo Switch off externalization! ; echo; exit 1; fi
 
-zip: versiondir checkexternalization $(patsubst %.dtx,%.dtx.checksum,$(dtx)) \
-	README LICENCE $(ins) $(dtx) $(sty) $(tex) $(pdf) $(other)
+checksums: $(patsubst %.dtx,%.dtx.checksum,$(dtx))
+
+zip: versiondir nocheckexternalization checksums \
+	README LICENCE $(ins) $(dtx) $(sty) $(tex) $(other) $(pdf) 
 	@echo Copying files to the version `cat VERSION` directory ...
-	@cp README LICENCE $(ins) $(dtx) $(sty) $(tex) $(pdf) $(other) versions/`cat VERSION`/forest
+	@cp README LICENCE $(ins) $(dtx) $(doc-sty) $(package-nonderived-sty) $(tex) $(pdf) $(other) versions/`cat VERSION`/forest
 	@echo Zipping files
 	@cd versions/`cat VERSION` && zip -r forest.zip forest
 	@cd ../..

@@ -1,4 +1,4 @@
-% \CheckSum{557}
+% \CheckSum{12479}
 % \iffalse meta-comment
 % forest.dtx
 %% `forest' is a `pgf/tikz'-based package for drawing (linguistic) trees.
@@ -17,17 +17,15 @@
 %% and version 1.3 or later is part of all distributions of LaTeX
 %% version 2005/12/01 or later.
 %%
-%% This work has the LPPL maintenance status `maintained'.
+%% This work has the LPPL maintenance status `author-maintained'.
 %% 
-%% The Current Maintainer of this work is Saso Zivanovic.
-%%
 %% This work consists of the following files:
 %% - forest.dtx: central sources (with rudimentary implementation documentation)
 %% - forest-libs.dtx: sources and documentation for libraries
-%% - forest-compat.sty: sources/runtime for compatibility mode
+%% + forest-compat.sty: sources/runtime for compatibility mode
 %% - forest.ins: produces derived runtime .sty files
-%%   - forest.sty: main package
-%%   - forest-lib-*: libraries (for the list, see forest.ins)
+%%   + forest.sty: main package
+%%   + forest-lib-*.sty: libraries (for the list, see forest.ins)
 %% - forest-doc.tex: central documentation
 %% - forest-doc.sty: private package needed to compile the documentation
 %% - forest-index.dtx: sources of indexing package used in the documentation,
@@ -39,7 +37,8 @@
 %% - forest-doc.pdf: user's guide
 %% - README
 %% - LICENCE
-%%
+%% To use the package, only the files marked with + need to be installed.
+%% 
 %<*driver>
 \documentclass[a4paper]{ltxdoc}
 
@@ -75,7 +74,7 @@
 % 
 % Identification.
 %    \begin{macrocode}
-\ProvidesPackage{forest}[2015/11/14 v2.0.0rc2 Drawing (linguistic) trees]
+\ProvidesPackage{forest}[2015/01/30 v2.0.0 Drawing (linguistic) trees]
 
 \RequirePackage{tikz}[2013/12/13]
 \usetikzlibrary{shapes}
@@ -116,7 +115,7 @@
   .unknown/.code={% load library
     \eappto\forest@loadlibrarieslater{%
       \noexpand\useforestlibrary{\pgfkeyscurrentname}%
-      \noexpand\forestloadlibrarydefaults{\pgfkeyscurrentname}%
+      \noexpand\forestapplylibrarydefaults{\pgfkeyscurrentname}%
     }%
   },
 }
@@ -124,9 +123,11 @@
 \foresttikzcshacktrue
 \def\forest@loadlibrarieslater{}
 \AtEndOfPackage{\forest@loadlibrarieslater}
-\def\useforestlibrary#1{\RequirePackage{forest-lib-#1}}
-\def\forestloadlibrarydefaults#1{\forestset{libraries/#1/defaults/.try}}
-\newcommand\ProvidesForestLibrary[1]{\ProvidesPackage{forest-lib-#1}}
+\def\useforestlibrary#1{\forcsvlist\useforestlibrary@{#1}}
+\def\useforestlibrary@#1{\RequirePackage{forest-lib-#1}}
+\def\forestapplylibrarydefaults#1{\forcsvlist\forestapplylibrarydefaults@{#1}}
+\def\forestapplylibrarydefaults@#1{\forestset{libraries/#1/defaults/.try}}
+\NewDocumentCommand\ProvidesForestLibrary{m O{}}{\ProvidesPackage{forest-lib-#1}[#2]}
 \ProcessPgfPackageOptions{/forest/package@options}
 %    \end{macrocode}
 % \section{Patches}
@@ -421,6 +422,25 @@
   autoforward register/.code 2 args={\forest@autoforward{#1}{#2={#1={##1}}}{false}},
   autoforward register'/.code 2 args={\forest@autoforward{#1}{#2-=#1,#2={#1={##1}}}{false}},
   Autoforward register/.code 2 args={\forest@autoforward{#1}{#2}{false}},
+  copy command key@if it exists/.code 2 args={%
+    \pgfkeysifdefined{#1/.@cmd}{%
+      \forest@copycommandkey{#1}{#2}%
+    }{}%
+  },
+  unautoforward/.style={
+    typeout={unautoforwarding #1},
+    copy command key@if it exists={/forest/autoforwarded #1}{/forest/#1},
+    copy command key@if it exists={/forest/autoforwarded #1+}{/forest/#1+},
+    copy command key@if it exists={/forest/autoforwarded #1-}{/forest/#1-},
+    copy command key@if it exists={/forest/autoforwarded #1*}{/forest/#1*},
+    copy command key@if it exists={/forest/autoforwarded #1:}{/forest/#1:},
+    copy command key@if it exists={/forest/autoforwarded #1'}{/forest/#1'},
+    copy command key@if it exists={/forest/autoforwarded #1+'}{/forest/#1+'},
+    copy command key@if it exists={/forest/autoforwarded #1-'}{/forest/#1-'},
+    copy command key@if it exists={/forest/autoforwarded #1*'}{/forest/#1*'},
+    copy command key@if it exists={/forest/autoforwarded #1:'}{/forest/#1:'},
+    copy command key@if it exists={/forest/autoforwarded +#1}{/forest/+#1},
+  },
   /handlers/.undef/.code={\csundef{pgfk@\pgfkeyscurrentpath}},
   undef option/.style={
     /forest/#1/.undef,
@@ -460,10 +480,10 @@
 \def\forest@autoforward@createforwarder#1#2#3#4#5{%
   % #1=prefix, #2=option name, #3=suffix, #4=macro code (#2 above), #5=option or register
   \pgfkeysifdefined{/forest/#1#2#3/.@cmd}{%
-    \forest@copycommandkey{/forest/#1#2#3}{/forest/#1#2#3@autoforward}%
-    \pgfkeyssetvalue{/forest/#1#2#3@autoforward/option@name}{#2}%
+    \forest@copycommandkey{/forest/#1#2#3}{/forest/autoforwarded #1#2#3}%
+    \pgfkeyssetvalue{/forest/autoforwarded #1#2#3/option@name}{#2}%
     \pgfkeysdef{/forest/#1#2#3}{%
-      \pgfkeysalso{#1#2#3@autoforward={##1}}%
+      \pgfkeysalso{autoforwarded #1#2#3={##1}}%
       \def\forest@temp@macro####1{#4}%
       \csname forest@temp#5\endcsname
       \edef\forest@temp@value{\ifforest@temp\expandafter\forestOv\expandafter{\expandafter\forest@setter@node\expandafter}\else\expandafter\forestrv\fi{#2}}%
@@ -681,10 +701,11 @@
 % We defines the item-exchange macro in terms of the (user-provided)
 % array let macro.
 %    \begin{macrocode}
+\def\forest@sort@aux{aux}
 \def\forest@sort@xch#1#2{%
-  \forest@sort@let{aux}{#1}%
+  \forest@sort@let{\forest@sort@aux}{#1}%
   \forest@sort@let{#1}{#2}%
-  \forest@sort@let{#2}{aux}%
+  \forest@sort@let{#2}{\forest@sort@aux}%
 }
 %    \end{macrocode}
 % Insertion sort.
@@ -700,7 +721,7 @@
 }
 \newif\ifforest@insertionsort@loop
 \def\forest@insertionsort@Qbody{%
-  \forest@sort@let{aux}{\the\forest@sort@m}%  
+  \forest@sort@let{\forest@sort@aux}{\the\forest@sort@m}%  
   \forest@sort@k\forest@sort@m
   \advance\forest@sort@k -1
   \forest@insertionsort@looptrue
@@ -709,10 +730,10 @@
     \forest@insertionsort@qbody
   \forest@sort@repeat
   \advance\forest@sort@k 1
-  \forest@sort@let{\the\forest@sort@k}{aux}%
+  \forest@sort@let{\the\forest@sort@k}{\forest@sort@aux}%
 }
 \def\forest@insertionsort@qbody{%
-  \forest@sort@cmp{\the\forest@sort@k}{aux}%
+  \forest@sort@cmp{\the\forest@sort@k}{\forest@sort@aux}%
   \ifx\forest@sort@direction\forest@sort@cmp@result\relax
     \forest@sort@p=\forest@sort@k
     \advance\forest@sort@p 1
@@ -819,7 +840,7 @@
   action character,
   new node/.code n args={3}{% #1=preamble, #2=node spec, #3=cs receiving the id
     \forest@node@new#3%
-    \forestOset{#3}{given options}{content'=#2}%
+    \forestOeset{#3}{given options}{\forest@contentto=\unexpanded{#2}}%
     \ifblank{#1}{}{%
       \forestrset{preamble}{#1}%
     }%
@@ -2931,9 +2952,12 @@
   math content/.style={content format={\noexpand\ensuremath{\forestoption{content}}}},
   declare toks={node format}{%
     \noexpand\node
-    [\forestoption{node options}]%
     (\forestoption{name})%
+    [\forestoption{node options}]%
     {\foresteoption{content format}};%
+  },
+  node format'/.style={
+    node format={\noexpand\node(\forestoption{name})#1;}
   },
   tabular@environment/.style={content format={%
     \noexpand\begin{tabular}[\forestoption{base}]{\forestoption{align}}%
@@ -2971,6 +2995,8 @@
   unknown to/.store in=\forest@unknownto,
   unknown to=node options,
   unknown key error/.code={\PackageError{forest}{Unknown keyval: \detokenize{#1}}{}},
+  content to/.store in=\forest@contentto,
+  content to=content,
   .unknown/.code={%
     \expandafter\pgfutil@in@\expandafter.\expandafter{\pgfkeyscurrentname}%
     \ifpgfutil@in@
@@ -3043,10 +3069,13 @@
   \forest@extendpath#3\forest@temp@boundary{\pgfpoint{\forestove{x}}{\forestove{y}}}%
 }
 \def\forest@setter@node{\forest@cn}%
+\def\forest@relatednode@option@compat@ignoreinvalidsteps#1{#1}
 \def\forest@relatednode@option@setter#1.#2=#3\forest@END{%
   \forest@forthis{%
-    \forest@nameandgo{#1}%
-    \let\forest@setter@node\forest@cn
+    \forest@relatednode@option@compat@ignoreinvalidsteps{%
+      \forest@nameandgo{#1}%
+      \let\forest@setter@node\forest@cn
+    }%
   }%
   \ifnum\forest@setter@node=0
   \else
@@ -3500,7 +3529,7 @@
 \def\forest@nodewalk@makestep@oninvalid@error{\PackageError{forest}{nodewalk stepped to the invalid node; stack: "\forest@nodewalk@currentstepname"}{}}%
 \let\forest@nodewalk@makestep@oninvalid@fake\relax
 \def\forest@nodewalk@makestep@oninvalid@compatfake{%
-  \forest@deprecated{last step in stack "\forest@nodewalk@currentstepname", which stepped on an invalid node; enabled by "compat=forstep".  Use "on invalid={fake}{...}" or "for Nodewalk={on invalid=fake}{...}{...}" instead.}%
+  \forest@deprecated{last step in stack "\forest@nodewalk@currentstepname", which stepped on an invalid node; enabled by "compat=ignoreinvalidsteps".  Use "on invalid={fake}{...}" or "for Nodewalk={on invalid=fake}{...}{...}" instead.}%
 }%
 \def\forest@nodewalk@makestep@oninvalid@inherited{\csname forest@nodewalk@makestep@oninvalid@\forest@nodewalk@oninvalid\endcsname}
 \def\forest@nodewalk@makestep@{%
@@ -4560,8 +4589,8 @@
   define long step={siblings reversed}{style}{for nodewalk'={following siblings reversed},preceding siblings reversed},
   define long step={ancestors}{style}{while={}{parent},last valid},
   define long step={current and ancestors}{style}{current,ancestors},
-  define long step={following nodes}{style}{while={}{following node},last valid},
-  define long step={preceding nodes}{style}{while={}{preceding node},last valid},
+  define long step={following nodes}{style}{while={}{next node},last valid},
+  define long step={preceding nodes}{style}{while={}{previous node},last valid},
   define long step={current and following nodes}{style}{current,following nodes},
   define long step={current and preceding nodes}{style}{current,preceding nodes},
 }
@@ -5382,7 +5411,7 @@
     \else
       \advance\pgfutil@tempdimb-\forest@csdistance\relax
       \advance\pgfutil@tempdimb\forestove{s sep}\relax
-      \forestOeset{\forest@child}{s}{\the\dimexpr\forestove{s}-\forest@csdistance+\forestove{s sep}}%
+      \forestOeset{\forest@child}{s}{\the\dimexpr\forestOve{\forest@child}{s}-\forest@csdistance+\forestove{s sep}}%
     \fi
 %    \end{macrocode}
 % Retain monotonicity (is this ok?).  (This problem arises when the adjacent children's |l| are too
@@ -8488,8 +8517,8 @@
 \def\forest@Pointanchor#1#2{% #1 = node id, #2 = anchor
   {%
     \def\forest@pa@temp@name{name}%
-    \forestoifdefined{@box}{%
-      \forestoget{@box}\forest@temp
+    \forestOifdefined{#1}{@box}{%
+      \forestOget{#1}{@box}\forest@temp
       \ifdefempty\forest@temp{}{%
         \def\forest@pa@temp@name{later@name}%
       }%

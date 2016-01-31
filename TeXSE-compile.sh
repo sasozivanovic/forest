@@ -3,6 +3,9 @@
 while [[ $1 ]] ; do
     if [[ $1 == "-v" ]] ; then
 	verbose="1"
+    elif [[ $1 == "-compat" || $1 == "-c" ]] ; then
+	compat="$2"
+	shift;
     else
 	break
     fi
@@ -13,9 +16,11 @@ function append_filevars () {
     echo "
 %%% Local Variables:
 %%% mode: latex
-%%% TeX-master: t
-%%% TeX-engine: ${2%latex}tex
-%%% End:" >> $1
+%%% TeX-master: t" >> $1
+    if [[ $2 != 'pdflatex' ]] ; then
+	echo '%%% TeX-engine: ${2%latex}tex' >> $1
+    fi
+    echo "%%% End:" >> $1
 }
 
 # OK: compiles
@@ -33,10 +38,14 @@ function test () {
 	if timeout -k 10s 5m $2 -interaction batchmode $1 >/dev/null ; then 
     	    mkdir ../$2-v1.1 2>/dev/null
 	    cd ../$2-v1.1
-	    ln -sf ../../../../forest.sty ../../../../forest-lib-*.sty .
+	    ln -sf ../../../../forest.sty ../../../../forest-lib-*.sty ../../../../forest-compat.sty .
 	    rm -rf ${1%tex}*
 	    cp ../$1 .
 	    append_filevars $1 $2
+	    if [[ $compat != "" ]] ; then
+		# TODO: optional args to \usepackage
+		sed -i -e "s/\\\\usepackage{forest}/\\\\usepackage[compat=$compat]{forest}/;" $1
+	    fi
 	    if $2 -interaction batchmode $1 >/dev/null ; then
 		echo -n "v1.1 compiles, ok "
 		if cmp ../$2-v1.0/${1%tex}pdf ${1%tex}pdf >/dev/null ; then
@@ -78,5 +87,5 @@ function test () {
 }
 
 test $1 pdflatex 
-test $1 xelatex 
-test $1 lualatex 
+#test $1 xelatex 
+#test $1 lualatex 
