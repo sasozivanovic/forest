@@ -366,7 +366,7 @@ other kinds of) trees.  Its main features are
 
 \vspace{1cm}
 
-\begin{forestexample}[basicstyle=\ttfamily\scriptsize,layout=tree on top,no label,v sep=1cm,index={content,pgfmath,propagator>if,repeat,append,before drawing tree,y,alias,for step,step>children,edge,before typesetting nodes,tree,s sep,dimen+,l,current and ancestors,typeset node}]
+\begin{forestexample}[basicstyle=\ttfamily\scriptsize,layout=tree on top,no label,v sep=1cm,index={content,pgfmath,propagator>if,repeat,append,before drawing tree,y,alias,for step,step>children,edge,before typesetting nodes,tree,s sep,dimen+,l,ancestors,typeset node,nodewalk,option>level,sort by,step>min}]
   \pgfmathsetseed{14285}
   \begin{forest}
     random tree/.style n args={3}{% #1 = max levels, #2 = max children, #3 = max content
@@ -577,10 +577,8 @@ children are aligned as desired (so \index{calign}|=|\index{value=calign>first} 
 root node), but the value of the \index{calign} option didn't get
 automatically assigned to the root's children! \emph{An option given
 at some node applies only to that node.} In \foRest;, the options
-are passed to the node's relatives via special options, called
-\emph{propagators}.  (We'll
-call the options that actually change some property of the node
-\emph{node options}.) What we need above is the \index{for step=\index{tree}}
+are passed to the node's relatives via special keys, called
+\emph{propagators}.  What we need above is the \index{for step=\index{tree}}
 propagator.  Observe:
 
 \begin{forestexample}[label=ex:numerals-manual]
@@ -672,18 +670,18 @@ would get arabic numerals.  This is so because of the order in which the options
 First, the processing proceeds through the tree in a depth-first, parent-first fashion (first the
 parent is processed, and then its children, recursively; but see \index{processing order}).  Next,
 the option string of a node is processed linearly, in the order they were given.  (Option
-\keyname{content} is specified implicitely and is always the first.) If a propagator is encountered,
+\index{content} is specified implicitely and is always the first.) If a propagator is encountered,
 the options given as its value are propagated \emph{immediately}.  The net effect is that if the
-above example contained simply |roman,for_children={content=...}|, the \keyname{content} option
+above example contained simply |roman,for_children={content=...}|, the \index{content} option
 given there would be processed \emph{before} the implicit content options given to the children
 (i.e.\ numbers |1|, |2|, |3| and |4|).  Thus, there would be nothing for the |\romannumeral| to
 change --- it would actually crash; more generally, the content assigned in such a way would get
-overridden by the implicit content.  Option \index{delay} is true to its name.  It delays the
-processing of its option string argument until the whole tree was processed.  In other words, it
+overridden by the implicit content.  Key \index{delay} is true to its name.  It delays the
+processing of the keylist given as its argument until the whole tree was processed.  In other words, it
 introduces cyclical option processing.  Whatever is delayed in one cycle, gets processed in the next
 one.  The number of cycles is not limited --- you can nest \index{delay}s as deep as you need.
 
-Unlike \index{for step=\meta{step}} options we have met before, option \index{delay} is not a
+Unlike \index{for step=\meta{step}} keys we have met before, \index{delay} is not a
 spatial, but a temporal propagator.  Several other temporal propagators options exist, see
 \S\ref{ref:stages}.
 
@@ -718,7 +716,7 @@ Note that you usually don't want to embed a \index{where} conditional in a \inde
 If you're inside a \index{for step=\index{tree}}, you probably want to use \index{if}.
 
 Finally, let's talk about styles. Styles are simply collections of
-options.  (They are not actually defined in the \foRest; package, but
+options and/or other keys.  (They are not actually defined in the \foRest; package, but
 rather inherited from |pgfkeys|.)  If you often want to have non-default 
 parent/child anchors, say south/north as in example (\ref{ex:tier-manual}), you would save some
 typing by defining a style.  Styles are defined using \PGF;'s handler 
@@ -746,16 +744,16 @@ environment.  Use macro \index{forestset} to do this.
   }
 \end{lstlisting}
 
-You might have noticed that the last two examples contain options (actually, keys) even before the
+You might have noticed that in the last two examples contain, some keys occurred even before the
 first opening bracket, contradicting was said at the beginning of this section.  This is mainly
 just syntactic sugar (it can separate the design and the content): such \emph{preamble}
 keys behave as if they were given in the root node, the only difference (which often does not
 matter) being that they get processed before all other root node options, even the implicit
 \index{content}.
 
-If you find yourself writing the same options in the preamble of every tree in your document,
+If you find yourself writing the same preamble for every tree in your document,
 consider redefining style \index{default preamble}, which is implicitely included at the beginning
-of every preamble.
+of every preamble.  
 
 \subsection{Decorating the tree}
 \label{tut:decorating}
@@ -837,17 +835,14 @@ in some (most often geometrical) relation to the current node.  To
 do this, follow the node's name with a \index>{!} and a \emph{node walk}
 specification.
 
-A node walk is a concise\footnote{Actually, \foRest; distinguishes two kinds of
-steps in node walks: long and short steps.  This section introduces only short steps.  See 
-\S\ref{ref:nodewalks}.} way of expressing node
-relations.  It is simply a string of steps, which are represented by single
-characters, where: \index{ss u} stands for the parent node (up); \index{ss p} for the
-previous sibling; \index{ss n} for the next sibling; \index{ss s} for \emph{the}
-sibling (useful only in binary trees); \index{ss 1}, \index{ss 2},
-\index[not print]{ss 3,ss 4,ss 5,ss 6,ss 7,ss 8}\dots\
-\index{ss 9} for first,
-second, \dots\ ninth child; \index{ss l}, for the last child, etc.  For the
-complete specification, see section~\ref{ref:nodewalks}.
+A node walk is a concise\footnote{Actually, \foRest; distinguishes two kinds of steps in node walks:
+  long-form and short-form steps.  This section introduces only short-form steps.  See
+  \S\ref{ref:nodewalks}.} way of expressing node relations.  It is simply a string of steps, which
+are represented by single characters, where: \index{ss u} stands for the parent node (up); \index{ss
+  p} for the previous sibling; \index{ss n} for the next sibling; \index{ss s} for \emph{the}
+sibling (useful only in binary trees); \index{ss 1}, \index{ss 2}, \index[not print]{ss 3,ss 4,ss
+  5,ss 6,ss 7,ss 8}\dots\ \index{ss 9} for first, second, \dots\ ninth child; \index{ss l}, for the
+last child, etc.  For the complete specification, see section~\ref{ref:short-form-steps}.
 
 To see the nodewalk in action, consider the following examples.
 In the first example, the agree arrow connects the V node, specified
@@ -1606,7 +1601,9 @@ sticked in front of the expansion.
 \section{Reference}
 \label{sec:reference}
 
-
+This section documents all publicly exposed keys and macros defined by the core package.  All other
+commands defined by the package (see the implementation typeset in |forest.doc|) are considered
+internal and might change without prior notice or compatibility support.
 
 \subsection{Package loading and options}
 \label{ref:package-options}
@@ -1619,8 +1616,10 @@ alongside the main package.  Loading several libraries in this way is allowed: h
 more control over loading the defaults, use the following macros.
 
 \begin{syntax}
-\indexitem{macro>useforestlibrary}|{|\meta{library}|,...}|
-Loads the \meta{library} (without loading the its defaults).
+\indexitem{macro>useforestlibrary}[|*|]|{|\meta{library}|,...}|
+Loads the given libraries.
+
+The starred version applies their defaults as well, while the starless does not.
 
 Multiple library names can be given, separated by commas.  This macro can only be used in the
 preamble.
@@ -2062,6 +2061,35 @@ Formally, temporal propagators are keylist options (except \index{delay n}, whic
 augmented assignments are possible (\S\ref{sec:option-setting}).
 
 All temporal propagators can be nested without limit.
+
+\begin{advise}
+\item A note on typos.
+  
+  By default, all keys unknown to \foRest; are appended to keylist option \index{node options} The
+  value of \index{node options} is fed to \TikZ; when typesetting a node, so any typos are caught by
+  \TikZ;. However, as nodes are normally typeset in stage \index{typeset nodes stage}, any typos in
+  keys temporally propagated past that stage will not be noticed, simply because noone will use the
+  value of \index{node options} where they end up (the exception being nodes which are explicitely
+  retypeset by the user using \index{typeset node}).
+
+  To sum up, typos in any keys temporally propagated by \index{before packing}, \index{before
+    packing node}, \index{after packing node}, \index{before computing xy} and \index{before drawing
+    tree} will be silently ignored.  This is probably not what you want, so double-check everything
+  you write there.
+
+  Using \index{unknown to}|=|\index{unknown key error}, it is possible to change the default
+  behaviour.  You will catch all typos if you append the command to \index{pack stage}, as shown
+  below.  This can be done either in the tree or by \index{forestset}.
+
+\begin{lstlisting}
+  typeset nodes stage/.append style={unknown to=unknown key error}
+\end{lstlisting}
+
+  Of course, this makes it impossible to write simply
+  |before_drawing_tree={inner_sep=5pt,_typeset_node}|.  Any |tikz|'s options must be given
+  explicitely via \index{node options}:
+  |before_drawing_tree={node_options={inner_sep=5pt},_typeset_node}|.
+\end{advise}
 
 \begin{syntax}
 \indexitem{propagator>delay}|=|\meta{keylist} Defers the processing of the \meta{keylist} until the next
@@ -2830,17 +2858,24 @@ in the normal course of events.  (Options \index{option>l}, \index{option>s}, \i
 
   \indexitem(base){option>anchor}|=|\meta{toks: \foRest; anchor}
 
-    This is essentially a \TikZ; option \citep[see][\S16.5.1]{tikzpgf2.10} --- it is
-    \index{autoforward}ed to \TikZ; via option \index{node options} when the node is typeset (this
-    option thus applies in stage \index{typeset nodes}) --- but it is also saved by \foRest;.
-
-  The effect of this option is only observable when a node has a sibling: the anchors of all
-  siblings are s-aligned (if their \index{option>l}s have not been modified after packing).
+  While this option is saved by \foRest;, it is essentially an option of \TikZ;'s |\node| command
+  \citep[see][\S16.5.1]{tikzpgf2.10}.  \FoRest; \index{autoforward}s it to keylist option
+  \index{node options}, which is passed on to \TikZ;'s |\node| command when the node is typeset.
+  (Option |anchor| thus normally applies in stage \index{typeset nodes}.)
 
   In the \TikZ; code, you can refer to the node's anchor using \FoRest;'s anchor
-  \index{anchor>anchor}.
+  \index{anchor>anchor}; this anchor is sometimes also called the node anchor in this
+  documentation, to distinguish it clearly from parent and child anchors.
 
-  \meta{toks: \foRest; anchor} can be any \TikZ; anchor.  Additionally, \FoRest; defines several tree hierarchy related anchors; for details, see \S\ref{sec:anchors}.
+  \meta{toks: \foRest; anchor} can be any \TikZ; anchor.  Additionally, \FoRest; defines several
+  tree hierarchy related anchors; for details, see \S\ref{sec:anchors}.
+
+  The effect of setting the node anchor is twofold:
+  \begin{itemize}
+  \item during packing, the anchors of all siblings are \index{option>l}-aligned;
+  \item some \index{calign} methods use node anchors (of the parent and/or certain children) to
+    \index{option>s}-align the block of children to the parent.
+  \end{itemize}
 
   \indexitem(center){option>calign}|=|\alternative{child,child edge,midpoint,edge midpoint,fixed
   angles,fixed edge angles}\\\alternative{first,last,center}.
@@ -2899,7 +2934,7 @@ in the normal course of events.  (Options \index{option>l}, \index{option>s}, \i
   \end{forest}
 \end{forestexample}
   \end{syntax}
-\indexitem{option>calign child}|=|\meta{count} is an abbreviation for \index{calign primary
+\indexitem{node key>calign child}|=|\meta{count} is an abbreviation for \index{calign primary
   child}|=|\meta{count}.
 \indexitem(1){option>calign primary child}|=|\meta{count} Sets the primary child.  
   (See \index{calign}.)
@@ -2909,18 +2944,22 @@ in the normal course of events.  (Options \index{option>l}, \index{option>s}, \i
   (See \index{calign}.)
 
   \meta{count} is the child's sequence number.  Negative numbers start counting at the last child.
-\indexitem{option>calign angle}|=|\meta{count} is an abbreviation for \index{calign primary
+\indexitem{node key>calign angle}|=|\meta{count} is an abbreviation for: \index{calign primary
   angle}|=-|\meta{count}, \index{calign secondary angle}|=|\meta{count}.
 \indexitem(-35){option>calign primary angle}|=|\meta{count} Sets the primary angle.
   (See \index{calign}.) 
 \indexitem(35){option>calign secondary angle}|=|\meta{count} Sets the secondary angle. 
   (See \index{calign}.)
-\indexitem{option>calign with current} s-aligns the node anchors of the current node and its
-  parent.  This key is an abbreviation for:\\   
-  |for_parent/.wrap_pgfmath_arg={calign=child,calign primary child=##1}{n}|.
-\indexitem{option>calign with current edge} s-aligns the child anchor of the current node and the
-  parent anchor of its parent.  This key is an abbreviation for:\\
-  |for_parent/.wrap_pgfmath_arg={calign=child edge,calign primary child=##1}{n}|.
+\indexitem{node key>calign with current} s-aligns the node anchors of the current node and its
+  parent.  This key is an abbreviation for:\indexex[not print]{wrap pgfmath arg,calign,child,calign primary child}
+\begin{lstlisting}
+  for parent/.wrap pgfmath arg={calign=child,calign primary child=##1}{n}.
+\end{lstlisting}
+\indexitem{node key>calign with current edge} s-aligns the child anchor of the current node and the
+  parent anchor of its parent.  This key is an abbreviation for:\indexex[not print]{wrap pgfmath arg,calign,child edge,calign primary child}
+\begin{lstlisting}
+  for parent/.wrap pgfmath arg={calign=child edge,calign primary child=##1}{n}
+\end{lstlisting}
 
   \indexitem(tight){option>fit}|=|\alternative{tight,rectangle,band}
 
@@ -3251,7 +3290,7 @@ Whenever one of these anchors is invoked, it looks up the value of the \keyname{
 \keyname{child anchor} of the node named in the coordinate specification, and forwards the request
 to the (\TikZ;) anchor given as the value.
 
-The indented use of the two anchors is chiefly in \index{edge path} specification, but they can
+The intended use of the two anchors is chiefly in \index{edge path} specification, but they can
 used in any \TikZ; code.
 \begin{forestexample}[index={anchor>parent anchor,anchor>child anchor,for step,tree},index>={!}]
   \begin{forest}
@@ -3696,7 +3735,11 @@ parent-first first-child-first.
   \itemnosep
 \indexitem[+print form=\spaces{22},print form+=\spaces{9}]{step>siblings}%
   \itemnosep
+\indexitem[print form={current and \spaces{9} siblings\spaces{9}}]{step>current and siblings}%
+  \itemnosep
 \indexitem[+print form=\spaces{22},print form+=\spaces{9}]{step>siblings reversed}%
+  \itemnosep
+\indexitem[print form={current and \spaces{13} siblings reversed}]{step>current and siblings reversed}%
 
 Visit preceding, following or all siblings; visit the current node as well or not; visit in normal
 or reversed order.
@@ -3785,6 +3828,57 @@ level.
     \index{nodewalk key>on invalid} (or the package default, \index{value=on invalid>error}, if no
     \index{nodewalk key>on invalid} was given).
   \end{syntax}
+  
+
+\begin{forestexample}
+  \begin{forest}
+    for 2=calign with current, for children={for descendants={circle,draw}}
+    [every step,
+      [independent,for nodewalk={
+        1,Nodewalk={~every step=independent~}{1,every step=fill,1}{},1}{draw=red},
+        [[[[]]]]]
+      [inherited,for nodewalk={
+        1,Nodewalk={~every step=inherited~}{1,every step=fill,1}{},1}{draw=red},
+        [[[[]]]]]
+      [shared,for nodewalk={
+        1,Nodewalk={~every step=shared~}{1,every step=fill,1}{},1}{draw=red},
+        [[[[]]]]]]
+  \end{forest}
+\end{forestexample}
+
+
+\begin{forestexample}
+  \begin{forest}
+    mark/.style={tempcounta+=1,content+/.register=tempcounta,content+={,}},
+    [history:\\effect on the,align=center
+      [inner nodewalk
+        % uncommenting this would result in an error:
+        % [independent, delay={for nodewalk={
+        %     tempcounta=0,111,
+        %     Nodewalk={history=independent}{walk back=2}{mark,fill=yellow}
+        %   }{mark,draw=red}},
+        %   [[[]]]]
+        [inherited\\or\\shared, align=center,delay={for nodewalk={
+              tempcounta=0,111,
+              Nodewalk={~history=inherited~}{walk back=2}{mark,fill=yellow}
+            }{mark,draw=red}},
+          [[[]]]]]
+      [outer nodewalk
+        [inherited,delay={for nodewalk={
+            tempcounta=0,111,
+            Nodewalk={~history=inherited~}{11}{mark,fill=yellow},
+            walk back=2
+          }{mark,draw=red}},
+          [[[[[]]]]]]
+        [shared,delay={for nodewalk={
+            tempcounta=0,111,
+            Nodewalk={~history=shared~}{11}{mark,fill=yellow},
+            walk back=2
+          }{mark,draw=red}},
+          [[[[[]]]]]]]]
+  \end{forest}
+\end{forestexample}
+  
   
 \indexitem{step>nodewalk}|=|\meta{nodewalk}\meta{keylist: every-step}
 
@@ -3967,7 +4061,7 @@ These keys cannot be prefixed by \index{for step}.
   \indexitem{step>walk back}|=|\meta{count: n}
 
     Move $n$ steps back in the history. In the \keyname{back} variant, all steps are fake; in
-    the \keyname{step back} variant, the final step is real; and in the \keyname{walk back} variant,
+    the \keyname{jump back} variant, the final step is real; and in the \keyname{walk back} variant,
     all steps are real.
 
     Note that as the origin is not a part of the history, these keys will \emph{not} step there
@@ -3981,7 +4075,7 @@ These keys cannot be prefixed by \index{for step}.
   \indexitem{step>walk forward}|=|\meta{count: n}
     
     Move $n$ steps forward in the history. In the \keyname{forward} variant, all steps are fake; in
-    the \keyname{step forward} variant, the final step is real; and in the \keyname{walk forward} variant,
+    the \keyname{jump forward} variant, the final step is real; and in the \keyname{walk forward} variant,
     all steps are real.
 
 \indexitem{node key>save history}|=|\meta{toks: back name}\meta{toks: forward name}
@@ -4719,10 +4813,10 @@ Growth direction based anchors.
   the ``cardinal directions'' are determined by the \index{grow}th direction of the tree in the node, so
   that
   \begin{itemize}
-  \item anchor |parent| faces the parent node;
-  \item anchor |children| faces the children;
-  \item anchor |first| faces the first child;
-  \item anchor |last| faces the last child.
+  \item anchor |parent| faces the parent node (or, in case of the root, where the parent would be);
+  \item anchor |children| faces the children (or, in case of a node without children, where the children would be);
+  \item anchor |first| faces the first child (or \dots\ you get it, right?);
+  \item anchor |last| faces the last child (or \dots\ you know!).
   \end{itemize}
   Combinations like |parent_children| work like combinations of compass directions, e.g.\
   |north_west|.  These anchors work as expected even if the node is \index{rotate}d, or if the
@@ -4739,9 +4833,10 @@ Growth direction based anchors.
 \subsection{Additional \texttt{pgfmath} functions}
 \label{ref:pgfmath}
 
-For every option and register, \foRest; defines a pgfmath function with the same name, with the
-proviso that all non-alphanumeric characters in the option/register name are replaced by an underscore
-|__| in the pgfmath function name. 
+For every option and register, \foRest; defines a |pgfmath| function with the same name, with the
+proviso that the name might be mangled in order to conform to |pgfmath|'s naming rules. Specifically, 
+all non-alphanumeric characters in the option/register name and the initial number, if
+the name starts with one, are replaced by an underscore |__| in the |pgfmath| function name.
 
 Pgfmath functions corresponding to options take one argument, a \index{relative node name}
 (see~\S\ref{ref:relative-node-names}) expression, making it possible to refer to option values of
@@ -4759,7 +4854,7 @@ options).
 Note that the nodewalk in the relative node name inherits its history from the outer nodewalk (if
 there is one), so strange but useful constructions like the following are possible.
 
-\begin{forestexample}[index={tikz,wrap pgfmath arg,nodewalk}]
+\begin{forestexample}[index={tikz,wrap pgfmath arg,nodewalk,back,b,ancestors,register>every step}]
   \begin{forest}
     for tree={no edge},
     before typesetting nodes={
@@ -5029,7 +5124,21 @@ anchor,option>anchor,anchor>anchor,calign,for step,tree,s sep,option>l,n childre
 \subsubsection{v2.0}
 
 \begin{description}
-\item[v2.0 (2015/11/??)] \mbox{}
+\item[v2.0.1 (2016/02/20)] \mbox{}
+
+  New functionality:
+  \begin{itemize}
+  \item \index{current and siblings}, \index{current and siblings reversed}
+  \item Add |*| argument to \index{useforestlibrary}.
+  \end{itemize}
+  
+  Bugfixes:
+  \begin{itemize}
+  \item Correctly mangle option/register names to pgfmath names (\S\ref{ref:pgfmath}).
+  \item Refer to parent (not node) anchor in \index{calign}|=|\index{edge midpoint}.
+  \item Accept key \index{history} in \index{step>Nodewalk} config.
+  \end{itemize}
+\item[v2.0.0 (2016/01/30)] \mbox{}\footnote{The year of the release date in the package was wrong \dots \ 2015.}
   
   Backwards incompatible changes (\emph{without} a \index{compat} key --- sorry!):
   \begin{itemize}

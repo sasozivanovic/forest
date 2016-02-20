@@ -1,4 +1,4 @@
-% \CheckSum{231}
+% \CheckSum{232}
 % \iffalse meta-comment
 % forest-libs.dtx
 %% `forest-libs' is a collection of libraries for package `forest'.
@@ -34,7 +34,7 @@
 %
 % \paragraph{Disclaimer.}  At least in the initial stages of a library's development, the function
 % and interface of macros and keys defined in a library might change without backwards compatibility
-% support!
+% support!  Though I'll try to keep this from happening \dots
 %
 %    \begin{macrocode}
 \RequirePackage{forest}
@@ -171,15 +171,15 @@
 % Second, the empty nodes seem too close
 % to the other (especially empty) nodes (this is a result of a small
 % default |s_sep|).  We could use a greater \index{s sep}, but a better solution seems
-% to be to use |calign=node_angle|.  The result is shown in (\ref{ex:niceemptynodes}c). 
+% to be to use |calign=fixed_angles|.  The result is shown in (\ref{ex:niceemptynodes}c). 
 %
 % However, at the transitions from empty to non-empty nodes, tree (\ref{ex:niceemptynodes}c)
 % seems to zigzag (although the base points of the spine nodes
 % are perfectly in line), and the edge to the empty node left to VP
 % seems too long (it reaches to the level of VP's base, while we'd
 % prefer it to stop at the same level as the edge to VP itself).  The
-% first problem is solved by substituting |node_angle| for
-% |edge_angle|; the second one, by anchoring siblings of
+% first problem is solved by substituting |fixed_angles| for
+% |fixed_edge_angles|; the second one, by anchoring siblings of
 % empty nodes at north.  Voilà, (\ref{ex:niceemptynodes}d)!
 % 
 % \begin{forestexample}[label=ex:niceemptynodes,layout=tree on bottom,index={fixed angles,fixed edge angles,calign,tree,delay,where option,content,for step,step>parent,step>children,option>anchor}]

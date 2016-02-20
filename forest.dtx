@@ -1,4 +1,4 @@
-% \CheckSum{12479}
+% \CheckSum{12506}
 % \iffalse meta-comment
 % forest.dtx
 %% `forest' is a `pgf/tikz'-based package for drawing (linguistic) trees.
@@ -68,13 +68,22 @@
 % \settodayfromforestdate
 %
 % \maketitle
-% \tableofcontents
-% \bigskip
+%
+% This file contains the documented source of \foRest;.  If you are searching for the manual, follow
+% this link to \href{http://mirrors.ctan.org/graphics/pgf/contrib/forest/forest-doc.pdf}{forest-doc.pdf}.
+%
+% The latest release of the package, including the sources, can be found on
+% \href{http://ctan.org/pkg/forest}{CTAN}.  For all versions of the package, including any
+% non-yet-released work in progress, visit \href{https://github.com/sasozivanovic/forest}{\foRest;'s
+% GitHub repo}. Contributions are welcome.
+% 
 % A disclaimer: the code could've been much cleaner and better-documented \dots
 % 
-% Identification.
+% \tableofcontents
+%
+% \section{Identification}
 %    \begin{macrocode}
-\ProvidesPackage{forest}[2015/01/30 v2.0.0 Drawing (linguistic) trees]
+\ProvidesPackage{forest}[2016/02/20 v2.0.1 Drawing (linguistic) trees]
 
 \RequirePackage{tikz}[2013/12/13]
 \usetikzlibrary{shapes}
@@ -123,7 +132,10 @@
 \foresttikzcshacktrue
 \def\forest@loadlibrarieslater{}
 \AtEndOfPackage{\forest@loadlibrarieslater}
-\def\useforestlibrary#1{\forcsvlist\useforestlibrary@{#1}}
+\NewDocumentCommand\useforestlibrary{s m}{%
+  \forcsvlist\useforestlibrary@{#2}%
+  \IfBooleanT{#1}{\forestapplylibrarydefaults{#2}}%
+}
 \def\useforestlibrary@#1{\RequirePackage{forest-lib-#1}}
 \def\forestapplylibrarydefaults#1{\forcsvlist\forestapplylibrarydefaults@{#1}}
 \def\forestapplylibrarydefaults@#1{\forestset{libraries/#1/defaults/.try}}
@@ -300,16 +312,20 @@
   \expandafter#1\expandafter{\number#4}{#2}{#3}}
 %    \end{macrocode}
 %
-% A macro converting all non-letters in a string to |__|.  |#1| =
-% string, |#2| = receiving macro.  Used for declaring pgfmath
-% functions. 
+% A macro converting all non-alphanumerics (and an initial number) in a string to |__|.  |#1| = 
+% string, |#2| = receiving macro.  Used for declaring pgfmath functions.
 %    \begin{macrocode}
 \def\forest@convert@others@to@underscores#1#2{%
   \def\forest@cotu@result{}%
-  \forest@cotu#1\forest@end
+  \forest@cotu@first#1\forest@end
   \let#2\forest@cotu@result
 }
 \def\forest@cotu{%
+  \let\forest@cotu@have@num\forest@cotu@have@alpha
+  \futurelet\forest@cotu@nextchar\forest@cotu@checkforspace
+}
+\def\forest@cotu@first{%
+  \let\forest@cotu@have@num\forest@cotu@haveother
   \futurelet\forest@cotu@nextchar\forest@cotu@checkforspace
 }
 \def\forest@cotu@checkforspace{%
@@ -331,19 +347,19 @@
     \@escapeif\forest@cotu@nospaceB
   \fi
 }
-\def\forest@cotu@nospaceB{%
-  \ifcat\forest@cotu@nextchar a%
-    \let\forest@cotu@next\forest@cotu@have@alphanum
+\def\forest@cotu@nospaceB#1{%
+  \ifcat#1a%
+    \let\forest@cotu@next\forest@cotu@have@alpha
   \else
-    \ifcat\forest@cotu@nextchar 0%
-      \let\forest@cotu@next\forest@cotu@have@alphanum
+    \if!\ifnum9<1#1!\fi
+      \let\forest@cotu@next\forest@cotu@have@num
     \else
       \let\forest@cotu@next\forest@cotu@haveother
     \fi
   \fi
-  \forest@cotu@next
+  \forest@cotu@next#1%
 }
-\def\forest@cotu@have@alphanum#1{%
+\def\forest@cotu@have@alpha#1{%
   \appto\forest@cotu@result{#1}%
   \forest@cotu
 }
@@ -3846,6 +3862,7 @@
   every@step/shared/.code={},
   every step/.store in=\forest@nodewalk@config@everystep@method,
   every step/.prefix style={every@step=#1},
+  @history/.is choice,
   @history/independent/.code={},
   @history/inherited/.code={},
   @history/shared/.code={},
@@ -4587,6 +4604,8 @@
   define long step={preceding siblings reversed}{style}{fake=previous,current and preceding siblings reversed},
   define long step={siblings}{style}{for nodewalk'={preceding siblings},following siblings},
   define long step={siblings reversed}{style}{for nodewalk'={following siblings reversed},preceding siblings reversed},
+  define long step={current and siblings}{style}{for nodewalk'={preceding siblings},current and following siblings},
+  define long step={current and siblings reversed}{style}{for nodewalk'={current and following siblings reversed},preceding siblings reversed},
   define long step={ancestors}{style}{while={}{parent},last valid},
   define long step={current and ancestors}{style}{current,ancestors},
   define long step={following nodes}{style}{while={}{next node},last valid},
@@ -5526,6 +5545,8 @@
     \forest@Pointanchor{\forest@temp@secondchild}{child anchor}%
     \advance\pgf@xa\pgf@x\relax\advance\pgf@ya\pgf@y\relax
     \divide\pgf@xa2 \divide\pgf@ya2
+    \forest@pointanchor{parent anchor}%
+    \advance\pgf@xa-\pgf@x\relax\advance\pgf@ya-\pgf@y\relax
     \edef\forest@marshal{%
       \noexpand\pgftransformreset
       \noexpand\pgftransformrotate{-\forestove{grow}}%
