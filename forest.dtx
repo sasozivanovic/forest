@@ -1,4 +1,4 @@
-% \CheckSum{12506}
+% \CheckSum{12570}
 % \iffalse meta-comment
 % forest.dtx
 %% `forest' is a `pgf/tikz'-based package for drawing (linguistic) trees.
@@ -83,7 +83,7 @@
 %
 % \section{Identification}
 %    \begin{macrocode}
-\ProvidesPackage{forest}[2016/02/20 v2.0.1 Drawing (linguistic) trees]
+\ProvidesPackage{forest}[2016/03/04 v2.0.2 Drawing (linguistic) trees]
 
 \RequirePackage{tikz}[2013/12/13]
 \usetikzlibrary{shapes}
@@ -132,11 +132,12 @@
 \foresttikzcshacktrue
 \def\forest@loadlibrarieslater{}
 \AtEndOfPackage{\forest@loadlibrarieslater}
-\NewDocumentCommand\useforestlibrary{s m}{%
-  \forcsvlist\useforestlibrary@{#2}%
-  \IfBooleanT{#1}{\forestapplylibrarydefaults{#2}}%
+\NewDocumentCommand\useforestlibrary{s O{} m}{%
+  \def\useforestlibrary@@##1{\useforestlibrary@{#2}{##1}}%
+  \forcsvlist\useforestlibrary@@{#3}%
+  \IfBooleanT{#1}{\forestapplylibrarydefaults{#3}}%
 }
-\def\useforestlibrary@#1{\RequirePackage{forest-lib-#1}}
+\def\useforestlibrary@#1#2{\RequirePackage[#1]{forest-lib-#2}}
 \def\forestapplylibrarydefaults#1{\forcsvlist\forestapplylibrarydefaults@{#1}}
 \def\forestapplylibrarydefaults@#1{\forestset{libraries/#1/defaults/.try}}
 \NewDocumentCommand\ProvidesForestLibrary{m O{}}{\ProvidesPackage{forest-lib-#1}[#2]}
@@ -2676,21 +2677,27 @@
 \forestset{
   declare toks register/.code={%
     \forest@declareregisterhandler\forest@declaretoksregister@handler{#1}%
+    \forestset{#1={}}%
   },
   declare autowrapped toks register/.code={%
     \forest@declareregisterhandler\forest@declareautowrappedtoksregister@handler{#1}%
+    \forestset{#1={}}%
   },
   declare keylist register/.code={%
     \forest@declareregisterhandler\forest@declarekeylistregister@handler{#1}%
+    \forestset{#1'={}}%
   },
   declare dimen register/.code={%
     \forest@declareregisterhandler\forest@declaredimenregister@handler{#1}%
+    \forestset{#1'=0pt}%
   },
   declare count register/.code={%
     \forest@declareregisterhandler\forest@declarecountregister@handler{#1}%
+    \forestset{#1'=0}%
   },
   declare boolean register/.code={%
     \forest@declareregisterhandler\forest@declarebooleanregister@handler{#1}%
+    \forestset{#1=0}%
   },
 }
 %    \end{macrocode}
@@ -3673,6 +3680,11 @@
     \fi
   },
 }
+\pgfqkeys{/handlers}{
+  .nodewalk style/.code={\forest@handlers@savecurrentpath\pgfkeysalso{%
+      \forest@currentpath/nodewalk/\forest@currentname/.style={#1}%
+    }},
+}
 %    \end{macrocode}
 % |\forest@forstepwrapper| is defined so that it can be changed by |compat| to create unfailable spatial propagators from v1.0.
 %    \begin{macrocode}
@@ -4622,6 +4634,7 @@
 %
 %    \begin{macrocode}
 \def\forest@last@node{0}
+\csdef{forest@nodewalk@saved@dynamic nodes}{}
 \def\forest@nodehandleby@name@nodewalk@or@bracket#1{%
   \ifx\pgfkeysnovalue#1%
     \edef\forest@last@node{\forest@node@Nametoid{forest@last@node}}%
@@ -4632,6 +4645,7 @@
 \def\forest@nodehandleby@nnb@checkfirst#1#2\forest@END{%
   \ifx[#1%]
     \forest@create@node{#1#2}%
+    \cseappto{forest@nodewalk@saved@dynamic nodes}{\forest@last@node,}%
   \else
     \forest@forthis{%
       \forest@nameandgo{#1#2}%
@@ -4730,11 +4744,17 @@
 \forestset{%
   create/.code={%
     \forest@create@node{#1}%
-    \forest@fornode{\forest@last@node}{\forest@node@setalias{forest@last@node}}%
+    \forest@fornode{\forest@last@node}{%
+      \forest@node@setalias{forest@last@node}%
+      \cseappto{forest@nodewalk@saved@dynamic nodes}{\forest@last@node,}%
+    }%
   },
   create'/.code={%
     \forest@create@node@and@process@given@options{#1}%
-    \forest@fornode{\forest@last@node}{\forest@node@setalias{forest@last@node}}%
+    \forest@fornode{\forest@last@node}{%
+      \forest@node@setalias{forest@last@node}%
+      \cseappto{forest@nodewalk@saved@dynamic nodes}{\forest@last@node,}%
+    }%
   },
   append/.code={\def\forest@dynamics@copyhow{0}\forest@appto@do@dynamics\forest@append@node{#1}},
   prepend/.code={\def\forest@dynamics@copyhow{0}\forest@appto@do@dynamics\forest@prepend@node{#1}},
@@ -4750,6 +4770,7 @@
   insert before''/.code={\def\forest@dynamics@copyhow{2}\forest@appto@do@dynamics\forest@insertbefore@node{#1}},
   remove/.code={%
     \pgfkeysalso{alias=forest@last@node}%
+    \cseappto{forest@nodewalk@saved@dynamic nodes}{\forest@cn,}%
     \expandafter\apptotoks\expandafter\forest@do@dynamics\expandafter{%
       \expandafter\forest@remove@node\expandafter{\forest@cn}}%
   },
@@ -4780,8 +4801,10 @@
 }
 \def\forest@replaceby@code#1#2{%#1=node spec,#2=insert after['][']
   \ifnum\forestove{@parent}=0
-    \pgfkeysalso{set root={#1}}%
+    \cseappto{forest@nodewalk@saved@dynamic nodes}{\forest@cn,}%
+    \pgfkeysalso{alias=forest@last@node,set root={#1}}%
   \else
+    \cseappto{forest@nodewalk@saved@dynamic nodes}{\forest@cn,}%
     \pgfkeysalso{alias=forest@last@node,#2={#1}}%
     \eapptotoks\forest@do@dynamics{%
       \noexpand\ifnum\noexpand\forestOve{\forest@cn}{@parent}=\forestove{@parent}
@@ -4844,6 +4867,11 @@
 }
 \def\forest@nodesort@let#1#2{%
   \csletcs{forest@nodesort@#1}{forest@nodesort@#2}%
+}
+\forestset{
+  define long step={last dynamic node}{style,must start at valid node=false}{%
+    name=forest@last@node
+  }
 }
 %    \end{macrocode}
 %
@@ -4967,7 +4995,10 @@
   draw tree node/.code={\forest@draw@node},
   draw tree edge/.code={\forest@draw@edge},
   draw tree tikz/.code={\forest@draw@tikz},
-  for nodewalk={processing order/.style={tree}}{},
+  draw tree node'/.code={\forest@draw@node@},
+  draw tree edge'/.code={\forest@draw@edge@},
+  draw tree tikz'/.code={\forest@draw@tikz@},
+  processing order/.nodewalk style={tree},
   %given options processing order/.style={processing order},
   %before typesetting nodes processing order/.style={processing order},
   %before packing processing order/.style={processing order},
@@ -5155,13 +5186,15 @@
 % the parent's anchor.  
 %    \begin{macrocode}
 \def\forest@pack{%
+  \pgfsyssoftpath@getcurrentpath\forest@pack@original@path
   \forest@pack@computetiers
   \forest@pack@computegrowthuniformity
   \forest@@pack
+  \pgfsyssoftpath@setcurrentpath\forest@pack@original@path
 }
 \def\forest@@pack{%
   \ifnum\forestove{n children}>0
-      \ifnum\forestove{uniform growth}>0
+    \ifnum\forestove{uniform growth}>0
       \forest@pack@level@uniform
       \forest@pack@aligntiers@ofsubtree
       \forest@pack@sibling@uniform@recursive
@@ -6496,8 +6529,14 @@
     \fi
   \fi
 }
+\def\forest@drawtree@root{0}
 \def\forest@node@drawtree@{%
-  \forest@forthis{\forestset{draw tree method}}%
+  \forest@forthis{%
+    \forest@saveandrestoremacro\forest@drawtree@root{%
+      \edef\forest@drawtree@root{\forest@cn}%
+      \forestset{draw tree method}%
+    }%
+  }%
   \forest@node@Ifnamedefined{forest@baseline@node}{%
     \edef\forest@temp{%
       \noexpand\pgfsetbaselinepointlater{%
@@ -6510,27 +6549,37 @@
 }
 \def\forest@draw@node{%
   \ifnum\forestove{phantom}=0
-    \forest@node@forest@positionnodelater@restore
-    \ifforest@drawtree@preservenodeboxes@
-      \pgfnodealias{forest@temp}{\forestove{later@name}}%
-    \fi
-    \pgfpositionnodenow{\pgfqpoint{\forestove{x}}{\forestove{y}}}%
-    \ifforest@drawtree@preservenodeboxes@
-      \pgfnodealias{\forestove{later@name}}{forest@temp}%
-    \fi
+    \forest@draw@node@
+  \fi
+}
+\def\forest@draw@node@{%
+  \forest@node@forest@positionnodelater@restore
+  \ifforest@drawtree@preservenodeboxes@
+    \pgfnodealias{forest@temp}{\forestove{later@name}}%
+  \fi
+  \pgfpositionnodenow{\pgfqpoint{\forestove{x}}{\forestove{y}}}%
+  \ifforest@drawtree@preservenodeboxes@
+    \pgfnodealias{\forestove{later@name}}{forest@temp}%
   \fi
 }
 \def\forest@draw@edge{%
-  \ifnum\forest@cn=\forest@root\relax\else
+  \ifnum\forest@cn=\forest@drawtree@root\relax\else
     \ifnum\forestove{phantom}=0
       \ifnum\forestOve{\forestove{@parent}}{phantom}=0
-        \edef\forest@temp{\forestove{edge path}}%
-        \forest@temp
+        \forest@draw@edge@
       \fi
     \fi
   \fi
 }
+\def\forest@draw@edge@{%
+  \edef\forest@temp{\forestove{edge path}}\forest@temp
+}
 \def\forest@draw@tikz{%
+  \ifnum\forestove{phantom}=0
+    \forest@draw@tikz@
+  \fi
+}
+\def\forest@draw@tikz@{%
   \forestove{tikz}%
 }
 %    \end{macrocode}
@@ -7827,18 +7876,23 @@
 % Most of the code in this section deals with externalization. 
 %
 %    \begin{macrocode}
-\NewDocumentEnvironment{forest}{D(){stages}}{%
-  \forest@defstages{#1}%
+\NewDocumentEnvironment{forest}{D(){}}{%
+  \forest@config{#1}%
   \Collect@Body
   \forest@env
 }{}
-\NewDocumentCommand{\Forest}{s D(){stages} m}{%
-  \forest@defstages{#2}%
+\NewDocumentCommand{\Forest}{s D(){} m}{%
+  \forest@config{#2}%
   \IfBooleanTF{#1}{\let\forest@next\forest@env}{\let\forest@next\forest@group@env}%
   \forest@next{#3}%
 }
-\def\forest@defstages#1{%
-  \def\forest@stages{#1}%
+\def\forest@config#1{%
+  \def\forest@stages{stages}%
+  \forestset{@config/.cd,#1}%
+}
+\forestset{@config/.cd,
+  stages/.store in=\forest@stages,
+  .unknown/.code={\PackageError{forest}{Unknown config option for forest environment/command.}{In Forest v2.0.0 and v2.0.1, this (parenthesized) argument accepted the definition of style stages for the current forest environment/macro. Since v2.0.2, you should write "\string\begin{forest}(stages={...})...\string\end{forest}", or "\string\Forest(stages={...}){...}" instead.}}
 }
 \def\forest@group@env#1{{\forest@env{#1}}}
 \newif\ifforest@externalize@tree@
@@ -8029,7 +8083,7 @@
   \advance\forest@node@maxid1
   \forest@fornode{\the\forest@node@maxid}{%
     \forest@node@init
-    \forest@node@setname{standard node}%
+    \forest@node@setname@silent{standard node}%
   }%
 }
 \def\forest@standardnode@calibrate{%
@@ -8179,7 +8233,7 @@
   \forest@forestcs@anchor{#2}%
 }
 \def\forest@cs@invalidnodeerror{%
-  \PackageError{forest}{Attempt to refer to the invalid node by "forest cs"}%
+  \PackageError{forest}{Attempt to refer to the invalid node by "forest cs"}{}%
 }
 \tikzdeclarecoordinatesystem{forest}{%
   \forest@forthis{%

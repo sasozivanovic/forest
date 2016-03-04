@@ -302,6 +302,9 @@
     for first={+key={{ss }},format={pgfkey}}
   ]>{short step}
 
+\indexset
+  [for first={format=pgfkey}]
+  >{named nodewalk}
 
   
 {\makeatletter % an dirty patch: \lst@nolig can sneak in the name...
@@ -1616,13 +1619,12 @@ alongside the main package.  Loading several libraries in this way is allowed: h
 more control over loading the defaults, use the following macros.
 
 \begin{syntax}
-\indexitem{macro>useforestlibrary}[|*|]|{|\meta{library}|,...}|
+\indexitem{macro>useforestlibrary}[|*|][|[|\meta{options}|]|]|{|\meta{library}|,...}|
 Loads the given libraries.
 
-The starred version applies their defaults as well, while the starless does not.
-
-Multiple library names can be given, separated by commas.  This macro can only be used in the
-preamble.
+The starred version applies their defaults as well, while the starless does not.  Multiple library
+names can be given, separated by commas.  Libraries can receive \meta{options}.  This macro can only
+be used in the preamble.
 
 \indexitem{macro>forestapplylibrarydefaults}|{|\meta{library name},...|}|
 Loads the default settings of \meta{library}.
@@ -1703,17 +1705,14 @@ By default, the package warns when a compatibility feature is used.  Disable thi
 
 \begin{syntax}
   %%% begin listing region: forest_environment_doc
-\indexitem{environment>forest={[\texttt{(}\meta{stages}\texttt{)}]\meta{tree}}}
+\indexitem{environment>forest={[\texttt{(}\meta{config}\texttt{)}]\meta{tree}}}
   %%% end listing region: forest_environment_doc
-\indexitem{macro>Forest}[*][|(|\meta{stages}|)|]\marg{tree}
+\indexitem{macro>Forest}[*][|(|\meta{config}|)|]\marg{tree}
 
   The environment and the starless version of the macro introduce a group; the starred macro does
   not, so the created nodes can be used afterwards, like in the example below.  (Note that this will
   leave a lot of temporary macros lying around.  This shouldn't be a problem, however, since all of
   them reside in the |\forest| ``namespace''.)
-
-  \meta{stages}, if given, overrides the contents of style \index{stages} for the current
-  environment/macro.
 
 {\tikzexternaldisable
 \begin{forestexample}
@@ -1734,6 +1733,13 @@ By default, the package warns when a compatibility feature is used.  Disable thi
     }
 \end{forestexample}}
 
+  Using \meta{config}, it is possible to configure behaviour of the environment/macro prior to
+  application of \index{style>stages}.  The following keys are defined.
+  \begin{syntax}
+    \indexitem{option of=forest>stages}|=|\meta{style definition} overrides the contents of style
+    \index{style>stages} for the current environment/macro.
+  \end{syntax}
+  
 \indexitem{macro>forestset}\marg{keylist}
   
   Execute \meta{keylist} (of node keys) with the default path set to \keyname{/forest}.
@@ -1899,7 +1905,7 @@ processing flow.
   
 \indexitem{node key>typeset node}  Typesets the \emph{current} node, saving the result in the node box.
 
-  This key can be useful also in the default \index{stages}.  If, for example, the node's content
+  This key can be useful also in the default \index{style>stages}.  If, for example, the node's content
   is changed and the node retypeset just before drawing the tree, the node will be positioned as if
   it contained the ``old'' content, but have the new content: this is how the constant distance
   between $\times$s is implemented in the \index{GP1} style.
@@ -1929,8 +1935,11 @@ processing flow.
   \index{tikz}.  Within each task, the order in which the nodes are visited is determined by
   nodewalk styles \indexdef{nodewalk style>draw tree nodes processing order}, \indexdef{nodewalk
     style>draw tree edges processing order} and \indexdef{nodewalk style>draw tree tikz processing
-    order}, respectively, with \index{processing order} as the fallback in case any of these styles
-  does not exist (the default).
+    order}, respectively, with \indexdef{nodewalk style>draw tree processing order} as the first and
+  \index{processing order} as the second fallback in case any of these styles does not exist.  (By
+  default, \index{processing order}, with default value \index{tree}, is used, so the entire
+  (sub)tree is drawn.) The origin of all these nodewalks is the current node at the time of
+  invocation of |draw_tree|.
 
   However, the whole procedure is fully customizable via style \indexdef{style>draw
     tree method}, originally defined like shown below.  To draw an individual node, edge (to parent)
@@ -1938,6 +1947,11 @@ processing flow.
     edge} and \indexdef{node key>draw tree tikz} are used, respectively.
 
   \lstinputregion{forest.dtx}{draw_tree_method}
+
+  Also available are keys \indexdef{node key>draw tree node'}, \indexdef{node key>draw tree edge'}
+  and \indexdef{node key>draw tree tikz'} which ignore \index{phantom}.  Note that all these keys
+  (both variants with and without |'|) should be used only within the definition of \index{draw tree
+    method}.
   
 \indexitem{node key>draw tree box}|=|[\meta{\TeX\ box}]  The picture drawn by the subsequent
   invocations of \index{draw tree} and \index{draw tree'} is put into \meta{\TeX\ box}.  If
@@ -2104,7 +2118,7 @@ All temporal propagators can be nested without limit.
   
 \indexitem{propagator>given options}
   
-  When \index{stages} processing starts, this list holds the keys given by the user in the
+  When \index{style>stages} processing starts, this list holds the keys given by the user in the
   bracket representation.
   
 \indexitem{propagator>before typesetting nodes}|=|\meta{keylist} Defers the processing of the
@@ -3586,6 +3600,7 @@ parent-first first-child-first.
   current node's descendants (|first leaf|) or subtree (|first leaf'|), in the linear order
 \indexitem{step>id}|=|\meta{id} the node with the given id; this step does not depend on the current node
 \indexitem{step>last} the last child
+\indexitem{step>last dynamic node} the last non-integrated (created/removed/replaced) node; see \S\ref{ref:dynamic}
 \indexitem{step>last leaf}, \indexdef{step>last leaf'} the last leaf (terminal node) of the
   current node's descendants (|last leaf|) or subtree (|last leaf'|), in the linear order
 \indexitem{step>n}|=|$n$ the $n$th child; counting starts at $1$\footnote{Note that \keyname{n}
@@ -3693,21 +3708,21 @@ parent-first first-child-first.
 
   Like the |tree| keys, but the current node is not visited.
 
-\indexitem[print form+=\spaces{9}]{step>relative level <},
+\indexitem[print form+=\spaces{9}]{step>relative level<},
   \indexdef[print form+=\spaces{9}]{step>relative level},
-  \indexdef[set={form=relative level \protect\greaterthan}]{step>relative level GT}\texttt{\spaces{9}}|=|\meta{count}
+  \indexdef[set={form=relative level\protect\greaterthan}]{step>relative levelGT}\texttt{\spaces{9}}|=|\meta{count}
   \itemnosep
-\indexitem{step>relative level reversed <},
+\indexitem{step>relative level reversed<},
   \indexdef{step>relative level reversed},
-  \indexdef[set={form=relative level reversed \protect\greaterthan}]{step>relative level reversed GT}|=|\meta{count}
+  \indexdef[set={form=relative level reversed\protect\greaterthan}]{step>relative level reversedGT}|=|\meta{count}
   \itemnosep
-\indexitem[print form+=\spaces{9},+print form=\spaces{9}]{step>level <},
+\indexitem[print form+=\spaces{9},+print form=\spaces{9}]{step>level<},
   \indexdef[print form+=\spaces{9},+print form=\spaces{9}]{step>level},
-  \indexdef[set={form=level \protect\greaterthan},+print form=\spaces{9}]{step>level GT}\texttt{\spaces{9}}|=|\meta{count}
+  \indexdef[set={form=level\protect\greaterthan},+print form=\spaces{9}]{step>levelGT}\texttt{\spaces{9}}|=|\meta{count}
   \itemnosep
-\indexitem[+print form=\spaces{9}]{step>level reversed <},
+\indexitem[+print form=\spaces{9}]{step>level reversed<},
   \indexdef[+print form=\spaces{9}]{step>level reversed},
-  \indexdef[set={form=level reversed \protect\greaterthan},+print form=\spaces{9}]{step>level reversed GT}|=|\meta{count}
+  \indexdef[set={form=level reversed\protect\greaterthan},+print form=\spaces{9}]{step>level reversedGT}|=|\meta{count}
 
   Visits the nodes in the subtree of the current node whose level (depth) is less than \emph{or
     equal to}, equal to, or greater than \emph{or equal to} the given level.
@@ -3739,7 +3754,7 @@ parent-first first-child-first.
   \itemnosep
 \indexitem[+print form=\spaces{22},print form+=\spaces{9}]{step>siblings reversed}%
   \itemnosep
-\indexitem[print form={current and \spaces{13} siblings reversed}]{step>current and siblings reversed}%
+\indexitem[print form={current and \spaces{9} siblings reversed}]{step>current and siblings reversed}%
 
 Visit preceding, following or all siblings; visit the current node as well or not; visit in normal
 or reversed order.
@@ -4205,7 +4220,7 @@ redefining short steps is always ok, however, as they are never used in the code
   
   \let\outerleftmargin\leftmargin
   \begin{syntax}
-  \item\indexdef{option of=define long step>n args}|=|\meta{number}\hfill |1|
+  \item\indexdef{option of=define long step>n args}|=|\meta{number}\hfill |0|
   \item\indexdef{option of=define long step>make for}|=|\meta{boolean}\hfill |true|
     
     Should we make a \index{for step} prefix for the step? 
@@ -4241,6 +4256,11 @@ redefining short steps is always ok, however, as they are never used in the code
 Define short step taking $n$ arguments as the given \meta{nodewalk}.  Refer to the arguments in the usual way, via |#1|, \dots.
 
 To (re)define braces, |{}|, write |define short step={group}{1}{...}|.
+
+\indexitem{handler>nodewalk style}|=|\meta{nodewalk}
+
+A shorthand for |for nodewalk={|\meta{nodewalk}|}{}|.
+
 \end{syntax}
 
 
@@ -4419,6 +4439,11 @@ the tree.
 The \meta{node} that will be (re)integrated into the tree can be specified in the following ways:
 \begin{syntax}
 \item \meta{empty}: uses the last non-integrated (i.e.\ created/removed/replaced) node.
+  \begin{advise}
+    \item This node can also be referred to using nodewalk step \index{last dynamic node}.
+    \item The list of all such nodes is automatically saved in named nodewalk \indexdef{named
+        nodewalk>dynamic nodes}, to be \index{load}ed when needed.
+  \end{advise}
 \item \meta{node}: a new node is created using the given bracket representation (the node may
   contain children, i.e.\ a tree may be specified), and used as the argument to the key.
 
@@ -5124,6 +5149,34 @@ anchor,option>anchor,anchor>anchor,calign,for step,tree,s sep,option>l,n childre
 \subsubsection{v2.0}
 
 \begin{description}
+\item[v2.0.2 (2016/03/04)] \mbox{}
+
+  Backward incompatible changes:
+  \begin{itemize}
+  \item The semantics of the parenthesized optional argument to \index{forest} environment and
+    \index{Forest} macro has changed. The argument was introduced in v2.0.0: if present, it
+    redefined \index{style>stages} style for the current environment/macro.  This argument is now
+    generalized to allow further (pre-\index{style>stages}) customization in future versions of the
+    package. To temporarily redefine \index{style>stages}, write |(|\index{option of=forest>stages}|={...})|. 
+  \end{itemize}
+
+  New functionality:
+  \begin{itemize}
+  \item Key \index{last dynamic node} and named nodewalk \index{dynamic nodes}.
+  \item An optional argument to \index{useforestlibrary} to pass package options to libraries.
+  \item Handler \index{nodewalk style}.
+  \item Keys \index{draw tree node'}, \index{draw tree edge'} and \index{draw tree tikz'}.
+  \end{itemize}
+
+  Bugfixes:
+  \begin{itemize}
+  \item Fixed \index{replace by} when applied to the root node.
+  \item Registers are now initialized to an empty string, 0pt, or 0.
+  \item Packing doesn't destroy the current pgfpath anymore.
+  \item \index{forestStandardNode} now uses \index{name'}.
+  \item \index{draw tree edge} now respects \index{phantom}.
+  \end{itemize}
+
 \item[v2.0.1 (2016/02/20)] \mbox{}
 
   New functionality:
@@ -5162,8 +5215,8 @@ anchor,option>anchor,anchor>anchor,calign,for step,tree,s sep,option>l,n childre
   \item |compat=|\indexdef{option of=compat>1.0-stages}
     
     Processing of \index{given options}, which is now exposed, and the new keylists \index{default
-      preamble} and \index{preamble} is now included at the start of the default \index{stages}
-    style.  When changing \index{stages}, the instruction to process these keylists must now be
+      preamble} and \index{preamble} is now included at the start of the default \index{style>stages}
+    style.  When changing \index{style>stages}, the instruction to process these keylists must now be
     given explicitely.
     
   \item |compat=|\indexdef{option of=compat>1.0-forstep}
@@ -5202,8 +5255,8 @@ anchor,option>anchor,anchor>anchor,calign,for step,tree,s sep,option>l,n childre
       (\keyname{for}) \keyname{linear previous}&(\index{for step}) \index{previous node}&\indexdef{option of=compat>1.0-linear}\\
       \keyname{triangle}&\index{roof} (library \reflibrary{linguistics})&\indexdef{option of=compat>1.0-triangle}\\
       \keyname{/tikz/fit to tree}&\index{fit to}\keyname{=}\index{tree}\footnote{The v1.0 key \keyname{/tikz/fit to tree} also set \keyname{inner sep=0}; the v2.0 key \index{fit to} does not do that.}&\indexdef{option of=compat>1.0-fittotree}\\
-      \keyname{begin forest}, \keyname{end forest}&none (use \index{stages}&\index{1.0-stages}\\
-      \keyname{end forest}, \keyname{end forest}&none (use \index{stages}&\index{1.0-stages}\\
+      \keyname{begin forest}, \keyname{end forest}&none (use \index{style>stages}&\index{1.0-stages}\\
+      \keyname{end forest}, \keyname{end forest}&none (use \index{style>stages}&\index{1.0-stages}\\
     \end{tabularx}
   \end{syntax}
 
@@ -5302,7 +5355,7 @@ anchor,option>anchor,anchor>anchor,calign,for step,tree,s sep,option>l,n childre
   \end{compactitem}
 \item[v1.02 (2013/01/20)] \mbox{}
   \begin{compactitem}
-  \item Reworked style \index{stages}: it's easier to modify the processing flow now.
+  \item Reworked style \index{style>stages}: it's easier to modify the processing flow now.
   \item Individual stages must now be explicitely called in the context of some (usually root)
     node. 
   \item Added \index{delay n} and \index{if have delayed}.
