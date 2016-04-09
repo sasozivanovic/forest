@@ -1,4 +1,4 @@
-% \CheckSum{557}
+% \CheckSum{561}
 % \iffalse meta-comment
 % forest-index.dtx
 %% `forest-index' is an indexing system for the documentation of package `forest', using the package itself.
@@ -292,7 +292,7 @@
 % \end{compactitem}
 % \indexex{for step=\indexex{nodewalk}} is used because
 % |create@subentry@node| walks down the created tree. At |if n=0|
-% below, we're thus positioned at the lowest node.\indexex[margin]{option>nodewalk}
+% below, we're thus positioned at the lowest node.\indexex[margin]{step>nodewalk}
 %    \begin{macrocode}
     for nodewalk={
 %    \end{macrocode}
@@ -770,12 +770,13 @@
 %    \begin{macrocode}
 \def\forestindex@filename{\jobname.foridx}
 \IfFileExists{\forestindex@filename}{%
-  \input\forestindex@filename
+  \input\forestindex@filename\relax
 }{}%
 \newwrite\forestindex@out
-\immediate\openout\forestindex@out=\forestindex@filename
+\immediate\openout\forestindex@out=\forestindex@filename.tmp
 \AtEndDocument{%
   \immediate\closeout\forestindex@out
+  \forest@file@copy{\forestindex@filename.tmp}{\forestindex@filename}%
 }
 \endinput
 %    \end{macrocode}
@@ -783,6 +784,7 @@
 %%% \iffalse
 %%% Local Variables:
 %%% mode: doctex
-%%% TeX-master: "forest-doc.tex"
+%%% TeX-master: "forest-doc"
+%%% TeX-command-default: "sty"
 %%% End:
 %%% \fi

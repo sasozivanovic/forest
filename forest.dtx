@@ -1,4 +1,4 @@
-% \CheckSum{12570}
+% \CheckSum{12887}
 % \iffalse meta-comment
 % forest.dtx
 %% `forest' is a `pgf/tikz'-based package for drawing (linguistic) trees.
@@ -83,7 +83,7 @@
 %
 % \section{Identification}
 %    \begin{macrocode}
-\ProvidesPackage{forest}[2016/03/04 v2.0.2 Drawing (linguistic) trees]
+\ProvidesPackage{forest}[2016/04/09 v2.0.3 Drawing (linguistic) trees]
 
 \RequirePackage{tikz}[2013/12/13]
 \usetikzlibrary{shapes}
@@ -112,13 +112,13 @@
 \newif\ifforest@external@
 \newif\ifforesttikzcshack
 \newif\ifforest@install@keys@to@tikz@path@
-\newif\ifforestdebug
+\newif\ifforestdebugnodewalks
+\newif\ifforestdebugdynamics
 \def\forest@compat{}
 \forestset{package@options/.cd,
   external/.is if=forest@external@,
   tikzcshack/.is if=foresttikzcshack,
   tikzinstallkeys/.is if=forest@install@keys@to@tikz@path@,
-  debug/.is if=forestdebug,
   compat/.store in=\forest@compat,
   compat/.default=most,
   .unknown/.code={% load library
@@ -127,6 +127,10 @@
       \noexpand\forestapplylibrarydefaults{\pgfkeyscurrentname}%
     }%
   },
+  debug/.code={\pgfqkeys{/forest/package@options/debug}{#1}},
+  debug/.default={nodewalks,dynamics},
+  debug/nodewalks/.is if=forestdebugnodewalks,
+  debug/dynamics/.is if=forestdebugdynamics,
 }
 \forest@install@keys@to@tikz@path@true
 \foresttikzcshacktrue
@@ -1389,6 +1393,7 @@
   \advance\forest@node@maxid1
   \forest@fornode{\the\forest@node@maxid}{%
     \forest@node@init
+    \forestoeset{id}{\forest@cn}%
     \forest@node@setname{node@\forest@cn}%
     \forest@initializefromstandardnode
     \edef#1{\forest@cn}%
@@ -1400,6 +1405,7 @@
   \def\forestoinit##1{\ifstrequal{##1}{name}{\forestoset{name}{node@\forest@cn}}{\forestoletO{##1}{#1}{##1}}}%
   \forest@fornode{\the\forest@node@maxid}{%
     \forest@node@init
+    \forestoeset{id}{\forest@cn}%
     \forest@node@setname{\forest@copy@name@template{\forestOve{#1}{name}}}%
     \edef#2{\forest@cn}%
   }%  
@@ -1900,8 +1906,6 @@
     \forestOve{#1}{@next}%
   \fi
 }
-
-
 \def\forest@node@linearpreviousid{%
   \ifnum\forestove{@previous}=0
     \forestove{@parent}%
@@ -1909,20 +1913,105 @@
     \forest@node@previousleafid
   \fi
 }
+%    \end{macrocode}
+% Test if the current node is an ancestor the node given by its id in the first argument.  The code graciously deals with circular trees.  The second and third argument (not formally present) are the true and the false case code.
+%    \begin{macrocode}
+
 \def\forest@ifancestorof#1{% is the current node an ancestor of #1? Yes: #2, no: #3
+  \begingroup
   \expandnumberarg\forest@ifancestorof@{\forestOve{#1}{@parent}}%
 }
-\def\forest@ifancestorof@#1#2#3{%
+\def\forest@ifancestorof@#1{%
   \ifnum#1=0
-    \def\forest@ifancestorof@next{\@secondoftwo}%
+    \def\forest@ifancestorof@next{\expandafter\endgroup\@secondoftwo}%
   \else
     \ifnum\forest@cn=#1
-      \def\forest@ifancestorof@next{\@firstoftwo}%
+      \def\forest@ifancestorof@next{\expandafter\endgroup\@firstoftwo}%
     \else
-      \def\forest@ifancestorof@next{\expandnumberarg\forest@ifancestorof@{\forestOve{#1}{@parent}}}%
+      \ifcsdef{forest@circularity@used#1}{%
+%    \end{macrocode}
+% We have just detected circularity: the potential descendant is in fact an ancestor of itself.  Our answer is ``false'': the current node is not an ancestor of the potential descendant.
+%    \begin{macrocode}
+        \def\forest@ifancestorof@next{\expandafter\endgroup\@secondoftwo}%
+      }{%
+        \csdef{forest@circularity@used#1}{}%
+        \def\forest@ifancestorof@next{\expandnumberarg\forest@ifancestorof@{\forestOve{#1}{@parent}}}%
+      }%
     \fi
   \fi
-  \forest@ifancestorof@next{#2}{#3}%
+  \forest@ifancestorof@next
+}
+%    \end{macrocode}
+% A debug tool which prints out the hierarchy of all nodes.
+%    \begin{macrocode}
+\NewDocumentCommand\forestdebugtypeouttrees{o}{%
+  \forestdebug@typeouttrees\forest@temp
+  \typeout{\IfValueTF{#1}{#1: }{}\forest@temp}%
+}
+\def\forestdebug@typeouttrees#1{% #1 = cs to store the result
+  \begingroup
+  \edef\forest@temp@message{}%
+  \def\forestdebug@typeouttrees@n{0}%
+%    \end{macrocode}
+% Loop through all known ids. When finding a node that has not been visited yet (probably as a part of a previous tree), find its root and typeout the root's tree.
+%    \begin{macrocode}
+  \loop
+  \ifnum\forestdebug@typeouttrees@n<\forest@node@maxid
+    \edef\forestdebug@typeouttrees@n{\number\numexpr\forestdebug@typeouttrees@n+1}%
+    \ifcsdef{forestdebug@typeouttree@used@\forestdebug@typeouttrees@n}{}{%
+      \forest@fornode{\forestdebug@typeouttrees@n}{%
+%    \end{macrocode}
+% After finding the root, we need to restore our notes about visited nodes.
+%    \begin{macrocode}
+        \begingroup
+        \forestdebug@typeouttrees@findroot
+        \expandafter\endgroup
+        \expandafter\edef\expandafter\forest@cn\expandafter{\forest@cn}%
+        \forestdebug@typeouttree@build
+        \appto\forest@temp@message{\space}%
+      }%
+    }%
+  \repeat
+  \expandafter\endgroup
+  \expandafter\edef\expandafter#1\expandafter{\forest@temp@message}%
+}
+\def\forestdebug@typeouttrees@findroot{%
+  \let\forestdebug@typeouttrees@next\relax
+  \edef\forestdebug@typeouttrees@parent{\forestOve{\forest@cn}{@parent}}%
+  \ifnum\forestdebug@typeouttrees@parent=0
+  \else
+    \ifcsdef{forestdebug@typeouttree@used@\forest@cn}{}{%
+      \csdef{forestdebug@typeouttree@used@\forest@cn}{}%
+      \edef\forest@cn{\forestdebug@typeouttrees@parent}%
+      \let\forestdebug@typeouttrees@next\forestdebug@typeouttrees@findroot
+    }%
+  \fi
+  \forestdebug@typeouttrees@next
+}
+\def\forestdebug@typeouttree#1#2{% #1=root id, #2=cs to receive result
+  \begingroup
+  \edef\forest@temp@message{}%
+  \forest@fornode{#1}{\forestdebug@typeouttree@build}%
+  \expandafter\endgroup
+  \expandafter\edef\expandafter#2\expandafter{\forest@temp@message}%
+}
+\NewDocumentCommand\forestdebugtypeouttree{o m}{%
+  \forestdebug@typeouttree{#1}\forest@temp
+  \typeout{\IfValueTF{#1}{#1: }{}\forest@temp}%
+}
+%    \end{macrocode}
+% Recurse through the tree. If a circularity is detected, mark it with |*| and stop recursion.
+%    \begin{macrocode}
+\def\forestdebug@typeouttree@build{%
+  \eappto\forest@temp@message{[\forest@cn%]
+    \ifcsdef{forestdebug@typeouttree@used@\forest@cn}{*}{}%
+    }%
+  \ifcsdef{forestdebug@typeouttree@used@\forest@cn}{}{%
+    \csdef{forestdebug@typeouttree@used@\forest@cn}{}%
+    \forest@node@foreachchild{\forestdebug@typeouttree@build}%
+  }%
+  \eappto\forest@temp@message{%[
+    ]}%
 }
 %    \end{macrocode}
 %
@@ -1965,8 +2054,6 @@
 \def\forest@declaretoks@handler@A#1#2#3#4#5{% #1=key,#2=path,#3=name,#4=pgfmathname,#5=infix
   \pgfkeysalso{%
     #1/.code={\forestOset{\forest@setter@node}{#3}{##1}},
-    #1+/.code={\forestOappto{\forest@setter@node}{#3}{#5##1}},
-    #2/+#3/.code={\forestOpreto{\forest@setter@node}{#3}{##1#5}},
     #2/if #3/.code n args={3}{%
       \forestoget{#3}\forest@temp@option@value
       \edef\forest@temp@compared@value{\unexpanded{##1}}%
@@ -1989,6 +2076,31 @@
     #2/where #3/.style n args={3}{for tree={#2/if #3={##1}{##2}{##3}}},
     #2/where in #3/.style n args={3}{for tree={#2/if in #3={##1}{##2}{##3}}}
   }%
+  \ifstrempty{#5}{%
+    \pgfkeysalso{%
+      #1+/.code={\forestOappto{\forest@setter@node}{#3}{#5##1}},
+      #2/+#3/.code={\forestOpreto{\forest@setter@node}{#3}{##1#5}},
+    }%
+  }{%
+    \pgfkeysalso{%
+      #1+/.code={%
+        \forestOget{\forest@setter@node}{#3}\forest@temp
+        \ifdefempty{\forest@temp}{%
+          \forestOset{\forest@setter@node}{#3}{##1}%
+        }{%
+          \forestOappto{\forest@setter@node}{#3}{#5##1}%
+        }%
+      },
+      #2/+#3/.code={%
+        \forestOget{\forest@setter@node}{#3}\forest@temp
+        \ifdefempty{\forest@temp}{%
+          \forestOset{\forest@setter@node}{#3}{##1}%
+        }{%
+          \forestOpreto{\forest@setter@node}{#3}{##1#5}%
+        }%
+      }%
+    }%
+  }%
   \pgfkeyssetvalue{#1/option@name}{#3}%  
   \pgfkeyssetvalue{#1+/option@name}{#3}%  
   \pgfkeyssetvalue{#2/+#3/option@name}{#3}%  
@@ -2007,6 +2119,11 @@
   \pgfkeyssetvalue{#2/+#3'/option@name}{#3}%
 }
 \def\forest@declarereadonlydimen@handler#1#2#3#4{% #1=key,#2=path,#3=name,#4=pgfmathname
+  % this is to have `pt` with the correct category code
+  \pgfutil@tempdima=\pgfkeysvalueof{/forest/#3}\relax
+  \edef\forest@marshal{%
+    \noexpand\pgfkeyssetvalue{/forest/#3}{\the\pgfutil@tempdima}%
+  }\forest@marshal
   \pgfkeysalso{%
     #2/if #3/.code n args={3}{%
       \forestoget{#3}\forest@temp@option@value
@@ -2201,20 +2318,35 @@
   declare keylist/.code 2 args={%
     \forest@declarehandler\forest@declarekeylist@handler{#1}{#2}%
   },
-  declare readonly dimen/.code={%
-    \forest@declarehandler\forest@declarereadonlydimen@handler{#1}{}%
+  declare readonly dimen/.code 2 args={%
+    \pgfmathsetlengthmacro\forest@temp{#2}%
+    \edef\forest@marshal{%
+      \unexpanded{\forest@declarehandler\forest@declarereadonlydimen@handler{#1}}{\forest@temp}%
+    }\forest@marshal
   },
   declare dimen/.code 2 args={%
-    \forest@declarehandler\forest@declaredimen@handler{#1}{#2}%
+    \pgfmathsetlengthmacro\forest@temp{#2}%
+    \edef\forest@marshal{%
+      \unexpanded{\forest@declarehandler\forest@declaredimen@handler{#1}}{\forest@temp}%
+    }\forest@marshal
   },
-  declare readonly count/.code={%
-    \forest@declarehandler\forest@declarereadonlycount@handler{#1}{}%
+  declare readonly count/.code 2 args={%
+    \pgfmathtruncatemacro\forest@temp{#2}%
+    \edef\forest@marshal{%
+      \unexpanded{\forest@declarehandler\forest@declarereadonlycount@handler{#1}}{\forest@temp}%
+    }\forest@marshal
   },
   declare count/.code 2 args={%
-    \forest@declarehandler\forest@declarecount@handler{#1}{#2}%
+    \pgfmathtruncatemacro\forest@temp{#2}%
+    \edef\forest@marshal{%
+      \unexpanded{\forest@declarehandler\forest@declarecount@handler{#1}}{\forest@temp}%
+    }\forest@marshal
   },
   declare boolean/.code 2 args={%
-    \forest@declarehandler\forest@declareboolean@handler{#1}{#2}%
+    \pgfmathtruncatemacro\forest@temp{#2}%
+    \edef\forest@marshal{%
+      \unexpanded{\forest@declarehandler\forest@declareboolean@handler{#1}}{\forest@temp}%
+    }\forest@marshal
   },
   /handlers/.restore default value/.code={%
     \edef\forest@handlers@currentpath{\pgfkeyscurrentpath}%
@@ -2248,16 +2380,16 @@
     \pgfmathparse{#2}\let\forest@wrap@arg@i\pgfmathresult
     \edef\forest@wrap@args{{\expandonce\forest@wrap@arg@i}}%
     \def\forest@wrap@code##1{#1}%
+    % here we don't call \forest@wrap@pgfmath@args@@@wrapandpasson, as compat-2.0.2-wrappgfmathargs changes that to achieve the old, confusing state of affairs, which *didn't* apply at *1*-arg pgfmath wrapping
     \expandafter\expandafter\expandafter\forest@temp@toks\expandafter\expandafter\expandafter{\expandafter\forest@wrap@code\forest@wrap@args}%
-    \pgfkeysalso{\pgfkeyscurrentpath/.expand once=\the\forest@temp@toks}%
+    \expandafter\pgfkeysalso\expandafter{\expandafter\pgfkeyscurrentpath\expandafter=\expandafter{\the\forest@temp@toks}}%
   },
   /handlers/.wrap 2 pgfmath args/.code n args={3}{%
     \pgfmathparse{#2}\let\forest@wrap@arg@i\pgfmathresult
     \pgfmathparse{#3}\let\forest@wrap@arg@ii\pgfmathresult
     \edef\forest@wrap@args{{\expandonce\forest@wrap@arg@i}{\expandonce\forest@wrap@arg@ii}}%
     \def\forest@wrap@code##1##2{#1}%
-    \expandafter\expandafter\expandafter\def\expandafter\expandafter\expandafter\forest@wrapped\expandafter\expandafter\expandafter{\expandafter\forest@wrap@code\forest@wrap@args}%
-    \pgfkeysalso{\pgfkeyscurrentpath/.expand once=\forest@wrapped}%
+    \forest@wrap@pgfmath@args@@@wrapandpasson
   },
   /handlers/.wrap 3 pgfmath args/.code n args={4}{%
     \forest@wrap@n@pgfmath@args{#2}{#3}{#4}{}{}{}{}{}{3}%
@@ -2312,8 +2444,18 @@
   \or\def\forest@wrap@code##1##2##3##4##5##6##7{#1}%
   \or\def\forest@wrap@code##1##2##3##4##5##6##7##8{#1}%
   \fi
-  \expandafter\expandafter\expandafter\def\expandafter\expandafter\expandafter\forest@wrapped\expandafter\expandafter\expandafter{\expandafter\forest@wrap@code\forest@wrap@args}%
-  \pgfkeysalso{\pgfkeyscurrentpath/.expand once=\forest@wrapped}%
+  \forest@wrap@pgfmath@args@@@wrapandpasson
+}
+%    \end{macrocode}
+% The following macro is redefined by compat key |2.0.2-wrappgfmathargs|.
+%    \begin{macrocode}
+\def\forest@wrap@pgfmath@args@@@wrapandpasson{%
+  \expandafter\expandafter\expandafter\forest@temp@toks
+      \expandafter\expandafter\expandafter{%
+        \expandafter\forest@wrap@code\forest@wrap@args}%
+  \expandafter\pgfkeysalso\expandafter{%
+    \expandafter\pgfkeyscurrentpath\expandafter=\expandafter{%
+        \the\forest@temp@toks}}%
 }
 \newtoks\forest@processargs@result
 \newtoks\forest@processargs@current
@@ -2453,8 +2595,6 @@
 \def\forest@declaretoksregister@handler@A#1#2#3#4#5{% #1=key,#2=path,#3=name,#4=pgfmathname,#5=infix
   \pgfkeysalso{%
     #1/.code={\forestrset{#3}{##1}},
-    #1+/.code={\forestrappto{#3}{#5##1}},
-    #2/+#3/.code={\forestrpreto{#3}{##1#5}},
     #2/if #3/.code n args={3}{%
       \forestrget{#3}\forest@temp@option@value
       \edef\forest@temp@compared@value{\unexpanded{##1}}%
@@ -2474,6 +2614,31 @@
         \pgfkeysalso{##3}%
       \fi
     },
+  }%
+  \ifstrempty{#5}{%
+    \pgfkeysalso{%
+      #1+/.code={\forestrappto{#3}{#5##1}},
+      #2/+#3/.code={\forestrpreto{#3}{##1#5}},
+    }%
+  }{%
+    \pgfkeysalso{%
+      #1+/.code={%
+        \forestrget{#3}\forest@temp
+        \ifdefempty{\forest@temp}{%
+          \forestrset{#3}{##1}%
+        }{%
+          \forestrappto{#3}{#5##1}%
+        }%
+      },
+      #2/+#3/.code={%
+        \forestrget{#3}\forest@temp
+        \ifdefempty{\forest@temp}{%
+          \forestrset{#3}{##1}%
+        }{%
+          \forestrpreto{#3}{##1#5}%
+        }%
+      }%
+    }%
   }%
   \pgfkeyssetvalue{#1/option@name}{#3}%  
   \pgfkeyssetvalue{#1+/option@name}{#3}%  
@@ -2717,9 +2882,17 @@
   declare dimen register=tempdimc,tempdimc'={0pt},
   declare dimen register=tempdimd,tempdimd'={0pt},
   declare dimen register=tempdimx,tempdimx'={0pt},
+  declare dimen register=tempdimxa,tempdimxa'={0pt},
+  declare dimen register=tempdimxb,tempdimxb'={0pt},
   declare dimen register=tempdimy,tempdimy'={0pt},
+  declare dimen register=tempdimya,tempdimya'={0pt},
+  declare dimen register=tempdimyb,tempdimyb'={0pt},
   declare dimen register=tempdiml,tempdiml'={0pt},
+  declare dimen register=tempdimla,tempdimla'={0pt},
+  declare dimen register=tempdimlb,tempdimlb'={0pt},
   declare dimen register=tempdims,tempdims'={0pt},
+  declare dimen register=tempdimsa,tempdimsa'={0pt},
+  declare dimen register=tempdimsb,tempdimsb'={0pt},
   declare count register=tempcounta,tempcounta'={0},
   declare count register=tempcountb,tempcountb'={0},
   declare count register=tempcountc,tempcountc'={0},
@@ -2773,7 +2946,13 @@
         \@escapeif{\forest@node@setnameoralias{#1@\forest@cn}}%
       \else\@escapeif{%
         \if y\forest@temp@setname
-          \@escapeif{\forest@node@setnameoralias@nameclash{#1}}%
+          \edef\forest@marshal{%
+            \ifstrequal{\forestove{name}}{#1}%
+          }\forest@marshal{%
+            % same name, no problem
+          }{%
+            \@escapeif{\forest@node@setnameoralias@nameclash{#1}}%
+          }%
         \else\@escapeif{% setting an alias: clashing with alias is not a problem
           \forestOget{\forest@node@Nametoid{#1}}{name}\forest@temp
           \expandafter\ifstrequal\expandafter{\forest@temp}{#1}{%
@@ -2953,10 +3132,11 @@
   declare toks={edge label}{},
   declare boolean={phantom}{0},
   baseline/.style={alias={forest@baseline@node}},
-  declare readonly count={n},
-  declare readonly count={n'},
-  declare readonly count={n children},
-  declare readonly count={level},
+  declare readonly count={id}{0},
+  declare readonly count={n}{0},
+  declare readonly count={n'}{0},
+  declare readonly count={n children}{-1},
+  declare readonly count={level}{-1},
   declare dimen=x{0pt},
   declare dimen=y{0pt},
   declare dimen={s}{0pt},
@@ -2966,9 +3146,9 @@
   declare keylist={node options}{anchor=base},
   declare toks={tikz}{},
   afterthought/.style={tikz+={#1}},
-  label/.style={tikz={\path[late options={%
+  label/.style={tikz+={\path[late options={%
         name=\forestoption{name},label={#1}}];}},
-  pin/.style={tikz={\path[late options={%
+  pin/.style={tikz+={\path[late options={%
         name=\forestoption{name},pin={#1}}];}},
   declare toks={content format}{\forestoption{content}},
   plain content/.style={content format={\forestoption{content}}},
@@ -3455,21 +3635,11 @@
     \fi
   }%
 }
-\pgfmathdeclarefunction{id}{1}{%
+\pgfmathdeclarefunction*{id}{1}{%
   \forest@forthis{%
     \forest@nameandgo{#1}%
     \let\pgfmathresult\forest@cn
   }%
-}
-\forestset{%
-  if id/.code n args={3}{%
-    \ifnum#1=\forest@cn\relax
-      \pgfkeysalso{#2}%
-    \else
-      \pgfkeysalso{#3}%
-    \fi
-  },
-  where id/.style n args={3}{for tree={if id={#1}{#2}{#3}}}
 }
 %    \end{macrocode}
 %
@@ -3549,7 +3719,7 @@
   \fi
 }
 \def\forest@nodewalk@makestep@oninvalid@step{\forest@nodewalk@makestep@}
-\def\forest@nodewalk@makestep@oninvalid@error{\PackageError{forest}{nodewalk stepped to the invalid node; stack: "\forest@nodewalk@currentstepname"}{}}%
+\def\forest@nodewalk@makestep@oninvalid@error{\PackageError{forest}{nodewalk stepped to the invalid node\MessageBreak nodewalk stack: "\forest@nodewalk@currentstepname"}{}}%
 \let\forest@nodewalk@makestep@oninvalid@fake\relax
 \def\forest@nodewalk@makestep@oninvalid@compatfake{%
   \forest@deprecated{last step in stack "\forest@nodewalk@currentstepname", which stepped on an invalid node; enabled by "compat=ignoreinvalidsteps".  Use "on invalid={fake}{...}" or "for Nodewalk={on invalid=fake}{...}{...}" instead.}%
@@ -3561,7 +3731,7 @@
     \edef\forest@nodewalk@n{\number\numexpr\forest@nodewalk@n+1}%
     \epreto\forest@nodewalk@historyback{\forest@cn,}%
     \def\forest@nodewalk@historyforward{0,}%
-    \ifforestdebug\forest@nodewalk@makestep@debug\fi
+    \ifforestdebugnodewalks\forest@nodewalk@makestep@debug\fi
     \forest@process@keylist@register{every step}%
   \fi
 }
@@ -3570,9 +3740,6 @@
     \noexpand\typeout{\ifforest@nodewalk@fake fake \fi "\forest@nodewalk@currentstepname" step to node id=\forest@cn, content=\forestoption{content}}%
   }\forest@marshal
 }%
-\forestset{
-  debug/.is if=forestdebug,
-}
 \def\forest@handlers@savecurrentpath{%
   \edef\pgfkeyscurrentkey{\pgfkeyscurrentpath}%
   \let\forest@currentkey\pgfkeyscurrentkey
@@ -3638,9 +3805,9 @@
     \fi
     \pretotoks\forest@temp@toks{\appto\forest@nodewalk@currentstepname{,#1}}%
     \expandafter\forest@temp@toks\expandafter{\expandafter\forest@saveandrestoremacro\expandafter\forest@nodewalk@currentstepname\expandafter{\the\forest@temp@toks}}%
-    \ifforestdebug
-      \epretotoks\forest@temp@toks{\noexpand\typeout{Starting step "#1" from id=\forest@cn
-          \ifnum\forest@nodewalkstephandler@nargs>0 with args ####1\fi
+    \ifforestdebugnodewalks
+      \epretotoks\forest@temp@toks{\noexpand\typeout{Starting step "#1" from id=\noexpand\forest@cn
+          \ifnum\forest@nodewalkstephandler@nargs>0 \space with args ####1\fi
           \ifnum\forest@nodewalkstephandler@nargs>1 ,####2\fi
           \ifnum\forest@nodewalkstephandler@nargs>2 ,####3\fi
           \ifnum\forest@nodewalkstephandler@nargs>3 ,####4\fi
@@ -3890,36 +4057,30 @@
   %%% end nodewalk config
 }
 \forestset{
-  define long step={branch}{n args=1,@bare,style}{%
-    branch@@build/.style={branch@build={##1}{}},
-    @branch={#1},
+  declare toks register=branch@temp@toks,
+  branch@temp@toks={},
+  declare keylist register=branched@nodewalk,
+  branched@nodewalk={},
+  define long step={branch}{n args=1,@bare,style}{@branch={#1}{branch@build@realstep,branch@build@fakestep}},
+  define long step={branch'}{n args=1,@bare,style}{@branch={#1}{branch@build@realstep}},
+  @branch/.style 2 args={%
+    save and restore register={branched@nodewalk}{
+      branch@temp@toks={},
+      split/.process args={r}{#1}{,}{#2},
+      branch@temp@style/.style/.register=branch@temp@toks,
+      branch@temp@style,
+      branch@temp@style/.style/.register=branched@nodewalk,
+      branch@temp@style,
+    }
   },
-  define long step={branch'}{n args=1,@bare,style}{%
-    branch@@build/.style/.expanded={branch@build={####1}{\forestregister{every step},}},
-    @branch={#1},
+  nodewalk/branch@build@realstep/.style={% #1 = nodewalk for this branch
+    branch@temp@toks/.expanded={for nodewalk={\unexpanded{#1}}{
+        branched@nodewalk+/.expanded={id=\noexpand\forestoption{id}},
+        \forestregister{branch@temp@toks}}},
   },
-  nodewalk/@branch/.style={
-    TeX={\forest@temp@toks{}},
-    split/.process args={r}{#1}{,}{branch@@build},
-    branch@do,
-  },
-  nodewalk/branch@build/.code 2 args={% #1 = nodewalk for this branch, #2 = perhaps every step keylist
-    \ifstrempty{#1}{}{%
-      \expandafter\ifstrempty\expandafter{\the\forest@temp@toks}{%
-        \edef\forest@marshal{%
-          \noexpand\forest@temp@toks{for nodewalk={\unexpanded{#1}}{\forestregister{every step}}}%
-        }\forest@marshal
-      }{%
-        \edef\forest@marshal{%
-          \noexpand\forest@temp@toks{for nodewalk={\unexpanded{#1}}{#2\the\forest@temp@toks}}%
-        }\forest@marshal
-      }%
-    }%
-  },
-  nodewalk/branch@do/.code={%
-    \edef\forest@marshal{%
-      \noexpand\pgfkeysalso{fake={\the\forest@temp@toks}}%
-    }\forest@marshal
+  nodewalk/branch@build@fakestep/.style={% #1 = nodewalk for this branch
+    branch@temp@toks/.expanded={for nodewalk={\unexpanded{#1}}{
+        \forestregister{branch@temp@toks}}},
   },
   define long step={group}{autostep}{\forest@go{#1}},
   nodewalk/fake/.code={%
@@ -3934,8 +4095,18 @@
       \pgfkeysalso{#1}%
     }%
   },
+  declare keylist register=filtered@nodewalk,
+  filtered@nodewalk={},
   define long step={filter}{n args=2,@bare,style}{% #1 = nodewalk, #2 = condition
-    nodewalk/.expanded={\unexpanded{#1}}{if={\unexpanded{#2}}{\forestregister{every step}}{}}{}
+    save and restore register={filtered@nodewalk}{
+      filtered@nodewalk'={},
+      Nodewalk=%
+        {history=inherited}%
+        {#1}%
+        {if={#2}{filtered@nodewalk+/.expanded={id=\forestoption{id}}}{}},
+      filtered@nodewalk@style/.style/.register=filtered@nodewalk,
+      filtered@nodewalk@style
+    }
   },
   on@invalid/.is choice,
   on@invalid/error/.code={},
@@ -4525,11 +4696,19 @@
   },
   define long step={level<}{n args=1}{%
     \pgfmathtruncatemacro\forest@temp{(#1)-1}%
-    \edef\forest@marshal{%
-      \noexpand\forest@node@foreach@breadthfirst
-        {\forest@temp}%
-        {\noexpand\forest@nodewalk@makestep}%
-    }\forest@marshal
+    \show\forest@temp
+    \ifnum\forest@temp=-1
+      % special case, as \forest@node@foreach@breadthfirst uses level<0 as a signal for unlimited max level
+      \ifnum\forestove{level}=0
+        \forest@nodewalk@makestep
+      \fi
+    \else
+      \edef\forest@marshal{%
+        \noexpand\forest@node@foreach@breadthfirst
+          {\forest@temp}%
+          {\noexpand\forest@nodewalk@makestep}%
+      }\forest@marshal
+    \fi
   },
   define long step={level reversed}{n args=1}{%
     \pgfmathtruncatemacro\forest@temp{#1}%
@@ -4703,27 +4882,60 @@
     \noexpand\forestrset{#1}{\forestregister{#1}}%
   }\forest@marshal
 }
+\forestset{
+  save and restore register/.code 2 args={%
+    \forest@saveandrestoreregister{filter@ed}{%
+      \pgfkeysalso{#2}%
+    }%
+  },
+}
 \def\forest@remove@node#1{%
+  \ifforestdebugdynamics\forestdebug@dynamics{before removing #1}\fi
   \forest@node@Remove{#1}%
 }
 \def\forest@append@node#1#2{%
+  \ifforestdebugdynamics\forestdebug@dynamics{before appending #2 to #1}\fi
+  \forest@dynamic@circularitytest{#2}{#1}{append}%
   \forest@node@Remove{#2}%
   \forest@node@Append{#1}{#2}%
 }
 \def\forest@prepend@node#1#2{%
+  \ifforestdebugdynamics\forestdebug@dynamics{before prepending #2 to #1}\fi
+  \forest@dynamic@circularitytest{#2}{#1}{prepend}%
   \forest@node@Remove{#2}%
   \forest@node@Prepend{#1}{#2}%
 }
 \def\forest@insertafter@node#1#2{%
+  \ifforestdebugdynamics\forestdebug@dynamics{before inserting #2 after #1}\fi
   \forest@node@Remove{#2}%
   \forest@node@Insertafter{\forestOve{#1}{@parent}}{#2}{#1}%
 }
 \def\forest@insertbefore@node#1#2{%
+  \ifforestdebugdynamics\forestdebug@dynamics{before inserting #2 before #1}\fi
   \forest@node@Remove{#2}%
   \forest@node@Insertbefore{\forestOve{#1}{@parent}}{#2}{#1}%
 }
 \def\forest@set@root#1#2{%
+  \ifforestdebugdynamics\forestdebug@dynamics{before setting #1 as root}\fi
   \def\forest@root{#2}%
+}
+\def\forest@dynamic@circularitytest#1#2#3{%
+  % #1=potenitial ancestor,#2=potential descendant, #3=message prefix
+  \ifnum#1=#2
+    \forest@circularityerror{#1}{#2}{#3}%
+  \else
+    \forest@fornode{#1}{%
+      \forest@ifancestorof{#2}{\forest@circularityerror{#1}{#2}{#3}}{}%
+    }%
+  \fi
+}
+\def\forest@circularityerror#1#2#3{%
+  \forestdebug@typeouttrees{\forest@temp}%
+  \PackageError{forest}{#3ing node id=#1 to id=#2 would result in a circular tree\MessageBreak forest of ids: \forest@temp}{}%
+}%
+\def\forestdebug@dynamics#1{%
+  \forestdebug@typeouttrees\forest@temp
+  \typeout{#1: \forest@temp}%
 }
 \def\forest@appto@do@dynamics#1#2{%
    \forest@nodehandleby@name@nodewalk@or@bracket{#2}%
@@ -4814,8 +5026,10 @@
   \fi
 }
 \def\forest@nodesort#1#2#3{% #1 = direction, #2 = parent node, #3 = sort key
+  \ifforestdebugdynamics\forestdebug@dynamics{before sorting children of #2}\fi
   \def\forest@nodesort@sortkey{#3}%
   \forest@fornode{#2}{\forest@nodesort@#1}%
+  \ifforestdebugdynamics\forestdebug@dynamics{after sorting children of #2}\fi
 }
 \def\forest@nodesort@#1{%
   % prepare the array of child ids
@@ -4929,7 +5143,7 @@
   declare keylist={delay}{},
   delay n/.style 2 args={if={#1==0}{#2}{delay@n={#1}{#2}}},
   delay@n/.style 2 args={
-    if={#1==1}{delay={#2}}{delay={delay@n/.wrap pgfmath arg={{##1}{#2}}{#1-1}}}
+    if={#1==1}{delay={#2}}{delay={delay@n/.process args={P}{#1-1}{#2}}}
   },
   if have delayed/.style 2 args={if have delayed'={processing order}{#1}{#2}},
   if have delayed'/.code n args=3{%
@@ -4993,10 +5207,21 @@
   },
   %%% end listing region: draw_tree_method
   draw tree node/.code={\forest@draw@node},
-  draw tree edge/.code={\forest@draw@edge},
-  draw tree tikz/.code={\forest@draw@tikz},
   draw tree node'/.code={\forest@draw@node@},
+  if node drawn/.code n args={3}{%
+    \forest@forthis{%
+      \forest@configured@nodewalk{independent}{inherited}{fake}{#1}{}%
+      \ifnum\forest@cn=0
+        \forest@tempfalse
+      \else
+        \ifcsdef{forest@drawn@\forest@cn}{\forest@temptrue}{\forest@tempfalse}%
+      \fi
+    }%
+    \ifforest@temp\pgfkeysalso{#2}\else\pgfkeysalso{#3}\fi
+  },
+  draw tree edge/.code={\forest@draw@edge},
   draw tree edge'/.code={\forest@draw@edge@},
+  draw tree tikz/.code={\forest@draw@tikz@}, % always!
   draw tree tikz'/.code={\forest@draw@tikz@},
   processing order/.nodewalk style={tree},
   %given options processing order/.style={processing order},
@@ -5132,16 +5357,16 @@
 
 
 \forestset{
-  declare readonly dimen={min x},
-  declare readonly dimen={min y},
-  declare readonly dimen={max x},
-  declare readonly dimen={max y},
+  declare readonly dimen={min x}{0pt},
+  declare readonly dimen={min y}{0pt},
+  declare readonly dimen={max x}{0pt},
+  declare readonly dimen={max y}{0pt},
 }
 \def\forest@patch@enormouscoordinateboxbounds@plus#1{%
-  \expandafter\ifstrequal\expandafter{#1}{16000.0pt}{\def#1{0.0pt}}{}%
+  \expandafter\ifstrequal\expandafter{#1}{16000.0pt}{\edef#1{0.0\pgfmath@pt}}{}%
 }
 \def\forest@patch@enormouscoordinateboxbounds@minus#1{%
-  \expandafter\ifstrequal\expandafter{#1}{-16000.0pt}{\def#1{0.0pt}}{}%
+  \expandafter\ifstrequal\expandafter{#1}{-16000.0pt}{\edef#1{0.0\pgfmath@pt}}{}%
 }
 \def\forest@positionnodelater@save{%
   \global\setbox\forest@box=\box\pgfpositionnodelaterbox
@@ -5193,21 +5418,23 @@
   \pgfsyssoftpath@setcurrentpath\forest@pack@original@path
 }
 \def\forest@@pack{%
-  \ifnum\forestove{n children}>0
-    \ifnum\forestove{uniform growth}>0
+  \ifnum\forestove{uniform growth}>0
+    \ifnum\forestove{n children}>0
       \forest@pack@level@uniform
       \forest@pack@aligntiers@ofsubtree
       \forest@pack@sibling@uniform@recursive
-    \else
-      \forest@node@foreachchild{\forest@@pack}%
-      \forest@process@hook@keylist@nodynamics{before packing node}{current}%
+    \fi
+  \else
+    \forest@node@foreachchild{\forest@@pack}%
+    \forest@process@hook@keylist@nodynamics{before packing node}{current}%
+    \ifnum\forestove{n children}>0
       \forest@pack@level@nonuniform
       \forest@pack@aligntiers
       \forest@pack@sibling@uniform@applyreversed
     \fi
+    \forestoget{after packing node}\forest@temp@keys
+    \forest@process@hook@keylist@nodynamics{after packing node}{current}%
   \fi
-  \forestoget{after packing node}\forest@temp@keys
-  \forest@process@hook@keylist@nodynamics{after packing node}{current}%
 }
 % \forestset{recalculate tree boundary/.code={\forest@node@recalculate@edges}}
 % \def\forest@node@recalculate@edges{%
@@ -5220,7 +5447,7 @@
     \forest@pack@computetiers
     \forest@pack@level@nonuniform
     \forest@pack@aligntiers
-    \forest@node@foreachchild{\forestoset{s}{0pt}}%
+    \forest@node@foreachchild{\forestoset{s}{0\pgfmath@pt}}%
     \forest@pack@sibling@uniform@applyreversed  
   \fi  
 }
@@ -5418,7 +5645,7 @@
 %    \end{macrocode}
 % Loop until the current child is the null node.
 %    \begin{macrocode}
-  \edef\forest@previous@child@s{0pt}%
+  \edef\forest@previous@child@s{0\pgfmath@pt}%
   \safeloop
   \unless\ifnum\forest@child=0
 %    \end{macrocode}
@@ -6531,6 +6758,7 @@
 }
 \def\forest@drawtree@root{0}
 \def\forest@node@drawtree@{%
+  \def\forest@clear@drawn{}%
   \forest@forthis{%
     \forest@saveandrestoremacro\forest@drawtree@root{%
       \edef\forest@drawtree@root{\forest@cn}%
@@ -6538,14 +6766,18 @@
     }%
   }%
   \forest@node@Ifnamedefined{forest@baseline@node}{%
-    \edef\forest@temp{%
-      \noexpand\pgfsetbaselinepointlater{%
-        \noexpand\pgfpointanchor
-          {\forestOve{\forest@node@Nametoid{forest@baseline@node}}{name}}
-          {\forestOve{\forest@node@Nametoid{forest@baseline@node}}{anchor}}
-      }%
-    }\forest@temp
+    \edef\forest@baseline@id{\forest@node@Nametoid{forest@baseline@node}}%
+    \ifcsdef{forest@drawn@\forest@baseline@id}{%
+      \edef\forest@marshal{%
+        \noexpand\pgfsetbaselinepointlater{%
+          \noexpand\pgfpointanchor
+            {\forestOve{\forest@baseline@id}{name}}%
+            {\forestOve{\forest@baseline@id}{anchor}}%
+        }%
+      }\forest@marshal
+    }{}%
   }{}%
+  \forest@clear@drawn
 }
 \def\forest@draw@node{%
   \ifnum\forestove{phantom}=0
@@ -6561,15 +6793,18 @@
   \ifforest@drawtree@preservenodeboxes@
     \pgfnodealias{\forestove{later@name}}{forest@temp}%
   \fi
+  \csdef{forest@drawn@\forest@cn}{}%
+  \eappto\forest@clear@drawn{\noexpand\csundef{forest@drawn@\forest@cn}}%
 }
 \def\forest@draw@edge{%
-  \ifnum\forest@cn=\forest@drawtree@root\relax\else
-    \ifnum\forestove{phantom}=0
-      \ifnum\forestOve{\forestove{@parent}}{phantom}=0
+  \ifcsdef{forest@drawn@\forest@cn}{% was the current node drawn?
+    \ifnum\forestove{@parent}=0 % do we have a parent?
+    \else
+      \ifcsdef{forest@drawn@\forestove{@parent}}{% was the parent drawn?
         \forest@draw@edge@
-      \fi
+      }{}%
     \fi
-  \fi
+  }{}%
 }
 \def\forest@draw@edge@{%
   \edef\forest@temp{\forestove{edge path}}\forest@temp
@@ -7798,24 +8033,39 @@
 % \subsection{Externalization}
 %    \begin{macrocode}
 \pgfkeys{/forest/external/.cd,
-  copy command/.initial={cp "\source" "\target"},
+  %copy command/.initial={cp "\source" "\target"},
+  copy command/.initial={},
   optimize/.is if=forest@external@optimize@,
   context/.initial={%
     \forestOve{\csname forest@id@of@standard node\endcsname}{environment@formula}},
   depends on macro/.style={context/.append/.expanded={%
       \expandafter\detokenize\expandafter{#1}}},
 }
-\def\forest@external@copy#1#2{%
-  \pgfkeysgetvalue{/forest/external/copy command}\forest@copy@command
-  \ifx\forest@copy@command\pgfkeysnovalue\else
-    \IfFileExists{#1}{%
-      {%
-        \def\source{#1}%
-        \def\target{#2}%
-        \immediate\write18{\forest@copy@command}%
-      }%
-    }{}%
-  \fi
+\def\forest@file@copy#1#2{%
+  \IfFileExists{#1}{%
+    \pgfkeysgetvalue{/forest/external/copy command}\forest@copy@command
+    \ifdefempty\forest@copy@command{%
+      \forest@file@copy@{#1}{#2}%
+    }{ % copy by external command
+      \def\source{#1}%
+      \def\target{#2}%
+      \immediate\write18{\forest@copy@command}%
+    }%
+  }{}%
+}
+\def\forest@file@copy@#1#2{%
+  \newread\forest@copy@in
+  \openin\forest@copy@in=#1
+  \newwrite\forest@copy@out
+  \immediate\openout\forest@copy@out#2
+  \endlinechar-1
+  \loop
+  \unless\ifeof\forest@copy@in
+    \readline\forest@copy@in to\forest@temp
+    \immediate\write\forest@copy@out{\forest@temp}%
+  \repeat
+  \immediate\closeout\forest@copy@out
+  \closein\forest@copy@in
 }
 \newif\ifforest@external@optimize@
 \forest@external@optimize@true
@@ -7838,13 +8088,13 @@
     /pgf/images/aux in dpth=false,
   }%
   \tikzifexternalizing{}{%
-    \forest@external@copy{\jobname.aux}{\jobname.aux.copy}%
+    \forest@file@copy{\jobname.aux}{\jobname.aux.copy}%
   }%
   \AtBeginDocument{%
     \tikzifexternalizing{%
       \IfFileExists{\tikzexternalrealjob.aux.copy}{%
         \makeatletter
-        \input \tikzexternalrealjob.aux.copy
+        \input\tikzexternalrealjob.aux.copy\relax
         \makeatother
       }{}%
     }{%
@@ -7854,14 +8104,14 @@
     \IfFileExists{\tikzexternalrealjob.for}{%
       {%
         \makehashother\makeatletter
-        \input \tikzexternalrealjob.for
+        \input\tikzexternalrealjob.for\relax
       }%
     }{}%
   }%
   \AtEndDocument{%
     \tikzifexternalizing{}{%
       \immediate\closeout\forest@auxout
-      \forest@external@copy{\jobname.for.tmp}{\jobname.for}%
+      \forest@file@copy{\jobname.for.tmp}{\jobname.for}%
     }%
   }%
 \fi
@@ -8083,6 +8333,7 @@
   \advance\forest@node@maxid1
   \forest@fornode{\the\forest@node@maxid}{%
     \forest@node@init
+    \forestoeset{id}{\forest@cn}%
     \forest@node@setname@silent{standard node}%
   }%
 }

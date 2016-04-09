@@ -13,7 +13,7 @@ package-derived-sty = $(shell grep -Poh '\\file{(.*?)}' $(ins) | sed 's/\\file{\
 package-sty = $(package-nonderived-sty) $(package-derived-sty)
 
 doc-tex = forest-doc.tex
-doc-sty = forest-doc.sty
+doc-sty = forest-doc.sty forest-index.sty
 doc-other = forest-doc.ist ~/texmf/bibtex/bib/local/tex.bib
 doc-pdf = forest-doc.pdf
 

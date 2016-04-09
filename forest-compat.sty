@@ -31,20 +31,24 @@
 \forestset{@@deprecated/.code={\forest@deprecated{#1}}}
 \def\forestcompat#1{\pgfqkeys{/forest/@compat}{#1}}
 \forestcompat{
+  silent/.style={\def\forest@deprecated##1{}},
+  %%% begin listing region: compat_keys
   most/.style={1.0-most},
   all/.style={1.0-all},
   none/.style={},
-  silent/.style={\def\forest@deprecated##1{}},
-  %%% begin listing region: compat_1.0
   1.0-most/.style={
     1.0-triangle,1.0-linear,1.0-nodewalk,1.0-ancestors,
     1.0-fittotree,1.0-for,1.0-forall
   },
   1.0-all/.style={
     1.0-most,
-    1.0-ignoreinvalidsteps,1.0-rotate,1.0-stages,1.0-name
+    1.0-forstep,1.0-rotate,1.0-stages,1.0-name,
+    2.0.2-all,
   },
-  %%% end listing region: compat_1.0
+  2.0.2-all/.style={
+    2.0.2-delayn,2.0.2-wrapnpgfmathargs,
+  },
+  %%% end listing region: compat_keys
   1.0-triangle/.style={
     /forest/triangle/.style={
       @@deprecated={key "triangle" from v1.0.x. Use key "roof" from library "linguistics" instead},
@@ -100,7 +104,7 @@
       @@deprecated={Key "for all previous" from v1.0.x.  Use key "for preceding siblings" instead.},
       for preceding siblings={##1}},
   },
-  1.0-ignoreinvalidsteps/.code={%
+  1.0-forstep/.code={%
     \def\forest@forstepwrapper##1##2{%
       \def\forest@nodewalk@config@everystep@method{independent}%
       \def\forest@nodewalk@config@history@method{independent}%
@@ -164,6 +168,22 @@
       \ifstrempty{##1}{}{%
         \csedef{forest@id@of@##1}{\forest@cn}%
       }%
+    }%
+  },
+  2.0.2-delayn/.style={
+    /forest/delay@n/.style 2 args={
+      @@deprecated={propagator "delay n" (it introduces two levels of hash doubling)},
+      if={##1==1}{delay={##2}}{delay={delay@n/.wrap pgfmath arg={{####1}{##2}}{##1-1}}}
+    },
+  },
+  2.0.2-wrapnpgfmathargs/.code={
+    \def\forest@wrap@pgfmath@args@@@wrapandpasson{%
+      \forest@deprecated{handler "wrap n pgfmath args" (it introduces two levels of hash doubling)}%
+      \expandafter\expandafter\expandafter\def
+          \expandafter\expandafter\expandafter\forest@wrapped
+          \expandafter\expandafter\expandafter{%
+            \expandafter\forest@wrap@code\forest@wrap@args}%
+      \expandafter\pgfkeysalso\expandafter{\expandafter\pgfkeyscurrentpath\expandafter=\expandafter{\forest@wrapped}}%
     }%
   },
 }
