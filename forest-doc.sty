@@ -1,7 +1,7 @@
 %% forest-doc.sty
 %% `forest-doc.sty` is an auxiliary package needed to compile the documentation of package `forest`.
 %%
-%% Copyright (c) 2015 Saso Zivanovic
+%% Copyright (c) 2016 Saso Zivanovic
 %%                    (Sa\v{s}o \v{Z}ivanovi\'{c})
 %% saso.zivanovic@guest.arnes.si
 %%
@@ -31,7 +31,7 @@
   basicstyle=\small\ttfamily,basewidth=0.51em,boxpos=c,pointstyle=\pstyle,moredelim=[is][\pstyle]{~}{~}}
 %\lst@InstallKeywords{p}{point}{pointstyle}\relax{keywordstyle}{}ld
 \def\pstyle{\color{darkgreen}}
-\def\itemnosep{\vspace{-1.4ex}}
+\newcommand\itemnosep[1][0pt]{\vspace{\the\dimexpr-1.4ex+#1}}
 \lstset{
   rangebeginprefix=\ \ \%\%\%\ begin\ listing\ region:\ ,
   rangebeginsuffix=,
@@ -230,7 +230,9 @@
   \@Repeat{#1}{#2}#2%
 }
 \def\spaces#1{\Repeat{#1}\space}  
-    
+
+\RequirePackage{dingbat}
+
 
 %%% Local Variables:
 %%% mode: latex

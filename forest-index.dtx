@@ -1,9 +1,9 @@
-% \CheckSum{561}
+% \CheckSum{756}
 % \iffalse meta-comment
 % forest-index.dtx
 %% `forest-index' is an indexing system for the documentation of package `forest', using the package itself.
 %%
-%% Copyright (c) 2015 Saso Zivanovic
+%% Copyright (c) 2016 Saso Zivanovic
 %%                    (Sa\v{s}o \v{Z}ivanovi\'{c})
 %% saso.zivanovic@guest.arnes.si
 %%
@@ -150,11 +150,14 @@
     {\let\forestindex@resolvekey\forestindex@resolvekey@long}
     {\let\forestindex@resolvekey\forestindex@resolvekey@shortorlong}%
   \forestindex@index{example}{#1}{#3}}
+% \DeclareDocumentCommand\indexitem{D(){} O{} t> m}{%
+%   \IfBooleanTF{#3}
+%     {\let\forestindex@resolvekey\forestindex@resolvekey@long}
+%     {\let\forestindex@resolvekey\forestindex@resolvekey@shortorlong}%
+%   \forestindex@index{definition}{default={#1},print format=item,#2}{#4}}
 \DeclareDocumentCommand\indexitem{D(){} O{} t> m}{%
-  \IfBooleanTF{#3}
-    {\let\forestindex@resolvekey\forestindex@resolvekey@long}
-    {\let\forestindex@resolvekey\forestindex@resolvekey@shortorlong}%
-  \forestindex@index{definition}{default={#1},print format=item,#2}{#4}}
+  \let\forestindex@resolvekey\forestindex@resolvekey@long
+  \forestindex@index{definition}{default={#1},#2,print format+=item}{#4}}
 \DeclareDocumentCommand\indexset{O{} t> m}{%
   \IfBooleanTF{#2}
     {\let\forestindex@resolvekey\forestindex@resolvekey@long}
@@ -181,9 +184,10 @@
 %    \begin{macrocode}
 \def\forestindex@index#1#2#3{%
 %    \end{macrocode}
-% Partition the index keylist into single keys.
+% Partition the index keylist into single keys.  And put it all in a group: the
+% persistent stuff is saved globally.
 %    \begin{macrocode}
-  \forcsvlist{\forestindex@forkey{#1}{#2}}{#3}%
+  {\forcsvlist{\forestindex@forkey{#1}{#2}}{#3}}%
 }
 \def\forestindex@forkey#1#2#3{%
 %    \end{macrocode}
@@ -191,11 +195,23 @@
 %    \begin{macrocode}
   \forestindex@resolvekey{#3}%
 %    \end{macrocode}
-% Call the central processing command, style |@index|. See how
-% \indexex{process args} is used to expand (once) the last argument.
+% Manipulate arguments a bit, so that we can use our quick-and-dirty one-arg
+% memoization.
 %    \begin{macrocode}
-  \forestset{@index/.process args={__o}{#1}{#2}{\forestindex@fullkey}}%
+  %\forestset{@index/.process={__o}{#1}{#2}{\forestindex@fullkey}}
+  \edef\forest@marshal{%
+    \noexpand\forestindex@index@{%
+      {\unexpanded{#1}}%
+      {\unexpanded{#2}}%
+      {\expandonce{\forestindex@fullkey}}%
+    }%
+  }\forest@marshal
 }
+%    \end{macrocode}
+% Call the central processing command, style |@index|. See how
+% \indexex{handler>process} is used to expand (once) the last argument.
+%    \begin{macrocode}
+\def\forestindex@index@#1{\forestset{@index/.process={__o}#1}}
 \forestset{
 %    \end{macrocode}
 % \subsubsection*{Declarations}
@@ -206,6 +222,7 @@
 %    \begin{macrocode}
   declare boolean register=print,
   declare boolean register=index,
+  declare boolean register=short, short,
 %    \end{macrocode}
 % Options |name|, |content|, |key| and |argument| hold info about the
 % current entry. We need to declare only the latter two, the former
@@ -307,10 +324,14 @@
       if n=0{
         content/.option=key,
       }{
-        content/.wrap 2 pgfmath args={##1>##2}{content("!parent")}{key},
+        content/.process={OOw2} {!parent.content} {key} {##1>##2},
       }
     }{},
     for root'={
+%    \end{macrocode}
+% Don't memoize if the key is of an unknown category.
+%    \begin{macrocode}
+      if strequal/.process={O}{!root.name}{@unknown}{TeX=\global\forest@memoizing@ok@false}{},
 %    \end{macrocode}
 % Option |print_form| is what will be typeset in the text.  Option
 % |index_key| is the key that will be used for sorting the
@@ -325,7 +346,7 @@
         index form/.option=key,
       },
 %    \end{macrocode}
-% Below, \indexex{node key>on invalid} is set to \indexex{value=on invalid>fake} at four points.
+% Below, \indexex{node key>on invalid} is set to \indexex{value of=on invalid>fake} at four points.
 % This is so we won't get in trouble when |\indexset|ting the
 % categories: when the category formatting code will try to step into
 % the child, it will fail as the child does not exist when |\indexset|
@@ -345,7 +366,7 @@
 % Ancestors are walked in the \indexex{reverse} order (top down).  At
 % every node, the saved configuration is executed (if it exists).
 %    \begin{macrocode}
-        for reverse={ancestors}{on invalid={fake}{@@index/\forestoption{name}/.try}},
+        for reverse={current and ancestors}{on invalid={fake}{@@index/\forestoption{name}/.try}},
 %    \end{macrocode}
 % We don't execute the saved configuration for definitions, as
 % definitions are where the configuration is set.
@@ -377,17 +398,14 @@
 % \FoRest; points:
 % \begin{enumerate*}[(i)]
 % \item the generic conditional \indexex{if},
-% \item handler \index[print form=wrap 2 pgfmath args]{wrap $n$ pgfmath args},
-% \item long nodewalk in the relative node name, which is an argument
-%   to a |pgfmath| option function, automatically created for the
-%   |index@hypertarget| option declared in this package.
+% \item handler \index{handler>process},
 % \end{enumerate*}
 %    \begin{macrocode}
-      if={index()||print()}{
+      if index={
         index@hypertarget/.expanded={.\forestoption{index key}},
         for descendants={
-          index@hypertarget/.wrap 2 pgfmath args={##1.##2}%
-              {index@hypertarget("!parent")}{index_key},
+          index@hypertarget/.process= {OOw2}
+              {!parent.index@hypertarget} {index key} {##1.##2},
         },
       }{},
 %    \end{macrocode}
@@ -441,15 +459,15 @@
             },
           },
           temptoksa={},
-          result={},
+          result'={},
           if n children=0{tempboola}{not tempboola},
           where index form={}{}{
 %    \end{macrocode}
-% If the (outer) current node has no children, make it the hypertarget
-% that the definitions in text will point to.
+% Create the hypertarget that the definitions in text and other index entries
+% will point to.
 %    \begin{macrocode}
-            if tempboola={temptoksd/.expanded={\noexpand\protect\noexpand\hypertarget{%
-                  \forestoption{index@hypertarget}}{}}}{temptoksd={}},
+            temptoksd/.expanded={\noexpand\protect\noexpand\hypertarget{%
+                  \forestoption{index@hypertarget}}{}},
 %    \end{macrocode}
 % Add the (inner) current node to the index entry of the (outer) current node.
 %    \begin{macrocode}
@@ -467,7 +485,7 @@
 % Do the actual indexing.
 %    \begin{macrocode}
           result+/.expanded={|indexpagenumber\forestregister{index entry type}},
-          TeX/.expanded={\noexpand\forestindex@LaTeX@index{\forestregister{result}}},
+          TeX and memoize/.expanded={\noexpand\forestindex@LaTeX@index{\forestregister{result}}},
         },
         endgroup
       }{},
@@ -486,7 +504,7 @@
 %    \end{macrocode}
 % Typeset the entry in the text.
 %    \begin{macrocode}
-        for first leaf'={TeX={\forestoption{print form}}},
+        for first leaf'={TeX and memoize/.expanded={\forestoption{print form}}},
         endgroup,
       }{},
     }
@@ -519,8 +537,8 @@
         name'/.option=key,
         content={#1},
       }{
-        name'/.wrap 2 pgfmath args={##1>##2}{name("!parent")}{key},
-        content/.wrap pgfmath arg={##1>#1}{content("!parent")},
+        name'/.process={OOw2} {!parent.name} {key} {##1>##2},
+        content/.process={Ow1} {!parent.content} {##1>#1},
       },
     }
   },
@@ -549,31 +567,33 @@
 %    \end{macrocode}
 % Don't save entries of unknown category.
 %    \begin{macrocode}
-    if={strequal(name("!root"),"@unknown")}{}{
+    if strequal/.process={O}{!root.name}{@unknown}{}{
 %    \end{macrocode}
 % Don't save if nothing is set.
 %    \begin{macrocode}
       if set={}{}{
-        TeX={%
-          \immediate\write\forestindex@out{%
-            \string\indexloadsettings{\forestoption{name}}{\forestregister{set}}%
+        TeX and memoize/.expanded={%
+          \noexpand\immediate\noexpand\write\noexpand\forestindex@out{%
+            \noexpand\string\noexpand\indexloadsettings\noexpand\unexpanded{{\forestoption{name}}{\forestregister{set}}}%
           }%
         },
       },
+    },
 %    \end{macrocode}
 % Save the full form of the key in the auxiliary file. Obviously, do
 % it only for subentries.  The full form contains whatever arguments
 % were given to the non-last component.
 %    \begin{macrocode}
-      if={strequal(key(),content())}{}{
-        TeX={%
-          \immediate\write\forestindex@out{%
-            \string\indexdefineshortkey{\forestoption{key}}{\forestoption{content}}%
-          }%  
-        }
+    if key/.process={O}{content} {} {%
+      if short={
+        TeX and memoize/.expanded={%
+          \noexpand\immediate\noexpand\write\noexpand\forestindex@out{%
+            \noexpand\string\noexpand\indexdefineshortkey\noexpand\unexpanded{{\forestoption{key}}{\forestoption{content}}}%
+          }%
+        }{}%
       }
     }
-  },
+  }
 }
 %    \end{macrocode}
 % Load settings from the auxiliary file into the global style.  Warn
@@ -584,7 +604,9 @@
   \pgfkeysifdefined{/forest/@@index/#1/.@cmd}{%
     \forestindex@loadsettings@warning{#1}%
   }{}%
-  \forestset{@@index/#1/.global style={#2}}%
+  % #s in #2 are doubled; the following \def removes one layer of doubling
+  \def\forest@temp{#2}%
+  \forestset{@@index/#1/.global style/.expand once=\forest@temp}%
 }
 \def\forestindex@loadsettings@warning#1{%
   \PackageWarning{forest-index}{Forest index key "#1" was configured more than once!
@@ -665,8 +687,8 @@
   normal color/.initial=blue,
   definition color/.initial=red,
   example color/.initial=darkgreen,
-  print in color/.style={if stage={print}{result=\protect\textcolor{%
-        \pgfkeysvalueof{/forest/#1 color}}{##1}}{}},
+  print in color/.style={if stage={print}{result/.expanded=\noexpand\protect\noexpand\textcolor{%
+        \pgfkeysvalueof{/forest/#1 color}}{\unexpanded{##1}}}{}},
   print in color/.default=\forestregister{index entry type},
 %    \end{macrocode}
 % Use this style in |..._format| keylists if you want the index
@@ -720,9 +742,10 @@
 \forestset{
   declare toks register=default,
   default={},
-  item/.style={result/.wrap 4 pgfmath args={%
-      \item[,##2,##3]{##4}%
-    }{}{default}{print_form("!parent")}{result},
+  item/.style={
+    result/.process= {_RORw4}
+      {} {default} {!parent.print form} {result}
+      {\item[,##2,##3]{##4}},
   },
 }
 %    \end{macrocode}
@@ -744,6 +767,10 @@
 \long\def\pgfkeysglobalsetvalue#1#2{%
   \pgfkeys@temptoks{#2}\expandafter\xdef\csname pgfk@#1\endcsname{\the\pgfkeys@temptoks}%
 }
+\forestset{
+  % unlike pgfmath function strequal, |if strequal| does not expand the compared args!
+  if strequal/.code n args={4}{\ifstrequal{#1}{#2}{\pgfkeysalso{#3}}{\pgfkeysalso{#4}}},
+}
 %    \end{macrocode}
 % Begin and end group, \foRest;-style:
 %    \begin{macrocode}
@@ -752,7 +779,92 @@
   endgroup/.code={\endgroup},
 }
 %    \end{macrocode}
-%    
+%
+% \subsubsection{Memoize}
+%
+% Quick and dirty memoization. Single argument macros only. Does not support nesting.
+% 
+%    \begin{macrocode}
+\newtoks\forest@memo@key
+\newtoks\forest@memo
+\newif\ifforest@memoizing@now@
+\newif\ifforest@memoizing@ok@
+\newif\ifforest@execandmemoize@
+\def\forest@memoize#1{% #1 = \cs
+  \cslet{forest@memo@orig@\string#1}#1%
+  \def#1##1{%
+    \ifforest@memoizing@now@
+      \forest@globalsaveandrestoreifcs{forest@execandmemoize@}{%
+        \global\forest@execandmemoize@false
+        \csname forest@memo@orig@\string#1\endcsname{##1}%
+      }%
+    \else
+      \expandafter\global\expandafter\forest@memo@key\expandafter{\detokenize{forest@memo@#1{##1}}}%
+      \ifcsname\the\forest@memo@key\endcsname
+        \@escapeifif{\csname\the\forest@memo@key\endcsname}%
+      \else
+        \@escapeifif{%
+          \global\forest@memo{}%
+          \global\forest@memoizing@ok@true
+          \global\forest@memoizing@now@true
+          \global\forest@execandmemoize@true
+          \csname forest@memo@orig@\string#1\endcsname{##1}%
+          \global\forest@execandmemoize@false
+          \global\forest@memoizing@now@false
+          \ifforest@memoizing@ok@
+            \csxdef{\the\forest@memo@key}{\the\forest@memo}%
+            \immediate\write\forest@memo@out{%
+              \noexpand\forest@memo@load{\the\forest@memo@key}{\the\forest@memo}%
+            }%
+          \fi
+        }%
+      \fi
+    \fi
+  }%
+}
+\def\forest@memo@load#1#2{%
+%    \end{macrocode}
+% The following two |\def|s remove one level of hash-doubling from the
+% arguments, introduced by |\write|.
+%    \begin{macrocode}
+  \def\forest@temp@key{#1}%
+  \def\forest@temp@value{#2}%
+  \csxdef{\detokenize\expandafter{\forest@temp@key}}{\expandonce\forest@temp@value}%
+  \immediate\write\forest@memo@out{%
+    \noexpand\forest@memo@load{\detokenize\expandafter{\forest@temp@key}}{\detokenize\expandafter{\forest@temp@value}}%
+  }%
+}
+\forestset{
+  TeX and memoize/.code={\forest@execandmemoize{#1}},
+}
+\def\forest@execandmemoize#1{%
+  \ifforest@execandmemoize@
+    \let\forest@memo@next\forest@execandmemoize@
+  \else
+    \let\forest@memo@next\@gobble
+  \fi
+  \forest@memo@next{#1}%
+  #1%
+}
+\def\forest@execandmemoize@#1{%
+  \gapptotoks\forest@memo{#1}%
+}
+\def\forest@memo@filename{\jobname.memo}
+\newwrite\forest@memo@out
+\immediate\openout\forest@memo@out=\forest@memo@filename.tmp
+\IfFileExists{\forest@memo@filename}{%
+  \input\forest@memo@filename\relax
+}{}%
+\AtEndDocument{%
+  \immediate\closeout\forest@memo@out
+  \forest@file@copy{\forest@memo@filename.tmp}{\forest@memo@filename}%
+}
+%    \end{macrocode}
+% Commenting the following line turns off memoization.
+%    \begin{macrocode}
+\forest@memoize\forestindex@index@
+%    \end{macrocode}
+%
 % \subsubsection*{Initialize}
 %
 % Declare category ``@unknown''.

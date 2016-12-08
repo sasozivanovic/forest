@@ -1,9 +1,9 @@
-% \CheckSum{12887}
+% \CheckSum{16573}
 % \iffalse meta-comment
 % forest.dtx
 %% `forest' is a `pgf/tikz'-based package for drawing (linguistic) trees.
 %%
-%% Copyright (c) 2015 Saso Zivanovic
+%% Copyright (c) 2016 Saso Zivanovic
 %%                    (Sa\v{s}o \v{Z}ivanovi\'{c})
 %% saso.zivanovic@guest.arnes.si
 %%
@@ -83,7 +83,7 @@
 %
 % \section{Identification}
 %    \begin{macrocode}
-\ProvidesPackage{forest}[2016/04/09 v2.0.3 Drawing (linguistic) trees]
+\ProvidesPackage{forest}[2016/12/05 v2.1 Drawing (linguistic) trees]
 
 \RequirePackage{tikz}[2013/12/13]
 \usetikzlibrary{shapes}
@@ -97,8 +97,74 @@
 \RequirePackage{environ}
 \RequirePackage{xparse}
 
-% \usepackage[trace]{trace-pgfkeys}
-
+\RequirePackage{inlinedef}
+\newtoks\ID@usercommands{}
+\newcommand\NewInlineCommand[3][0]{%
+  \newcommand#2[#1]{#3}%
+  \ID@usercommands\xa{%
+    \the\ID@usercommands
+    \ifx\@foo#2%
+      \def\next{\ID@expandunsafe#2}%
+    \fi
+  }%
+}
+\def\@ExpandIfTF#1{%
+  \csname
+    % I'm not 100% sure if this plays well in every situation
+    \csname if#1\endcsname
+      @firstoftwo%
+    \else
+      @secondoftwo%
+    \fi
+  \endcsname
+}
+\patchcmd{\ID@switch}
+  {\ifcat\noexpand\@foo\space}
+  {\the\ID@usercommands\ifcat\noexpand\@foo\space}
+  {%
+    \NewInlineCommand[2]\ExpandIfT{%
+      \MultiExpand{3}{%
+        \@ExpandIfTF{#1}{#2}{}%
+      }%
+    }
+    \NewInlineCommand[2]\ExpandIfF{%
+      \MultiExpand{3}{%
+        \@ExpandIfTF{#1}{}{#2}%
+      }%
+    }
+    \NewInlineCommand[3]\ExpandIfTF{%
+      \MultiExpand{3}{%
+        \@ExpandIfTF{#1}{#2}{#3}%
+      }%
+    }%
+    \newcommand\InlineNoDef[1]{%
+      \begingroup
+      % Define a few ``quarks''
+      \def\Expand{\Expand}\def\Super{\Super}%
+      \def\UnsafeExpand{\UnsafeExpand}\def\MultiExpand{\MultiExpand}%
+      \def\Recurse{\Recurse}\def\NoExpand{\NoExpand}%
+      \def\Q@END{\Q@END}%
+      % Define a toks register
+      \ID@toks{}%
+      % Signal that we need to look for a star
+      \@testtrue\ID@starfalse\ID@starstarfalse\ID@bangfalse
+      % Start scanning for \def or \gdef
+      \ID@scan#1\Q@END{}%
+      \expandafter\endgroup
+      %\expandafter\@firstofone
+      \the\ID@toks
+    }%
+  }%
+  {%
+    \PackageWarning{forest}{Could not patch inlinedef! Disabling it. Except in some special situations (nested arrays), stuff will probably still work, but there's no guarantee.  Please report this situation to the author (but check first if a new version already exists).}{}%
+   \let\Inline\relax
+   \def\Expand#1{#1}%
+   \def\MultiExpand#1#2{#2}%
+   \def\InlineNoDef#1{#1}%
+   \def\ExpandIfT#1#2{\@ExpandIfTF{#1}{#2}{}}%
+   \def\ExpandIfF#1#2{\@ExpandIfTF{#1}{}{#2}}%
+   \def\ExpandIfTF#1#2#3{\@ExpandIfTF{#1}{#2}{#3}}%
+  }
 %    \end{macrocode}
 %
 % |/forest| is the root of the key hierarchy.
@@ -114,12 +180,15 @@
 \newif\ifforest@install@keys@to@tikz@path@
 \newif\ifforestdebugnodewalks
 \newif\ifforestdebugdynamics
+\newif\ifforestdebugprocess
+\newif\ifforestdebugtemp
+\newif\ifforestdebug
 \def\forest@compat{}
 \forestset{package@options/.cd,
   external/.is if=forest@external@,
   tikzcshack/.is if=foresttikzcshack,
   tikzinstallkeys/.is if=forest@install@keys@to@tikz@path@,
-  compat/.store in=\forest@compat,
+  compat/.code={\appto\forest@compat{,#1}},
   compat/.default=most,
   .unknown/.code={% load library
     \eappto\forest@loadlibrarieslater{%
@@ -127,10 +196,11 @@
       \noexpand\forestapplylibrarydefaults{\pgfkeyscurrentname}%
     }%
   },
-  debug/.code={\pgfqkeys{/forest/package@options/debug}{#1}},
-  debug/.default={nodewalks,dynamics},
+  debug/.code={\forestdebugtrue\pgfqkeys{/forest/package@options/debug}{#1}},
+  debug/.default={nodewalks,dynamics,process},
   debug/nodewalks/.is if=forestdebugnodewalks,
   debug/dynamics/.is if=forestdebugdynamics,
+  debug/process/.is if=forestdebugprocess,
 }
 \forest@install@keys@to@tikz@path@true
 \foresttikzcshacktrue
@@ -141,10 +211,17 @@
   \forcsvlist\useforestlibrary@@{#3}%
   \IfBooleanT{#1}{\forestapplylibrarydefaults{#3}}%
 }
-\def\useforestlibrary@#1#2{\RequirePackage[#1]{forest-lib-#2}}
+\def\useforestlibrary@#1#2{%
+  \RequirePackage[#1]{forest-lib-#2}%
+  \csuse{forest@compat@libraries@#2}%
+}
 \def\forestapplylibrarydefaults#1{\forcsvlist\forestapplylibrarydefaults@{#1}}
 \def\forestapplylibrarydefaults@#1{\forestset{libraries/#1/defaults/.try}}
-\NewDocumentCommand\ProvidesForestLibrary{m O{}}{\ProvidesPackage{forest-lib-#1}[#2]}
+\NewDocumentCommand\ProvidesForestLibrary{m O{}}{%
+  \ProvidesPackage{forest-lib-#1}[#2]%
+  \csdef{forest@libraries@loaded@#1}{}%
+}
+\def\forest@iflibraryloaded#1#2#3{\ifcsdef{forest@libraries@loaded@#1}{#2}{#3}}
 \ProcessPgfPackageOptions{/forest/package@options}
 %    \end{macrocode}
 % \section{Patches}
@@ -184,13 +261,36 @@
 %
 % \section{Utilities}
 %
+% This is handy.
+%    \begin{macrocode}
+\def\forest@empty{}
+%    \end{macrocode}
+%
 % Escaping |\if|s.
 %    \begin{macrocode}
 \long\def\@escapeif#1#2\fi{\fi#1}
 \long\def\@escapeifif#1#2\fi#3\fi{\fi\fi#1}
 \long\def\@escapeififif#1#2\fi#3\fi#4\fi{\fi\fi\fi#1}
 %    \end{macrocode}
-% 
+%
+%    \begin{macrocode}
+\def\forest@repeat@n@times#1{% #1=n, #2=code
+  \expandafter\forest@repeat@n@times@\expandafter{\the\numexpr#1}}
+\def\forest@repeat@n@times@#1{%
+  \ifnum#1>0
+    \@escapeif{%
+      \expandafter\forest@repeat@n@times@@\expandafter{\the\numexpr#1-1}%
+    }%
+  \else
+    \expandafter\@gobble
+  \fi
+}
+\def\forest@repeat@n@times@@#1#2{%
+  #2%
+  \forest@repeat@n@times@{#1}{#2}%
+}
+%    \end{macrocode}
+%
 % A factory for creating |\...loop...| macros.
 %    \begin{macrocode}
 \def\newloop#1{%
@@ -508,6 +608,7 @@
       \def\forest@temp@macro####1{#4}%
       \csname forest@temp#5\endcsname
       \edef\forest@temp@value{\ifforest@temp\expandafter\forestOv\expandafter{\expandafter\forest@setter@node\expandafter}\else\expandafter\forestrv\fi{#2}}%
+      %\expandafter\expandafter\expandafter\pgfkeysalso\expandafter\expandafter\expandafter{\expandafter\forest@temp@macro\expandafter{\forest@temp@value}}% ??? how many expansions are really needed?
       \expandafter\expandafter\expandafter\expandafter\expandafter\expandafter\expandafter\pgfkeysalso\expandafter\expandafter\expandafter{\expandafter\forest@temp@macro\expandafter{\forest@temp@value}}%
     }%
   }{}%
@@ -558,6 +659,851 @@
       \apptotoks\forest@temp@toks{#1={##1},}%
     \fi
   }%
+}
+\forestset{
+  show register/.code={%
+    \forestrget{#1}\foresttemp
+    \typeout{Forest register "#1"=\expandafter\detokenize\expandafter{\foresttemp}}%
+  },
+}
+%    \end{macrocode}
+% \subsection{Arrays}
+% 
+%    \begin{macrocode}
+\def\forest@newarray#1{%
+  \forest@tempfalse % non-global
+  {%
+    \escapechar=-1
+    \expandafter\escapechar\expandafter\count@\expandafter
+  }%
+  \expandafter\forest@newarray@\expandafter{\string#1}%
+}
+\def\forest@newglobalarray#1{%
+  \forest@temptrue % global
+  {%
+    \escapechar=-1
+    \expandafter\escapechar\expandafter\count@\expandafter
+  }%
+  \expandafter\forest@newarray@\expandafter{\string#1}%
+}
+\def\forest@array@empty@error#1{%
+  \PackageError{forest}{Cannot pop from empty array "#1".}{}}%
+\def\forest@array@oub@error#1#2{%
+  \PackageError{forest}{#2 is out of bounds of array "#1"
+    (\the\csuse{#1M}--\the\csuse{#1N}).}{}}%
+%    \end{macrocode}
+% Define array macros. For speed, we define most of them to be ``direct'', i.e.\ cointain the resolved control sequences specific to this array.
+%    \begin{macrocode}
+\def\forest@newarray@#1{%
+  % array bounds: M <= i < N
+  \expandafter\newcount\csname#1M\endcsname
+  \expandafter\newcount\csname#1N\endcsname
+  \csedef{#1clear}{%
+    \ifforest@temp\global\fi\expandonce{\csname#1M\endcsname}0
+    \ifforest@temp\global\fi\expandonce{\csname#1N\endcsname}0
+  }%
+  \csedef{#1ifempty}{%
+    \noexpand\ifnum\expandonce{\csname#1M\endcsname}<\expandonce{\csname#1N\endcsname}\relax
+      \unexpanded{\expandafter\@secondoftwo
+    \else
+      \expandafter\@firstoftwo
+    \fi}%
+  }%
+  \csedef{#1length}{% a numexpr
+    \noexpand\numexpr\expandonce{\csname#1N\endcsname}-\expandonce{\csname#1M\endcsname}\relax
+  }%  
+  \csedef{#1checkrange}##1##2{% args can be \numexprs
+    \noexpand\forest@tempfalse
+    \noexpand\ifnum\numexpr##1<\expandonce{\csname#1M\endcsname}\relax
+      \noexpand\forest@temptrue
+    \noexpand\fi
+    \noexpand\ifnum\numexpr##2>\expandonce{\csname#1N\endcsname}\relax
+      \noexpand\forest@temptrue
+    \noexpand\fi
+    \noexpand\ifforest@temp
+      \noexpand\forest@array@oub@error{#1}{Range "\noexpand\number\noexpand\numexpr##1\relax--\noexpand\number\noexpand\numexpr##2\relax"}%
+    \noexpand\fi
+  }%
+  \csedef{#1checkindex}##1{% arg can be a \numexpr
+    \noexpand\forest@tempfalse
+    \noexpand\ifnum\numexpr##1<\expandonce{\csname#1M\endcsname}\relax
+      \noexpand\forest@temptrue
+    \noexpand\fi
+    \noexpand\ifnum\numexpr##1<\expandonce{\csname#1N\endcsname}\relax
+    \noexpand\else
+      \noexpand\forest@temptrue
+    \noexpand\fi
+    \noexpand\ifforest@temp
+      \noexpand\forest@array@oub@error{#1}{Index "\noexpand\number\noexpand\numexpr##1\relax"}%
+    \noexpand\fi
+  }%
+  \csedef{#1get}##1##2{% ##1 = index, ##2 = receiving cs
+    \expandonce{\csname#1checkindex\endcsname}{##1}%
+    \noexpand\letcs##2{#1##1}%
+  }%
+  \csedef{#1get@}##1##2{% ##1 = index, ##2 = receiving cs (don't check bounds)
+    \noexpand\letcs##2{#1##1}%
+  }%
+  \csedef{#1toppop}##1{% ##1 = receiving cs
+    \expandonce{\csname#1ifempty\endcsname}{%
+      \noexpand\forest@array@empty@error{#1}%
+    }{%
+      \ifforest@temp\global\fi\advance\expandonce{\csname#1N\endcsname}-1
+      \noexpand\letcs\noexpand##1{#1\noexpand\the\expandonce{\csname#1N\endcsname}}%
+    }%
+  }%
+  \InlineNoDef{\csdef{#1bottompop}##1{% ##1 = receiving cs
+    \Expand{\csname#1ifempty\endcsname}{%
+      \forest@array@empty@error{#1}%
+    }{%
+      \letcs##1{#1\the\Expand{\csname#1M\endcsname}}%
+      \ExpandIfT{forest@temp}\global\advance\Expand{\csname#1M\endcsname 1}%
+    }%
+  }}%
+  % \csdef{#1bottompop}##1{}% we need this as \Inline chokes on \let\macro=\relax
+  % \expandafter\Inline\expandafter\def\csname#1bottompop\endcsname##1{% ##1 = receiving cs
+  %   \Expand{\csname#1ifempty\endcsname}{%
+  %     \forest@array@empty@error{#1}%
+  %   }{%
+  %     \letcs##1{#1\the\Expand{\csname#1M\endcsname}}%
+  %     \ExpandIfT{forest@temp}\global\advance\Expand{\csname#1M\endcsname 1}%
+  %   }%
+  % }%
+  % \csedef{#1bottompop}##1{% ##1 = receiving cs
+  %   \expandonce{\csname#1ifempty\endcsname}{%
+  %     \noexpand\forest@array@empty@error{#1}%
+  %   }{%
+  %     \noexpand\letcs\noexpand##1{#1\noexpand\the\expandonce{\csname#1M\endcsname}}%
+  %     \ifforest@temp\global\fi\advance\expandonce{\csname#1M\endcsname}1
+  %   }%
+  % }%
+  \csedef{#1setappend}##1{% ##1 = definition
+    \ifforest@temp\noexpand\csxdef\else\noexpand\csedef\fi
+      {#1\noexpand\the\expandonce{\csname#1N\endcsname}}%
+      {\noexpand\unexpanded{##1}}%
+    \ifforest@temp\global\fi\advance\expandonce{\csname#1N\endcsname}1
+  }%
+  \csedef{#1setappend@}##1##2{% ##1 = continue by, ##2 = definition 
+    \ifforest@temp\noexpand\csxdef\else\noexpand\csedef\fi
+      {#1\noexpand\the\expandonce{\csname#1N\endcsname}}%
+      {\noexpand\unexpanded{##2}}%
+    \ifforest@temp\global\fi\advance\expandonce{\csname#1N\endcsname}1
+    ##1%
+  }%
+  \csedef{#1setprepend}##1{% ##1 = definition
+    \ifforest@temp\global\fi\advance\expandonce{\csname#1M\endcsname}-1
+    \ifforest@temp\noexpand\csxdef\else\noexpand\csedef\fi
+      {#1\noexpand\the\expandonce{\csname#1M\endcsname}}%
+      {\noexpand\unexpanded{##1}}%
+  }%
+  \csedef{#1esetappend}##1{% ##1 = definition
+    \ifforest@temp\noexpand\csxdef\else\noexpand\csedef\fi{#1\noexpand\the\expandonce{\csname#1N\endcsname}}{##1}%
+    \ifforest@temp\global\fi\advance\expandonce{\csname#1N\endcsname}1
+  }%
+  \csedef{#1esetprepend}##1{% ##1 = definition
+    \ifforest@temp\global\fi\advance\expandonce{\csname#1M\endcsname}-1
+    \ifforest@temp\noexpand\csxdef\else\noexpand\csedef\fi{#1\noexpand\the\expandonce{\csname#1M\endcsname}}{##1}%
+  }%
+  \csedef{#1letappend}##1{% ##1 = cs
+    \ifforest@temp\noexpand\expandafter\noexpand\global\fi\noexpand\expandafter\noexpand\let
+      \noexpand\csname#1\noexpand\the\expandonce{\csname#1N\endcsname}\noexpand\endcsname
+      ##1%
+    \ifforest@temp\global\fi\advance\expandonce{\csname#1N\endcsname}1
+  }%
+  \csedef{#1letprepend}##1{% ##1 = cs
+    \ifforest@temp\global\fi\advance\expandonce{\csname#1M\endcsname}-1
+    \ifforest@temp\noexpand\expandafter\noexpand\global\fi\noexpand\expandafter\noexpand\let
+      \noexpand\csname#1\noexpand\the\expandonce{\csname#1M\endcsname}\noexpand\endcsname
+      ##1%
+  }%
+%    \end{macrocode}
+% I would love to define these only generically, as they will not be called often, but they need to be expandable. Argh.
+% right?
+% \begin{lstlisting}
+%   \def\arrayvalues{% <-- \csedef{#1values}
+%     \expandafter\expandafter\expandafter\arrayvaluesfromrange %\arrayvaluesfromrange <-- \expandonce{\csname#1valuesfromrange\endcsname}
+%     \expandafter\expandafter\expandafter{%
+%       \expandafter\the
+%       \expandafter\arrayM %\arrayM <-- \expandonce{\csname#1M\endcsname}%
+%       \expandafter}%
+%     \expandafter{%
+%         \the\arrayN %\arrayN <-- \expandonce{\csname#1N\endcsname}%
+%       }%
+%   }%
+% \end{lstlisting}
+%    \begin{macrocode}
+  \csedef{#1values}{%
+    \noexpand\expandafter\noexpand\expandafter\noexpand\expandafter\expandonce{\csname#1valuesfromrange\endcsname}%
+      \noexpand\expandafter\noexpand\expandafter\noexpand\expandafter{%
+        \noexpand\expandafter\noexpand\the
+        \noexpand\expandafter\expandonce{\csname#1M\endcsname}%
+        \noexpand\expandafter}%
+      \noexpand\expandafter{\noexpand\the\expandonce{\csname#1N\endcsname}}%
+  }%
+%    \end{macrocode}
+% \begin{lstlisting}
+%   \def\arrayvaluesfromrange##1##2{% ##1/##2 = lower/upper bounds (we receive them expanded) <-- \csedef{#1vuesfromrange}
+%     \ifnum##1<##2
+%       {\expandafter\expandonce\expandafter{\csname#1##1\endcsname}}% here we add braces (for the general case, we might want an arbitrary prefix&suffix)
+%       \expandafter\@escapeif\expandafter{\expandafter\arrayvaluesfromrange % <-- \expandonce{\csname#1valuesfromrange\endcsname}%
+%         \expandafter{\number\numexpr##1+1}{##2}}%
+%     \fi
+%   }%
+% \end{lstlisting}
+% As we need this to be expandable, we cannot check the range within the macro. You need to to this on your own using |...checkrange| defined above.
+%    \begin{macrocode}
+  \csedef{#1valuesfromrange}##1##2{% ##1/##2 = lower/upper bounds (we receive them expanded)
+    \noexpand\ifnum##1<##2
+      {\noexpand\expandafter\noexpand\expandonce\noexpand\expandafter{\noexpand\csname#1##1\noexpand\endcsname}}% here we add braces (for the general case, we might want an arbitrary prefix&suffix)
+      \noexpand\expandafter\noexpand\@escapeif\noexpand\expandafter{\noexpand\expandafter\expandonce{\csname#1valuesfromrange\endcsname}%
+        \noexpand\expandafter{\noexpand\number\noexpand\numexpr##1+1}{##2}}%
+    \noexpand\fi
+  }%
+%    \end{macrocode}
+% Puts all items until |\forest@eov| into the array. After that is done, execute |\forest@topextend@next|.  This code is difficult and not run often, so it doesn't need specialized control sequences.
+%    \begin{macrocode}
+  \csdef{#1topextend}{\def\forest@array@currentarray{#1}\forest@array@topextend}%
+}
+\def\forest@array@topextend{\futurelet\forest@ate@next@token\forest@ate@checkforspace}
+\def\forest@ate@checkforspace{%
+  \expandafter\ifx\space\forest@ate@next@token
+    \expandafter\forest@ate@havespace
+  \else
+    \expandafter\forest@ate@checkforgroup
+  \fi
+}
+\def\forest@ate@havespace{\expandafter\forest@array@topextend\romannumeral-`0}%
+\def\forest@ate@checkforgroup{%
+  \ifx\forest@ate@next@token\bgroup
+    \expandafter\forest@ate@appendgroup
+  \else
+    \expandafter\forest@ate@checkforeov
+  \fi
+}
+\def\forest@ate@appendgroup{%
+  \expandonce{\csname\forest@array@currentarray setappend@\endcsname}\forest@array@topextend
+}
+\def\forest@ate@checkforeov{%
+  \ifx\forest@ate@next@token\forest@eov
+    \expandafter\forest@ate@finish
+  \else
+    \expandafter\forest@ate@appendtoken
+  \fi
+}
+\def\forest@ate@appendtoken#1{%
+  \expandonce{\csname\forest@array@currentarray setappend\endcsname}{#1}%
+  \forest@array@topextend
+}
+\def\forest@ate@finish\forest@eov{\forest@topextend@next}
+\let\forest@topextend@next\relax
+\forest@newarray\forest@temparray@
+\forest@newglobalarray\forest@global@temparray@
+%    \end{macrocode}
+%
+%
+% \subsection{Testing for numbers and dimensions}
+% \label{sec:is-count-or-dimen}
+%
+% Test if the argument is an integer (only base 10) that can be assigned to a \TeX\ count register.
+% This is supposed to be a fast, not complete test, as anything not recognized as an integer will be
+% passed on to |pgfmath| (by the code that uses these macros).
+%
+% We support |+|s, |-|s and spaces before the number.  We don't support count registers.
+%
+% Dillema? Should |0abc| be interpreted as \TeX\ style (decimal) or PGF style (octal)? We go for
+% \TeX\ style.
+%
+% The return value will hide in \TeX-style |\if|-macro |\forest@isnum| and counter |\forest@isnum@count|.
+%
+%    \begin{macrocode}
+\def\forest@eon{ }
+\newif\ifforest@isnum@minus
+\newif\ifforest@isnum
+\def\forest@isnum#1{%
+  \forest@isnum@minusfalse
+  \let\forest@isnum@next\forest@isnum@finish
+%    \end{macrocode}
+% Expand in advance, like pgfmath does.
+%    \begin{macrocode}
+  \edef\forest@isnum@temp{#1}%
+%    \end{macrocode}
+% Add two end-of-value markers. The first one might be eaten by count assignment: that's why there
+% are two and they expand to a space.
+%    \begin{macrocode}
+  \expandafter\forest@isnum@a\forest@isnum@temp\forest@eon\forest@eon\forest@END
+  \ifforest@isnum
+    \expandafter\@firstoftwo
+  \else
+    \expandafter\@secondoftwo
+  \fi
+}
+\def\forest@isnum@a{\futurelet\forest@isnum@token\forest@isnum@b}
+%    \end{macrocode}
+% Test for three special characters: |-|, |+|, and space.
+%    \begin{macrocode}
+\def\forest@isnum@minustoggle{%
+  \ifforest@isnum@minus\forest@isnum@minusfalse\else\forest@isnum@minustrue\fi
+}
+\def\forest@isnum@b{%
+  \let\forest@next\forest@isnum@p
+  \ifx-\forest@isnum@token
+    \forest@isnum@minustoggle
+    \let\forest@next\forest@isnum@c
+  \else
+    \ifx+\forest@isnum@token
+      \let\forest@next\forest@isnum@c
+    \else
+      \expandafter\ifx\space\forest@isnum@token
+        \let\forest@next\forest@isnum@s
+      \fi
+    \fi
+  \fi
+  \forest@next
+}
+%    \end{macrocode}
+% Eat |+| and |-|.
+%    \begin{macrocode}
+\def\forest@isnum@c#1{\forest@isnum@a}%
+%    \end{macrocode}
+% Eat the space!
+%    \begin{macrocode}
+\def\forest@isnum@s#1{\forest@isnum@a#1}%
+\newcount\forest@isnum@count
+%    \end{macrocode}
+% Check for |0|.  Why?  If we have one, we know that the initial argument started with a number, so
+% we have a chance that it is a number even if our assignment will yield $0$.  If we have no |0| and the assignment yields $0$, we know we don't have a number.
+%    \begin{macrocode}
+\def\forest@isnum@p{%
+  \ifx0\forest@isnum@token
+    \let\forest@next\forest@isnum@next
+  \else
+    \let\forest@next\forest@isnum@nz@
+  \fi
+  \forest@isnumtrue
+  \afterassignment\forest@isnum@q\forest@isnum@count\ifforest@isnum@minus-\fi0%
+}
+\def\forest@isnum@q{%
+  \futurelet\forest@isnum@token\forest@next
+}  
+\def\forest@isnum@nz@{%
+  \ifnum\forest@isnum@count=0
+    \forest@isnumfalse
+  \fi
+  \forest@isnum@next
+}
+%    \end{macrocode}
+% This is the end of testing for an integer. If we have left-over stuff (|#1|), this was not a number. 
+%    \begin{macrocode}
+\def\forest@isnum@finish#1\forest@END{%
+  \ifx\forest@isnum@token\forest@eon
+  \else
+    \forest@isnumfalse
+  \fi
+}
+%    \end{macrocode}
+%
+% Is it a dimension? We support all \TeX's units but |true| units. Also supported are unitless
+% dimensions (i.e.\ decimal numbers), which are interpreted as |pt|s, as in pgfmath.
+%
+% The return value will hide in \TeX-style |\if|-macro |\forest@isdim| and counter |\forest@isdim@dimen|.
+%
+%    \begin{macrocode}
+\newcount\forest@isdim@nonintpart
+\newif\ifforest@isdim
+\def\forest@isdim#1{%
+  \forest@isdimfalse
+  \forest@isnum@minusfalse
+  \def\forest@isdim@leadingzeros{}%
+  \forest@isdim@nonintpart=0
+  \def\forest@isdim@unit{pt}%
+  \let\forest@isnum@next\forest@isdim@checkfordot
+  \edef\forest@isnum@temp{#1}%
+%    \end{macrocode}
+% 4 end-of-value markers (|forest@eon|): one can be eaten by number (after the dot), two by a non-existing unit. 
+%    \begin{macrocode}
+  \expandafter\forest@isnum@a\forest@isnum@temp\forest@eon\forest@eon\forest@eon\forest@eon\forest@END
+  \ifforest@isdim
+    \expandafter\@firstoftwo
+  \else
+    \expandafter\@secondoftwo
+  \fi
+}
+\def\forest@isdim@checkfordot{%
+  \ifx.\forest@isnum@token
+    \expandafter\forest@isdim@dot
+  \else
+    \ifx,\forest@isnum@token
+      \expandafter\expandafter\expandafter\forest@isdim@dot
+    \else
+      \expandafter\expandafter\expandafter\forest@isdim@nodot
+    \fi
+  \fi
+}
+\def\forest@isdim@nodot{%
+  \ifforest@isnum
+%    \end{macrocode}
+% No number, no dot, so not a dimension.
+%    \begin{macrocode}
+    \expandafter\forest@isdim@checkforunit
+  \else
+    \expandafter\forest@isdim@finish@nodim
+  \fi
+}
+\def\forest@isdim@dot#1{% #1=. or ,
+  \futurelet\forest@isnum@token\forest@isdim@collectzero
+}
+\def\forest@isdim@collectzero{%
+  \ifx0\forest@isnum@token
+    \expandafter\forest@isdim@collectzero@
+  \else
+    \expandafter\forest@isdim@getnonintpart
+  \fi
+}
+\def\forest@isdim@collectzero@#1{% #1 = 0
+  \appto\forest@isdim@leadingzeros{0}%
+  \futurelet\forest@isnum@token\forest@isdim@collectzero
+}
+\def\forest@isdim@getnonintpart{%
+  \afterassignment\forest@isdim@checkforunit\forest@isdim@nonintpart0%
+}
+%    \end{macrocode}
+% Nothing else should be defined in |\forest@unit@| namespace.
+%    \begin{macrocode}
+\def\forest@def@unit#1{\csdef{forest@unit@#1}{#1}}
+\forest@def@unit{em}
+\forest@def@unit{ex}
+\forest@def@unit{pt}
+\forest@def@unit{pc}
+\forest@def@unit{in}
+\forest@def@unit{bp}
+\forest@def@unit{cm}
+\forest@def@unit{mm}
+\forest@def@unit{dd}
+\forest@def@unit{cc}
+\forest@def@unit{sp}
+\def\forest@isdim@checkforunit#1#2{%
+  \lowercase{\edef\forest@isnum@temp{\detokenize{#1#2}}}%
+  \ifcsname forest@unit@\forest@isnum@temp\endcsname
+    \let\forest@isdim@next\forest@isdim@finish@dim
+    \edef\forest@isdim@unit{\csname forest@unit@\forest@isnum@temp\endcsname}%
+  \else
+    \ifx#1\forest@eon
+      \let\forest@isdim@next\forest@isdim@finish@dim
+    \else
+      \let\forest@isdim@next\forest@isdim@finish@nodim
+    \fi
+  \fi
+  \forest@isdim@next
+}
+\def\forest@isdim@finish@dim{%
+  \futurelet\forest@isnum@token\forest@isdim@finish@dim@a
+}
+\def\forest@isdim@finish@dim@a{%
+  \expandafter\ifx\space\forest@isnum@token
+    \expandafter\forest@isdim@finish@dim@b
+  \else
+    \expandafter\forest@isdim@finish@dim@c
+  \fi
+}
+\expandafter\def\expandafter\forest@isdim@finish@dim@b\space{% eat one space
+  \futurelet\forest@isnum@token\forest@isdim@finish@dim@c
+}
+\def\forest@isdim@finish@dim@c#1\forest@END{%
+  \ifx\forest@isnum@token\forest@eon
+    \forest@isdimtrue
+    \forest@isdim@dimen\the\forest@isnum@count.\forest@isdim@leadingzeros\the\forest@isdim@nonintpart\forest@isdim@unit\relax
+  \else
+    \forest@isdimfalse
+  \fi
+}
+\def\forest@isdim@finish@nodim#1\forest@END{%
+  \forest@isdimfalse
+}
+\newdimen\forest@isdim@dimen
+ % \long\def\@firstofthree#1#2#3{#3} % defined by LaTeX
+\long\def\@firstofthree#1#2#3{#1}
+\long\def\@secondofthree#1#2#3{#2}
+\def\forest@isnumdim#1{%
+  \forest@isdim{#1}{%
+    \forest@isnumdim@
+  }{%
+    \@thirdofthree
+  }%
+}
+\def\forest@isnumdim@{%
+  \ifforest@isnum
+    \expandafter\@firstofthree
+  \else
+    \expandafter\@secondofthree
+  \fi
+}
+%    \end{macrocode}
+%
+%
+% \subsection{forestmath}
+%
+% We imitate |pgfmath| a lot, but we remember the type of the result so that we can use \TeX's
+% primitives when possible.
+%    \begin{macrocode}
+\def\forestmathtype@generic{_} % generic (token list)
+\def\forestmathtype@count{n} % integer
+\def\forestmathtype@dimen{d} % a dimension: <decimal> pt
+\def\forestmathtype@unitless{P} % <decimal> (a unitless dimension) (P because pgfmath returns such numbers)
+\def\forestmathtype@textasc{t} % text (ascending)
+\def\forestmathtype@textdesc{T} % text (descending)
+\def\forestmathtype@array{a} % array - internal 
+\def\forestmathtype@none{} % internal (for requests - means whatever)
+\def\forestmathresult{}
+\let\forestmathresulttype\forestmathtype@generic
+%    \end{macrocode}
+% |\forest@tryprocess| takes three ``arguments''.  The first is a forestmath expression, delimited
+% by |\forest@spacegen|: if it starts with a |>|, we take it to be a |.process| expression, evaluate
+% it using |\forest@process|, and execute the second argument; it it doesn't, we execute the third
+% argument.
+%    \begin{macrocode}
+\def\forest@tryprocess{%
+  \expandafter\forest@tryprocess@a\romannumeral-`0}
+\def\forest@tryprocess@a{\futurelet\forest@temp@token\forest@tryprocess@b}
+\def\forest@tryprocess@b{%
+  \ifx>\forest@temp@token
+    \expandafter\forest@tryprocess@yes
+  \else
+    \expandafter\forest@tryprocess@no
+  \fi
+}
+\def\forest@spacegen{ \forest@spacegen}
+\def\forest@tryprocess@yes#1#2\forest@spacegen{%
+  \forest@process{false}#2\forest@eov
+  \@firstoftwo
+}
+\def\forest@tryprocess@no#1\forest@spacegen{\@secondoftwo}
+%    \end{macrocode}
+% Forestmath versions of pgfmath macros. They accept process and pgfmath expressions, as described
+% above.  In the case of a pgfmath expression, they use |\forest@isnum| and |\forest@isdim| for to
+% see if they can avoid pgfmath evaluation. (These checks are generally faster than pgfmath's fast
+% track.)
+%    \begin{macrocode}
+\def\forestmathsetcount#1#2{%
+  \forest@tryprocess#2\forest@spacegen{%
+    #1=\forest@process@result\relax
+  }{%
+    \forestmathsetcount@#1{#2}%
+  }%
+}
+\def\forestmathsetcount@#1#2{%
+  \forest@isnum{#2}{%
+    #1=\forest@isnum@count
+  }{%
+    \pgfmathsetcount#1{#2}%
+  }%
+}
+\def\forestmathsetlength#1#2{%
+  \forest@tryprocess#2\forest@spacegen{%
+    #1=\forest@process@result\relax
+  }{%
+    \forestmathsetlength@#1{#2}%
+  }%
+}
+\def\forestmathsetlength@#1#2{%
+  \forest@isdim{#2}{%
+    #1=\forest@isdim@dimen
+  }{%
+    \pgfmathsetlength#1{#2}%
+  }%
+}
+\def\forestmathtruncatemacro#1#2{%
+  \forest@tryprocess#2\forest@spacegen{%
+    \forest@temp@count=\forest@process@result\relax
+    \edef#1{\the\forest@temp@count}%
+  }{%
+    \forestmathtruncatemacro@#1{#2}%
+  }%
+}
+\def\forestmathtruncatemacro@#1#2{%
+  \forest@isnum{#2}{%
+    \edef#1{\the\forest@isnum@count}%
+  }{%
+    \pgfmathtruncatemacro#1{#2}%
+  }%
+}
+\def\forestmathsetlengthmacro#1#2{%
+  \forest@tryprocess#2\forest@spacegen{%
+    \forest@temp@dimen=\forest@process@result\relax
+    \edef#1{\the\forest@temp@dimen}%
+  }{%
+    \forestmathsetlengthmacro@#1{#2}%
+  }%
+}
+\def\forestmathsetlengthmacro@#1#2{%
+  \forest@isdim{#2}{%
+    \edef#1{\the\forest@isdim@dimen}%
+  }{%
+    \pgfmathsetlengthmacro#1{#2}%
+  }%
+}
+\def\forestmathsetmacro#1#2{%
+  \forest@tryprocess#2\forest@spacegen{%
+    \let#1\forest@process@result
+    \let\forestmathresulttype\forest@process@result@type
+  }{%
+    \forestmathsetmacro@#1{#2}%
+    \def\forestmathresulttype{P}%
+  }%
+}
+\def\forestmathsetmacro@#1#2{%
+  \forest@isdim{#2}{%
+    \edef#1{\expandafter\Pgf@geT\the\forest@isdim@dimen}%
+  }{%
+    \pgfmathsetmacro#1{#2}%
+  }%
+}
+\def\forestmathparse#1{%
+  \forest@tryprocess#1\forest@spacegen{%
+    \let\forestmathresult\forest@process@result
+    \let\forestmathresulttype\forest@process@result@type
+  }{%
+    \forestmathparse@{#1}%
+    \def\forestmathresulttype{P}%
+  }%
+}
+\def\forestmathparse@#1{%
+  \forest@isdim{#1}{%
+    \edef\forestmathresult{\expandafter\Pgf@geT\the\forest@isdim@dimen}%
+  }{%
+    \pgfmathsetmacro\forestmathresult{#1}%
+  }%
+}
+%    \end{macrocode}
+% Evaluates |#1| to a boolean: if true execute |#2|, otherwise |#3|. |#2| and |#3| are \TeX\ code.
+% Includes a shortcut for some common values.
+%    \begin{macrocode}
+\csdef{forest@bh@0}{0}
+\csdef{forest@bh@false}{0}
+\csdef{forest@bh@1}{1}
+\csdef{forest@bh@true}{1}
+\def\forestmath@if#1{%
+  \ifcsdef{forest@bh@\detokenize{#1}}{%
+    \let\forest@next\forestmath@if@fast
+  }{%
+    \let\forest@next\forestmath@if@slow
+  }%
+  \forest@next{#1}%
+  \ifnum\forest@temp=0
+    \expandafter\@secondoftwo
+  \else
+    \expandafter\@firstoftwo
+  \fi
+}
+\def\forestmath@if@fast#1{\letcs\forest@temp{forest@bh@\detokenize{#1}}}
+\def\forestmath@if@slow#1{\forestmathtruncatemacro\forest@temp{#1}}
+%    \end{macrocode}
+% These macros expandably convert a num(n)/dim(d)/unitless dim(P) to a num(n)/dim(d)/unitless
+% dim(P).
+%    \begin{macrocode}
+\def\forestmath@convert@fromto#1#2#3{%
+  \edef\forestmathresult{\csname forestmath@convert@from@#1@to@#2\endcsname{#3}}}
+\def\forestmath@convert@from#1{\forestmath@convert@fromto{#1}{\forestmathresulttype}}
+\def\forestmath@convert@to{\forestmath@convert@fromto{\forestmathresulttype}}
+\def\forestmath@convert@from@n@to@n#1{#1}
+\def\forestmath@convert@from@n@to@d#1{#1\pgfmath@pt}
+\def\forestmath@convert@from@n@to@P#1{#1}
+\def\forestmath@convert@from@d@to@n#1{%
+    \expandafter\forestmath@convert@uptodot\Pgf@geT#1.\forest@eov}
+\def\forestmath@convert@from@d@to@d#1{#1}
+\def\forestmath@convert@from@d@to@P#1{\Pgf@geT#1}
+\def\forestmath@convert@from@P@to@n#1{%
+    \forestmath@convert@uptodot#1.\forest@eov}
+\def\forestmath@convert@from@P@to@d#1{#1\pgfmath@pt}
+\def\forestmath@convert@from@P@to@P#1{#1}
+\def\forestmath@convert@uptodot#1.#2\forest@eov{#1}
+\def\forestmathzero{\forestmath@convert@from\forestmathtype@count{0}}
+%    \end{macrocode}
+% These defer conversion (see aggregates).
+%    \begin{macrocode}
+\csdef{forestmath@convert@from@n@to@_}#1{\unexpanded{#1}}
+\csdef{forestmath@convert@from@d@to@_}#1{\unexpanded{#1}}
+\csdef{forestmath@convert@from@P@to@_}#1{\unexpanded{#1}}
+%    \end{macrocode}
+% Sets |\pgfmathresulttype| to the type of |#1|.
+%    \begin{macrocode}
+\def\forestmathsettypefrom#1{%
+  \forest@isnumdim{%
+    \let\forestmathresulttype\forest@result@type@numexpr
+  }{%
+    \let\forestmathresulttype\forest@result@type@dimexpr
+  }{%
+    \let\forestmathresulttype\forest@result@type@pgfmath
+  }%
+}
+%    \end{macrocode}
+% The following functions expect numbers or (bare or specified) dimensions as their parameters.  The
+% version ending in |@| should get the argument type as its first argument; the version without |@|
+% uses |\forestmathresulttype|.  The result type doesn't need to be changed, obviously.
+%    \begin{macrocode}
+\def\forestmathadd#1#2{\edef\forestmathresult{%
+    \csname forestmathadd@\forestmathresulttype\endcsname{#1}{#2}}}
+\def\forestmathadd@#1#2#3{\edef\forestmathresult{%
+    \csname forestmathadd@#1\endcsname{#2}{#3}}}
+\def\forestmathadd@n#1#2{\the\numexpr#1+#2\relax}
+\def\forestmathadd@d#1#2{\the\dimexpr#1+#2\relax}
+\def\forestmathadd@P#1#2{\expandafter\Pgf@geT\the\dimexpr#1pt+#2pt\relax}
+\def\forestmathmultiply#1#2{%
+  \csname forestmathmultiply@\forestmathresulttype\endcsname{#1}{#2}}
+\def\forestmathmultiply@#1#2#3{%
+  \csname forestmathmultiply@#1\endcsname{#2}{#3}}
+\def\forestmathmultiply@n#1#2{\edef\forestmathresult{%
+    \the\numexpr#1*#2\relax}}
+\def\forestmathmultiply@d#1#2{%
+  \edef\forestmath@marshal{\forestmathmultiply@d@{#1}{#2}}\forestmath@marshal
+}
+\def\forestmathmultiply@d@#1#2{%
+  \edef\forestmath@marshal{%
+    \noexpand\pgfmathmultiply@{\Pgf@geT#1}{\Pgf@geT#2}%
+  }\forestmath@marshal
+  \edef\forestmathresult{\pgfmathresult\pgfmath@pt}%
+}
+\def\forestmathmultiply@P#1#2{%
+  \pgfmathmultiply@{#1}{#2}%
+  \let\forestmathresult\pgfmathresult
+}
+%    \end{macrocode}
+% The return type of |forestmathdivide| is the type of the dividend.  So, |n| and |d| type can only
+% be divided by integers; as |\numexpr| and |\dimexpr| are used, the result is rounded.
+%    \begin{macrocode}
+\def\forestmathdivide#1#2{%
+  \csname forestmathdivide@\forestmathresulttype\endcsname{#1}{#2}}
+\def\forestmathdivide@#1#2#3{%
+  \csname forestmathdivide@#1\endcsname{#2}{#3}}
+\def\forestmathdivide@n#1#2{\edef\forestmathresult{%
+    \the\numexpr#1/#2\relax}}
+\def\forestmathdivide@d#1#2{\edef\forestmathresult{%
+    \the\dimexpr#1/#2\relax}}
+\def\forestmathdivide@P#1#2{%
+  \edef\forest@marshal{%
+    \noexpand\pgfmathdivide{+#1}{+#2}%
+  }\forest@marshal
+  \let\forestmathresult\pgfmathresult
+}
+%    \end{macrocode}
+% Booleans.
+%    \begin{macrocode}
+\def\forestmathtrue{%
+  \def\forestmathresult{1}%
+  \let\forestmathresulttype\forestmathtype@count}
+\def\forestmathfalse{%
+  \def\forestmathresult{0}%
+  \let\forestmathresulttype\forestmathtype@count}
+%    \end{macrocode}
+% Comparisons. |\pdfstrcmp| is used to compare text (types |t| and |T|); note that it expands its
+% arguments.  |<| and |>| comparison of generic type obviously makes no sense; |=| comparison is
+% done using |\ifx|: this is also the reason why these macros are not fully expandable, as we need
+% to |\def| the arguments to |\ifx|.
+%
+% Low level |<|.
+%    \begin{macrocode}
+\def\forestmath@if@lt@n#1#2{\ifnum#1<#2\relax
+  \expandafter\@firstoftwo\else\expandafter\@secondoftwo\fi}
+\def\forestmath@if@lt@d#1#2{\ifdim#1<#2\relax
+  \expandafter\@firstoftwo\else\expandafter\@secondoftwo\fi}
+\def\forestmath@if@lt@P#1#2{\ifdim#1pt<#2pt
+  \expandafter\@firstoftwo\else\expandafter\@secondoftwo\fi}
+\def\forestmath@if@lt@t#1#2{\ifnum\pdfstrcmp{#1}{#2}<0
+  \expandafter\@firstoftwo\else\expandafter\@secondoftwo\fi}
+\def\forestmath@if@lt@T#1#2{\ifnum\pdfstrcmp{#1}{#2}>0
+  \expandafter\@firstoftwo\else\expandafter\@secondoftwo\fi}
+\def\forest@cmp@error#1#2{\PackageError{forest}{Comparison
+    ("<" or ">") of generic type arguments "#1" and "#2"
+    makes no sense}{Use one of argument processor instructions
+    "n", "d", "P" or "t" to change the type. Use package option
+    "debug=process" to see what's happening here.}}
+\cslet{forestmath@if@lt@_}\forest@cmp@error
+%    \end{macrocode}
+% Low level |=|.
+%    \begin{macrocode}
+\def\forestmath@if@eq@n#1#2{\ifnum#1=#2\relax
+  \expandafter\@firstoftwo\else\expandafter\@secondoftwo\fi}
+\def\forestmath@if@eq@d#1#2{\ifdim#1=#2\relax
+  \expandafter\@firstoftwo\else\expandafter\@secondoftwo\fi}
+\def\forestmath@if@eq@P#1#2{\ifdim#1pt=#2pt
+  \expandafter\@firstoftwo\else\expandafter\@secondoftwo\fi}
+\def\forestmath@if@eq@t#1#2{\ifnum\pdfstrcmp{#1}{#2}=0
+  \expandafter\@firstoftwo\else\expandafter\@secondoftwo\fi}
+\let\forestmath@if@eq@T\forestmath@if@eq@t
+\csdef{forestmath@if@eq@_}#1#2{%
+  \def\forestmath@tempa{#1}%
+  \def\forestmath@tempb{#2}%
+  \ifx\forestmath@tempa\forestmath@tempb
+    \expandafter\@firstoftwo\else\expandafter\@secondoftwo\fi}
+%    \end{macrocode}
+% High level |<|, |>| and |=|.
+%    \begin{macrocode}
+\def\forestmathlt#1#2{%
+  \csname forestmath@if@lt@\forestmathresulttype\endcsname{#1}{#2}%
+    \forestmathtrue
+    \forestmathfalse}
+\def\forestmathlt@#1#2#3{%
+  \csname forestmath@if@lt@#1\endcsname{#2}{#3}%
+    \forestmathtrue
+    \forestmathfalse}
+\def\forestmathgt#1#2{%
+  \csname forestmath@if@lt@\forestmathresulttype\endcsname{#2}{#1}%
+    \forestmathtrue
+    \forestmathfalse}
+\def\forestmathgt@#1#2#3{%
+  \csname forestmath@if@lt@#1\endcsname{#3}{#2}%
+    \forestmathtrue
+    \forestmathfalse}
+\def\forestmatheq#1#2{%
+  \csname forestmath@if@eq@\forestmathresulttype\endcsname{#1}{#2}%
+    \forestmathtrue
+    \forestmathfalse}
+\def\forestmatheq@#1#2#3{%
+  \csname forestmath@if@eq@#1\endcsname{#2}{#3}%
+    \forestmathtrue
+    \forestmathfalse}
+%    \end{macrocode}
+% Min and max. The complication here is that for numeric/dimension types, we want the empty value to
+% signal ``no argument'', i.e.\ the other argument should be the result; this is used in
+% aggregates. (For text types, the empty value is obviously the lesser one.) The arguments are expanded.
+%    \begin{macrocode}
+\def\forestmathmin{\forestmath@minmax{min}{\forestmathresulttype}}
+\def\forestmathmax{\forestmath@minmax{max}{\forestmathresulttype}}
+\def\forestmathmin@{\forestmath@minmax{min}}
+\def\forestmathmax@{\forestmath@minmax{max}}
+\def\forestmath@minmax#1#2#3#4{% #1=min/max, #2=type, #3,#4=args
+  \edef\forestmath@tempa{#3}%
+  \edef\forestmath@tempb{#4}%
+  \if\relax\detokenize\expandafter{\forestmath@tempa}\relax
+    \forestmath@minmax@one{#1}{#2}\forestmath@tempb
+  \else
+    \if\relax\detokenize\expandafter{\forestmath@tempb}\relax
+      \forestmath@minmax@one{#1}{#2}\forestmath@tempa
+    \else
+      \csname forestmath@#1\endcsname{#2}%
+    \fi
+  \fi
+}
+\def\forestmath@minmax@one#1#2#3{% #1=min/max, #2=type, #3 = the (possibly) non-empty arg
+  \ifcsname forestmath@#1@one@#2\endcsname
+    \csname forestmath@#1@one@#2\endcsname#3%
+  \else
+    \let\forestmathresult#3%
+  \fi
+}
+\def\forestmath@min@one@t#1{\let\forestmathresult\forest@empty}
+\def\forestmath@max@one@t#1{\let\forestmathresult#1}
+\def\forestmath@min@one@T#1{\let\forestmathresult#1}
+\def\forestmath@max@one@T#1{\let\forestmathresult\forest@empty}
+
+\def\forestmath@min#1{% #1 = type
+  \csname forestmath@if@lt@#1\endcsname\forestmath@tempa\forestmath@tempb
+    {\let\forestmathresult\forestmath@tempa}%
+    {\let\forestmathresult\forestmath@tempb}%
+}
+\def\forestmath@max#1{% #1 = type
+  \csname forestmath@if@lt@#1\endcsname\forestmath@tempa\forestmath@tempb
+    {\let\forestmathresult\forestmath@tempb}%
+    {\let\forestmathresult\forestmath@tempa}%
 }
 %    \end{macrocode}
 %
@@ -1258,30 +2204,29 @@
 % Macros for retrieving/setting node options of the current node.
 %    \begin{macrocode}
  % full expansion expands precisely to the value
-\def\forestov#1{\expandafter\expandafter\expandafter\expandonce
-  \pgfkeysvalueof{/forest/@node/\forest@cn/#1}}
+\def\forestov#1{\expandafter\expandonce\csname fRsT\forest@cn/#1\endcsname}
  % full expansion expands all the way
-\def\forestove#1{\pgfkeysvalueof{/forest/@node/\forest@cn/#1}}
+\def\forestove#1{\csname fRsT\forest@cn/#1\endcsname}
  % full expansion expands to the cs holding the value
-\def\forestom#1{\expandafter\expandonce\expandafter{\pgfkeysvalueof{/forest/@node/\forest@cn/#1}}}
-\def\forestoget#1#2{\pgfkeysgetvalue{/forest/@node/\forest@cn/#1}{#2}}
-\def\forestolet#1#2{\pgfkeyslet{/forest/@node/\forest@cn/#1}{#2}}
-\def\forestocslet#1#2{%
-  \edef\forest@marshal{%
-    \noexpand\pgfkeyslet{/forest/@node/\forest@cn/#1}{\expandonce{\csname#2\endcsname}}%
-  }\forest@marshal
-}
-\def\forestoset#1#2{\pgfkeyssetvalue{/forest/@node/\forest@cn/#1}{#2}}
-\def\forestoeset#1#2{%
-  \edef\forest@option@temp{%
-    \noexpand\pgfkeyssetvalue{/forest/@node/\forest@cn/#1}{#2}%
-  }\forest@option@temp
-}
+\def\forestom#1{\expandonce{\csname fRsT\forest@cn/#1\endcsname}}
+\def\forestoget#1#2{\expandafter\let\expandafter#2\csname fRsT\forest@cn/#1\endcsname}
+\def\forestolet#1#2{\expandafter\let\csname fRsT\forest@cn/#1\endcsname#2}
+% \def\forestocslet#1#2{%
+%   \edef\forest@marshal{%
+%     \noexpand\pgfkeyslet{/forest/@node/\forest@cn/#1}{\expandonce{\csname#2\endcsname}}%
+%   }\forest@marshal
+% }
+\def\forestoset#1#2{\expandafter\edef\csname fRsT\forest@cn/#1\endcsname{\unexpanded{#2}}}
+\def\forestoeset#1%#2
+  {\expandafter\edef\csname fRsT\forest@cn/#1\endcsname
+    %{#2}
+  }
 \def\forestoappto#1#2{%
   \forestoeset{#1}{\forestov{#1}\unexpanded{#2}}%
 }
-\def\forestoifdefined#1#2#3{%
-  \pgfkeysifdefined{/forest/@node/\forest@cn/#1}{#2}{#3}%
+\def\forestoifdefined#1%#2#3
+{%
+  \ifcsdef{fRsT\forest@cn/#1}%{#2}{#3}%
 }
 %    \end{macrocode}
 % User macros for retrieving node options of the current node.
@@ -1291,24 +2236,21 @@
 %    \end{macrocode}
 % Macros for retrieving node options of a node given by its id.
 %    \begin{macrocode}
-\def\forestOv#1#2{\expandafter\expandafter\expandafter\expandonce
-  \pgfkeysvalueof{/forest/@node/#1/#2}}
-\def\forestOve#1#2{\pgfkeysvalueof{/forest/@node/#1/#2}}
+\def\forestOv#1#2{\expandafter\expandonce\csname fRsT#1/#2\endcsname}
+\def\forestOve#1#2{\csname fRsT#1/#2\endcsname}
  % full expansion expands to the cs holding the value
-\def\forestOm#1#2{\expandafter\expandonce\expandafter{\pgfkeysvalueof{/forest/@node/#1/#2}}}
-\def\forestOget#1#2#3{\pgfkeysgetvalue{/forest/@node/#1/#2}{#3}}
-\def\forestOget#1#2#3{\pgfkeysgetvalue{/forest/@node/#1/#2}{#3}}
-\def\forestOlet#1#2#3{\pgfkeyslet{/forest/@node/#1/#2}{#3}}
-\def\forestOcslet#1#2#3{%
-  \edef\forest@marshal{%
-    \noexpand\pgfkeyslet{/forest/@node/#1/#2}{\expandonce{\csname#3\endcsname}}%
-  }\forest@marshal
-}
-\def\forestOset#1#2#3{\pgfkeyssetvalue{/forest/@node/#1/#2}{#3}}
-\def\forestOeset#1#2#3{%
-  \edef\forestoption@temp{%
-    \noexpand\pgfkeyssetvalue{/forest/@node/#1/#2}{#3}%
-  }\forestoption@temp
+\def\forestOm#1#2{\expandonce{\csname fRsT#1/#2\endcsname}}
+\def\forestOget#1#2#3{\expandafter\let\expandafter#3\csname fRsT#1/#2\endcsname}
+\def\forestOlet#1#2#3{\expandafter\let\csname fRsT#1/#2\endcsname#3}
+% \def\forestOcslet#1#2#3{%
+%   \edef\forest@marshal{%
+%     \noexpand\pgfkeyslet{/forest/@node/#1/#2}{\expandonce{\csname#3\endcsname}}%
+%   }\forest@marshal
+% }
+\def\forestOset#1#2#3{\expandafter\edef\csname fRsT#1/#2\endcsname{\unexpanded{#3}}}
+\def\forestOeset#1#2%#3
+{\expandafter\edef\csname fRsT#1/#2\endcsname
+  % {#3}
 }
 \def\forestOappto#1#2#3{%
   \forestOeset{#1}{#2}{\forestOv{#1}{#2}\unexpanded{#3}}%
@@ -1322,8 +2264,9 @@
 \def\forestOepreto#1#2#3{%
   \forestOeset{#1}{#2}{#3\forestOv{#1}{#2}}%
 }
-\def\forestOifdefined#1#2#3#4{%
-  \pgfkeysifdefined{/forest/@node/#1/#2}{#3}{#4}%
+\def\forestOifdefined#1#2%#3#4
+{%
+  \ifcsdef{fRsT#1/#2}%{#3}{#4}%
 }
 \def\forestOletO#1#2#3#4{% option #2 of node #1 <-- option #4 of node #3
   \forestOget{#3}{#4}\forestoption@temp
@@ -1338,36 +2281,67 @@
   \forestoget{#2}\forestoption@temp
   \forestolet{#1}\forestoption@temp}
 %    \end{macrocode}
+%  Macros for retrieving node options given by \meta{relative node name}|.|\meta{option}.
+%    \begin{macrocode}
+\def\forestRNOget#1#2{% #1=rn!option, #2 = receiving cs
+  \pgfutil@in@{.}{#1}%
+  \ifpgfutil@in@
+    \forestRNOget@rn#2#1\forest@END
+  \else
+    \forestoget{#1}#2%
+  \fi
+}
+\def\forestRNOget@rn#1#2.#3\forest@END{%
+  \forest@forthis{%
+    \forest@nameandgo{#2}%
+    \forestoget{#3}#1%
+  }%
+}
+\def\forestRNO@getvalueandtype#1#2#3{% #1=rn.option, #2,#3 = receiving css
+  \pgfutil@in@{.}{#1}%
+  \ifpgfutil@in@
+    \forestRNO@getvalueandtype@rn#2#3#1\forest@END
+  \else
+    \forestoget{#1}#2%
+    \pgfkeysgetvalue{/forest/#1/@type}#3%
+  \fi
+}
+\def\forestRNO@getvalueandtype@rn#1#2#3.#4\forest@END{%
+  % #1,#2=receiving css, #3=relative node name, #4=option name
+  \forest@forthis{%
+    \forest@nameandgo{#3}%
+    \forestoget{#4}#1%
+  }%
+  \pgfkeysgetvalue{/forest/#4/@type}#2%
+}
+%    \end{macrocode}
 % Macros for retrieving/setting registers.
 %    \begin{macrocode}
  % full expansion expands precisely to the value
-\def\forestrv#1{\expandafter\expandafter\expandafter\expandonce
-  \pgfkeysvalueof{/forest/@node/register/#1}}
+\def\forestrv#1{\expandafter\expandonce\csname fRsT/#1\endcsname}
  % full expansion expands all the way
-\def\forestrve#1{\pgfkeysvalueof{/forest/@node/register/#1}}
+\def\forestrve#1{\csname fRsT/#1\endcsname}
  % full expansion expands to the cs holding the value
-\def\forestrm#1{\expandafter\expandonce\expandafter{\pgfkeysvalueof{/forest/@node/register/#1}}}
-\def\forestrget#1#2{\pgfkeysgetvalue{/forest/@node/register/#1}{#2}}
-\def\forestrlet#1#2{\pgfkeyslet{/forest/@node/register/#1}{#2}}
-\def\forestrcslet#1#2{%
-  \edef\forest@marshal{%
-    \noexpand\pgfkeyslet{/forest/@node/register/#1}{\expandonce{\csname#2\endcsname}}%
-  }\forest@marshal
-}
-\def\forestrset#1#2{\pgfkeyssetvalue{/forest/@node/register/#1}{#2}}
-\def\forestreset#1#2{%
-  \edef\forest@option@temp{%
-    \noexpand\pgfkeyssetvalue{/forest/@node/register/#1}{#2}%
-  }\forest@option@temp
-}
+\def\forestrm#1{\expandonce{\csname fRsT/#1\endcsname}}
+\def\forestrget#1#2{\expandafter\let\expandafter#2\csname fRsT/#1\endcsname}
+\def\forestrlet#1#2{\expandafter\let\csname fRsT/#1\endcsname#2}
+% \def\forestrcslet#1#2{%
+%   \edef\forest@marshal{%
+%     \noexpand\pgfkeyslet{/forest/@node/register/#1}{\expandonce{\csname#2\endcsname}}%
+%   }\forest@marshal
+% }
+\def\forestrset#1#2{\expandafter\edef\csname fRsT/#1\endcsname{\unexpanded{#2}}}
+\def\forestreset#1%#2
+  {\expandafter\edef\csname fRsT/#1\endcsname}%{#2}
 \def\forestrappto#1#2{%
   \forestreset{#1}{\forestrv{#1}\unexpanded{#2}}%
 }
 \def\forestrpreto#1#2{%
   \forestreset{#1}{\unexpanded{#2}\forestrv{#1}}%
 }
-\def\forestrifdefined#1#2#3{%
-  \pgfkeysifdefined{/forest/@node/register/#1}{#2}{#3}%
+\def\forestrifdefined#1%#2#3
+{%
+  \ifcsdef{fRsT/#1}%{#2}{#3}%
 }
 %    \end{macrocode}
 % User macros for retrieving node options of the current node.
@@ -1946,7 +2920,12 @@
 %    \begin{macrocode}
 \NewDocumentCommand\forestdebugtypeouttrees{o}{%
   \forestdebug@typeouttrees\forest@temp
-  \typeout{\IfValueTF{#1}{#1: }{}\forest@temp}%
+  \typeout{%
+    \forestdebugtypeouttreesprefix
+    \IfValueTF{#1}{#1: }{}%
+    \detokenize\expandafter{\forest@temp}%
+    \forestdebugtypeouttreessuffix
+  }%
 }
 \def\forestdebug@typeouttrees#1{% #1 = cs to store the result
   \begingroup
@@ -1968,12 +2947,12 @@
         \expandafter\endgroup
         \expandafter\edef\expandafter\forest@cn\expandafter{\forest@cn}%
         \forestdebug@typeouttree@build
-        \appto\forest@temp@message{\space}%
+        \appto\forest@temp@message{ }%
       }%
     }%
   \repeat
   \expandafter\endgroup
-  \expandafter\edef\expandafter#1\expandafter{\forest@temp@message}%
+  \expandafter\def\expandafter#1\expandafter{\forest@temp@message}%
 }
 \def\forestdebug@typeouttrees@findroot{%
   \let\forestdebug@typeouttrees@next\relax
@@ -2003,9 +2982,9 @@
 % Recurse through the tree. If a circularity is detected, mark it with |*| and stop recursion.
 %    \begin{macrocode}
 \def\forestdebug@typeouttree@build{%
-  \eappto\forest@temp@message{[\forest@cn%]
+  \eappto\forest@temp@message{[\forestdebugtypeouttreenodeinfo%]
     \ifcsdef{forestdebug@typeouttree@used@\forest@cn}{*}{}%
-    }%
+  }%
   \ifcsdef{forestdebug@typeouttree@used@\forest@cn}{}{%
     \csdef{forestdebug@typeouttree@used@\forest@cn}{}%
     \forest@node@foreachchild{\forestdebug@typeouttree@build}%
@@ -2013,6 +2992,9 @@
   \eappto\forest@temp@message{%[
     ]}%
 }
+\def\forestdebugtypeouttreenodeinfo{\forest@cn}
+\def\forestdebugtypeouttreesprefix{}
+\def\forestdebugtypeouttreessuffix{}
 %    \end{macrocode}
 %
 %
@@ -2104,6 +3086,7 @@
   \pgfkeyssetvalue{#1/option@name}{#3}%  
   \pgfkeyssetvalue{#1+/option@name}{#3}%  
   \pgfkeyssetvalue{#2/+#3/option@name}{#3}%  
+  \pgfkeyslet{#1/@type}\forestmathtype@generic % for .process & co
   \pgfmathdeclarefunction{#4}{1}{\forest@pgfmathhelper@attribute@toks{##1}{#3}}%
 }
 \def\forest@declareautowrappedtoks@handler#1#2#3#4{% #1=key,#2=path,#3=name,#4=pgfmathname,#5=infix
@@ -2133,25 +3116,44 @@
         \pgfkeysalso{##3}%
       \fi
     },
+    #2/if #3</.code n args={3}{%
+      \forestoget{#3}\forest@temp@option@value
+      \ifdim\forest@temp@option@value>##1\relax
+        \pgfkeysalso{##3}%
+      \else
+        \pgfkeysalso{##2}%
+      \fi
+    },
+    #2/if #3>/.code n args={3}{%
+      \forestoget{#3}\forest@temp@option@value
+      \ifdim\forest@temp@option@value<##1\relax
+        \pgfkeysalso{##3}%
+      \else
+        \pgfkeysalso{##2}%
+      \fi
+    },
     #2/where #3/.style n args={3}{for tree={#2/if #3={##1}{##2}{##3}}},
+    #2/where #3</.style n args={3}{for tree={#2/if #3<={##1}{##2}{##3}}},
+    #2/where #3>/.style n args={3}{for tree={#2/if #3>={##1}{##2}{##3}}},
   }%
+  \pgfkeyslet{#1/@type}\forestmathtype@dimen  % for .process & co
   \pgfmathdeclarefunction{#4}{1}{\forest@pgfmathhelper@attribute@dimen{##1}{#3}}%
 }
 \def\forest@declaredimen@handler#1#2#3#4{% #1=key,#2=path,#3=name,#4=pgfmathname
   \forest@declarereadonlydimen@handler{#1}{#2}{#3}{#4}%
   \pgfkeysalso{%
     #1/.code={%
-      \pgfmathsetlengthmacro\forest@temp{##1}%
+      \forestmathsetlengthmacro\forest@temp{##1}%
       \forestOlet{\forest@setter@node}{#3}\forest@temp
     },
     #1+/.code={%
-      \pgfmathsetlengthmacro\forest@temp{##1}%
+      \forestmathsetlengthmacro\forest@temp{##1}%
       \pgfutil@tempdima=\forestove{#3}
       \advance\pgfutil@tempdima\forest@temp\relax
       \forestOeset{\forest@setter@node}{#3}{\the\pgfutil@tempdima}%
     },
     #1-/.code={%
-      \pgfmathsetlengthmacro\forest@temp{##1}%
+      \forestmathsetlengthmacro\forest@temp{##1}%
       \pgfutil@tempdima=\forestove{#3}
       \advance\pgfutil@tempdima-\forest@temp\relax
       \forestOeset{\forest@setter@node}{#3}{\the\pgfutil@tempdima}%
@@ -2208,37 +3210,56 @@
         \pgfkeysalso{##3}%
       \fi
     },
+    #2/if #3</.code n args={3}{%
+      \forestoget{#3}\forest@temp@option@value
+      \ifnum\forest@temp@option@value>##1\relax
+        \pgfkeysalso{##3}%
+      \else
+        \pgfkeysalso{##2}%
+      \fi
+    },
+    #2/if #3>/.code n args={3}{%
+      \forestoget{#3}\forest@temp@option@value
+      \ifnum\forest@temp@option@value<##1\relax
+        \pgfkeysalso{##3}%
+      \else
+        \pgfkeysalso{##2}%
+      \fi
+    },
     #2/where #3/.style n args={3}{for tree={#2/if #3={##1}{##2}{##3}}},
+    #2/where #3</.style n args={3}{for tree={#2/if #3<={##1}{##2}{##3}}},
+    #2/where #3>/.style n args={3}{for tree={#2/if #3>={##1}{##2}{##3}}},
   }%
+  \pgfkeyslet{#1/@type}\forestmathtype@count  % for .process & co
   \pgfmathdeclarefunction{#4}{1}{\forest@pgfmathhelper@attribute@count{##1}{#3}}%
 }
 \def\forest@declarecount@handler#1#2#3#4{% #1=key,#2=path,#3=name,#4=pgfmathname
   \forest@declarereadonlycount@handler{#1}{#2}{#3}{#4}%
   \pgfkeysalso{
     #1/.code={%
-      \pgfmathtruncatemacro\forest@temp{##1}%
+      \forestmathtruncatemacro\forest@temp{##1}%
       \forestOlet{\forest@setter@node}{#3}\forest@temp
     },
     #1+/.code={%
-      \pgfmathtruncatemacro\forest@temp{##1}%
+      \forestmathtruncatemacro\forest@temp{##1}%
       \c@pgf@counta=\forestove{#3}\relax
       \advance\c@pgf@counta\forest@temp\relax
       \forestOeset{\forest@setter@node}{#3}{\the\c@pgf@counta}%
     },
     #1-/.code={%
-      \pgfmathtruncatemacro\forest@temp{##1}%
+      \forestmathtruncatemacro\forest@temp{##1}%
       \c@pgf@counta=\forestove{#3}\relax
       \advance\c@pgf@counta-\forest@temp\relax
       \forestOeset{\forest@setter@node}{#3}{\the\c@pgf@counta}%
     },
     #1*/.code={%
-      \pgfmathtruncatemacro\forest@temp{##1}%
+      \forestmathtruncatemacro\forest@temp{##1}%
       \c@pgf@counta=\forestove{#3}\relax
       \multiply\c@pgf@counta\forest@temp\relax
       \forestOeset{\forest@setter@node}{#3}{\the\c@pgf@counta}%
     },
     #1:/.code={%
-      \pgfmathtruncatemacro\forest@temp{##1}%
+      \forestmathtruncatemacro\forest@temp{##1}%
       \c@pgf@counta=\forestove{#3}\relax
       \divide\c@pgf@counta\forest@temp\relax
       \forestOeset{\forest@setter@node}{#3}{\the\c@pgf@counta}%
@@ -2279,33 +3300,33 @@
   \pgfkeyssetvalue{#1'*/option@name}{#3}%  
   \pgfkeyssetvalue{#1':/option@name}{#3}%  
 }
+%    \end{macrocode}
+% Nothing else should be defined in this namespace.
+%    \begin{macrocode}
 \def\forest@declareboolean@handler#1#2#3#4{% #1=key,#2=path,#3=name,#4=pgfmathname
   \pgfkeysalso{%
     #1/.code={%
-      \ifstrequal{##1}{1}{%
-        \forestOset{\forest@setter@node}{#3}{1}%
+      \forestmath@if{##1}{%
+        \def\forest@temp{1}%
       }{%
-        \ifstrequal{##1}{0}{%
-          \forestOset{\forest@setter@node}{#3}{0}%
-        }{%
-          \pgfmathifthenelse{##1}{1}{0}%
-          \forestOlet{\forest@setter@node}{#3}\pgfmathresult
-        }%
+        \def\forest@temp{0}%
       }%
+      \forestOlet{\forest@setter@node}{#3}\forest@temp
     },
     #1/.default=1,
     #2/not #3/.code={\forestOset{\forest@setter@node}{#3}{0}},
     #2/if #3/.code 2 args={%
       \forestoget{#3}\forest@temp@option@value
-      \ifnum\forest@temp@option@value=1
-        \pgfkeysalso{##1}%
-      \else
+      \ifnum\forest@temp@option@value=0
         \pgfkeysalso{##2}%
+      \else
+        \pgfkeysalso{##1}%
       \fi
     },
     #2/where #3/.style 2 args={for tree={#2/if #3={##1}{##2}}}
   }%
   \pgfkeyssetvalue{#1/option@name}{#3}%
+  \pgfkeyslet{#1/@type}\forestmathtype@count  % for .process & co
   \pgfmathdeclarefunction{#4}{1}{\forest@pgfmathhelper@attribute@count{##1}{#3}}%
 }
 \forestset{
@@ -2319,35 +3340,44 @@
     \forest@declarehandler\forest@declarekeylist@handler{#1}{#2}%
   },
   declare readonly dimen/.code 2 args={%
-    \pgfmathsetlengthmacro\forest@temp{#2}%
+    \forestmathsetlengthmacro\forest@temp{#2}%
     \edef\forest@marshal{%
       \unexpanded{\forest@declarehandler\forest@declarereadonlydimen@handler{#1}}{\forest@temp}%
     }\forest@marshal
   },
   declare dimen/.code 2 args={%
-    \pgfmathsetlengthmacro\forest@temp{#2}%
+    \forestmathsetlengthmacro\forest@temp{#2}%
     \edef\forest@marshal{%
       \unexpanded{\forest@declarehandler\forest@declaredimen@handler{#1}}{\forest@temp}%
     }\forest@marshal
   },
   declare readonly count/.code 2 args={%
-    \pgfmathtruncatemacro\forest@temp{#2}%
+    \forestmathtruncatemacro\forest@temp{#2}%
     \edef\forest@marshal{%
       \unexpanded{\forest@declarehandler\forest@declarereadonlycount@handler{#1}}{\forest@temp}%
     }\forest@marshal
   },
   declare count/.code 2 args={%
-    \pgfmathtruncatemacro\forest@temp{#2}%
+    \forestmathtruncatemacro\forest@temp{#2}%
     \edef\forest@marshal{%
       \unexpanded{\forest@declarehandler\forest@declarecount@handler{#1}}{\forest@temp}%
     }\forest@marshal
   },
   declare boolean/.code 2 args={%
-    \pgfmathtruncatemacro\forest@temp{#2}%
+    \forestmath@if{#2}{%
+      \def\forest@temp{1}%
+    }{%
+      \def\forest@temp{0}%
+    }%
     \edef\forest@marshal{%
       \unexpanded{\forest@declarehandler\forest@declareboolean@handler{#1}}{\forest@temp}%
     }\forest@marshal
   },
+%    \end{macrocode}
+%
+% \section{Handlers}
+%
+%    \begin{macrocode}
   /handlers/.restore default value/.code={%
     \edef\forest@handlers@currentpath{\pgfkeyscurrentpath}%
     \pgfkeysgetvalue{\pgfkeyscurrentpath/option@name}\forest@currentoptionname
@@ -2367,17 +3397,22 @@
     \pgfkeysalso{\forest@handlers@wrap@currentpath/.expand once=\forest@wrapped@value}%
   },
   /handlers/.option/.code={%
-    \edef\forest@marshal{%
-      \noexpand\pgfkeysalso{\pgfkeyscurrentpath={\forestoption{#1}}}%
-    }\forest@marshal
+    \edef\forest@temp{\pgfkeyscurrentpath}%
+    \expandafter\forest@handlers@option\expandafter{\forest@temp}{#1}%
   },
+}
+\def\forest@handlers@option#1#2{%#1=pgfkeyscurrentpath,#2=relative node name
+  \forestRNOget{#2}\forest@temp
+  \pgfkeysalso{#1/.expand once={\forest@temp}}%
+}%
+\forestset{
   /handlers/.register/.code={%
     \edef\forest@marshal{%
       \noexpand\pgfkeysalso{\pgfkeyscurrentpath={\forestregister{#1}}}%
     }\forest@marshal
   },
   /handlers/.wrap pgfmath arg/.code 2 args={%    
-    \pgfmathparse{#2}\let\forest@wrap@arg@i\pgfmathresult
+    \forestmathparse{#2}\let\forest@wrap@arg@i\forestmathresult
     \edef\forest@wrap@args{{\expandonce\forest@wrap@arg@i}}%
     \def\forest@wrap@code##1{#1}%
     % here we don't call \forest@wrap@pgfmath@args@@@wrapandpasson, as compat-2.0.2-wrappgfmathargs changes that to achieve the old, confusing state of affairs, which *didn't* apply at *1*-arg pgfmath wrapping
@@ -2385,8 +3420,8 @@
     \expandafter\pgfkeysalso\expandafter{\expandafter\pgfkeyscurrentpath\expandafter=\expandafter{\the\forest@temp@toks}}%
   },
   /handlers/.wrap 2 pgfmath args/.code n args={3}{%
-    \pgfmathparse{#2}\let\forest@wrap@arg@i\pgfmathresult
-    \pgfmathparse{#3}\let\forest@wrap@arg@ii\pgfmathresult
+    \forestmathparse{#2}\let\forest@wrap@arg@i\forestmathresult
+    \forestmathparse{#3}\let\forest@wrap@arg@ii\forestmathresult
     \edef\forest@wrap@args{{\expandonce\forest@wrap@arg@i}{\expandonce\forest@wrap@arg@ii}}%
     \def\forest@wrap@code##1##2{#1}%
     \forest@wrap@pgfmath@args@@@wrapandpasson
@@ -2409,19 +3444,16 @@
   /handlers/.wrap 8 pgfmath args/.code n args={9}{%
     \forest@wrap@n@pgfmath@args{#2}{#3}{#4}{#5}{#6}{#7}{#8}{#9}{8}%
     \forest@wrap@n@pgfmath@do{#1}{8}},
-  /handlers/.process args/.code={%
-    \forest@processargs#1\forest@eov\forest@END
-  },
 }
 \def\forest@wrap@n@pgfmath@args#1#2#3#4#5#6#7#8#9{%
-  \pgfmathparse{#1}\let\forest@wrap@arg@i\pgfmathresult
-  \ifnum#9>1 \pgfmathparse{#2}\let\forest@wrap@arg@ii\pgfmathresult\fi
-  \ifnum#9>2 \pgfmathparse{#3}\let\forest@wrap@arg@iii\pgfmathresult\fi
-  \ifnum#9>3 \pgfmathparse{#4}\let\forest@wrap@arg@iv\pgfmathresult\fi
-  \ifnum#9>4 \pgfmathparse{#5}\let\forest@wrap@arg@v\pgfmathresult\fi
-  \ifnum#9>5 \pgfmathparse{#6}\let\forest@wrap@arg@vi\pgfmathresult\fi
-  \ifnum#9>6 \pgfmathparse{#7}\let\forest@wrap@arg@vii\pgfmathresult\fi
-  \ifnum#9>7 \pgfmathparse{#8}\let\forest@wrap@arg@viii\pgfmathresult\fi
+  \forestmathparse{#1}\let\forest@wrap@arg@i\forestmathresult
+  \ifnum#9>1 \forestmathparse{#2}\let\forest@wrap@arg@ii\forestmathresult\fi
+  \ifnum#9>2 \forestmathparse{#3}\let\forest@wrap@arg@iii\forestmathresult\fi
+  \ifnum#9>3 \forestmathparse{#4}\let\forest@wrap@arg@iv\forestmathresult\fi
+  \ifnum#9>4 \forestmathparse{#5}\let\forest@wrap@arg@v\forestmathresult\fi
+  \ifnum#9>5 \forestmathparse{#6}\let\forest@wrap@arg@vi\forestmathresult\fi
+  \ifnum#9>6 \forestmathparse{#7}\let\forest@wrap@arg@vii\forestmathresult\fi
+  \ifnum#9>7 \forestmathparse{#8}\let\forest@wrap@arg@viii\forestmathresult\fi
   \edef\forest@wrap@args{%
     {\expandonce\forest@wrap@arg@i}
     \ifnum#9>1 {\expandonce\forest@wrap@arg@ii}\fi
@@ -2457,103 +3489,541 @@
     \expandafter\pgfkeyscurrentpath\expandafter=\expandafter{%
         \the\forest@temp@toks}}%
 }
-\newtoks\forest@processargs@result
-\newtoks\forest@processargs@current
-\newif\ifforest@processargs@append
-\def\forest@eov{\forest@eov}
-\def\forest@processargs#1#2\forest@END{% #1 = processing instructions, #2 = args
-  \forest@processargs@result{}%
-  \forest@processargs@current{}%
-  \forest@processargs@appendfalse
-  \forest@processargs@getins#1.\forest@END#2\forest@END
+%    \end{macrocode}
+%
+% \subsection{.process}
+%
+%    \begin{macrocode}
+\def\forest@process@catregime{} % filled by processor defs
+\forest@newarray\forest@process@left@ % processed args
+\forest@newarray\forest@process@right@ % unprocessed args
+\forest@newarray\forest@process@saved@ % used by instructions |S| and |U|
+\let\forest@process@savedtype\forestmathtype@none
+\forest@newglobalarray\forest@process@result@
+\newif\ifforest@process@returnarray@
+%    \end{macrocode}
+% Processing instruction need not (but may) be enclosed in braces.
+%    \begin{macrocode}
+\def\forest@process#1#2#{%  #1 = true/false (should we return an array?)
+                         %  #2 = processing instructions (if non-empty),
+                         %  (initial) args follow
+  \ifblank{#2}{\forest@process@a{#1}}{\forest@process@a{#1}{#2}}%
 }
-\def\forest@processargs@maybeappend{%
-  \ifforest@processargs@append
-    \eapptotoks\forest@processargs@result{{\the\forest@processargs@current}}%
-    \forest@processargs@current{}%
-  \fi
+\Inline\def\forest@process@a#1#2{%
+  \begingroup
+  \forest@process@left@clear
+  \forest@process@right@clear
+  \forest@process@saved@clear
+  \let\forest@process@savedtype\forestmathtype@generic
+  \ExpandIfT{forestdebug}{%
+    \edef\forest@process@debug@args{\unexpanded{#2}}%
+    \typeout{[forest .process] Start "\unexpanded{#2}"}%
+  }%
+  \csname forest@process@returnarray@#1\endcsname
+  \def\forest@topextend@next{%
+    \forest@process@catregime
+    \endlinechar=-1
+    \scantokens{#2}%
+    \forest@process@finish
+  }%
+  \forest@process@right@topextend
 }
-\def\forest@processargs@getins#1#2\forest@END#3\forest@END{% #1 = first instruction, #2 = rest of instructions, #3 = args
-  \csname forest@processargs@ins@#1\endcsname#2\forest@END#3\forest@END
+\pgfkeys{%
+  /handlers/.process/.code={%
+    \forest@process{true}#1\forest@eov
+    \edef\forest@marshal{%
+      \noexpand\pgfkeysalso{\noexpand\pgfkeyscurrentpath=\forest@process@result@values}%
+    }\forest@marshal
+  },
+  /forest/copy command key={/handlers/.process}{/handlers/.process args},
 }
-\csdef{forest@processargs@ins@.}\forest@END#1\forest@END{%
-  \forest@processargs@maybeappend
-  \forest@processargs@appremainingargs#1\forest@END
-}
-\def\forest@processargs@appremainingargs#1#2\forest@END{%
-  \edef\forest@temp{\unexpanded{#1}}%
-  \ifx\forest@temp\forest@eov
-    \let\forest@processargs@next\forest@processargs@done
+\def\forest@process@finish{%
+  \ifforest@process@returnarray@
+    \forest@process@finish@array
+    \global\let\forest@process@result@type\forest@result@type@array
   \else
-    \apptotoks\forest@processargs@result{{#1}}%
-    \let\forest@processargs@next\forest@processargs@appremainingargs
+    \forest@process@finish@single
   \fi
-  \forest@processargs@next#2\forest@END
+  \ifforestdebugprocess\forest@process@debug@end\fi
+  \endgroup
 }
-\def\forest@processargs@done#1\forest@END{%
-  \pgfkeysalso{\pgfkeyscurrentpath/.expanded=\the\forest@processargs@result}%
+\def\forest@process@finish@single{%
+  \edef\forest@temp{forest@process@finish@single@%
+    \the\numexpr\forest@process@left@N-\forest@process@left@M\relax
+    \the\numexpr\forest@process@right@N-\forest@process@right@M\relax
+  }%
+  \ifcsname\forest@temp\endcsname
+    \csname\forest@temp\endcsname
+    \global\let\forest@process@result\forest@temp
+  \else
+    \forest@process@lengtherror
+  \fi
+  \global\let\forest@process@result@type\forestmathresulttype
 }
-\csdef{forest@processargs@ins@_}#1\forest@END#2#3\forest@END{% no processing
-  % #1 = rest of ins, #2 = first arg, #3 = rest of args
-  \forest@processargs@maybeappend
-  \forest@processargs@current{#2}%
-  \forest@processargs@appendtrue
-  \forest@processargs@getins#1\forest@END#3\forest@END
+\csdef{forest@process@finish@single@10}{\forest@process@left@toppop\forest@temp}
+\csdef{forest@process@finish@single@01}{\forest@process@right@toppop\forest@temp}
+\def\forest@process@finish@array{%
+  \forest@process@result@clear
+  \forest@temp@count\forest@process@left@M\relax
+  \forest@loop
+  \ifnum\forest@temp@count<\forest@process@left@N\relax
+    \forest@process@left@get@{\the\forest@temp@count}\forest@temp
+    \forest@process@result@letappend\forest@temp
+    \advance\forest@temp@count1
+  \forest@repeat
+  \forest@temp@count\forest@process@right@M\relax
+  \forest@loop
+  \ifnum\forest@temp@count<\forest@process@right@N\relax
+    \forest@process@right@get@{\the\forest@temp@count}\forest@temp
+    \forest@process@result@letappend\forest@temp
+    \advance\forest@temp@count1
+  \forest@repeat
 }
-\csdef{forest@processargs@ins@x}#1\forest@END#2#3\forest@END{% expand
-  % #1 = rest of ins, #2 = first arg, #3 = rest of args
-  \forest@processargs@maybeappend
-  \etotoks\forest@processargs@current{#2}%
-  \forest@processargs@appendtrue
-  \forest@processargs@getins#1\forest@END#3\forest@END
+%    \end{macrocode}
+% Debugging and error messages.
+%    \begin{macrocode}
+\ifforestdebug
+  \let\forest@process@d\forest@process@b
+  \def\forest@process@b#1\forest@eov{% save and print initial arguments
+    \edef\forest@process@debug@args{\unexpanded{#1}}%
+    \typeout{[forest .process] Start "\unexpanded{#1}"}%
+    \forest@process@d#1\forest@eov
+  }
+\fi
+\def\forest@process@debug@end{%
+  \typeout{[forest .process] \space\space\space End "\expandonce{\forest@process@debug@args}" -> "\forest@process@left@values\forest@process@right@values"}%
 }
-\csdef{forest@processargs@ins@o}#1\forest@END#2#3\forest@END{% expand once
-  % #1 = rest of ins, #2 = first arg, #3 = rest of args
-  \forest@processargs@maybeappend
-  \expandafter\forest@processargs@current\expandafter{#2}%
-  \forest@processargs@appendtrue
-  \forest@processargs@getins#1\forest@END#3\forest@END
+\def\forest@process@lengtherror{%
+  \PackageError{forest}{%
+    The ".process" expression was expected to evaluate to a single argument,
+    but the result is \the\forest@process@result@N
+    \space items long.}{}%
 }
-\csdef{forest@processargs@ins@O}#1\forest@END#2#3\forest@END{% option
-  % #1 = rest of ins, #2 = first arg, #3 = rest of args
-  \forest@processargs@maybeappend
-  \etotoks\forest@processargs@current{\forestoption{#2}}%
-  \forest@processargs@appendtrue
-  \forest@processargs@getins#1\forest@END#3\forest@END
+%    \end{macrocode}
+% Define the definer of processors. First, deal with the catcode of the instruction char.
+%    \begin{macrocode}
+\def\forest@def@processor#1{%
+  {%
+    \def\forest@dp@double##1{%
+      \gdef\forest@global@temp{\forest@def@processor@{#1}{##1}}%
+    }%
+    \let\\\forest@dp@double
+    \catcode`#1=13
+    \scantokens{\\#1}%
+  }%
+  \forest@global@temp
 }
-\csdef{forest@processargs@ins@R}#1\forest@END#2#3\forest@END{% register
-  % #1 = rest of ins, #2 = first arg, #3 = rest of args
-  \forest@processargs@maybeappend
-  \etotoks\forest@processargs@current{\forestregister{#2}}%
-  \forest@processargs@appendtrue
-  \forest@processargs@getins#1\forest@END#3\forest@END
+\def\forest@def@processor@#1#2{%
+  % #1 = instruction char (normal catcode), #2 = instruction char (active)
+  % #3 = default n (optional numeric arg, which precedes any other args;
+  %                 if the default is empty, this means no optional n)
+  % #4 = args spec,
+  % #5 = code
+  \eappto\forest@process@catregime{%
+    \unexpanded{\let#2}\expandonce{\csname forest@processor@#1\endcsname}%
+    \unexpanded{\catcode`#1=13 }%
+  }%
+  \def\forest@def@processor@inschar{#1}%
+  \forest@def@processor@@
 }
-\csdef{forest@processargs@ins@P}#1\forest@END#2#3\forest@END{% pgfmath expression
-  % #1 = rest of ins, #2 = first arg, #3 = rest of args
-  \forest@processargs@maybeappend
-  \pgfmathparse{#2}%
-  \expandafter\forest@processargs@current\expandafter{\pgfmathresult}%
-  \forest@processargs@appendtrue
-  \forest@processargs@getins#1\forest@END#3\forest@END
+%    \end{macrocode}
+% If |#1| is non-empty, the processor accepts the optional numeric argument: |#1| is the default. 
+%    \begin{macrocode}
+\def\forest@def@processor@@#1{%
+  \ifstrempty{#1}{%
+    \forest@def@processor@@non
+  }{%
+    \def\forest@def@processor@@default@n{#1}%
+    \forest@def@processor@@n
+  }%
 }
-\csdef{forest@processargs@ins@+}#1\forest@END#2\forest@END{% join processors
-  \forest@processargs@appendfalse
+%    \end{macrocode}
+% We need |\relax| below because the next instruction character might get expanded when assigning the optional numerical argument which is not there.
+%
+% No optional n:
+%    \begin{macrocode}
+\def\forest@def@processor@@non#1#2{% #1=args spec, #2=code
+  \csedef{forest@processor@\forest@def@processor@inschar}#1{%
+    \relax %% we need this (see above)
+    \unexpanded{#2}%
+    \expandafter\forest@def@processor@debuginfo\expandafter{%
+      \expandafter"\forest@def@processor@inschar"\ifstrempty{#1}{}{(#1)}}%
+    \ignorespaces
+  }%
+}
+%    \end{macrocode}
+% Optional n: |*| after the given default means that the operation should be repeated n times.
+%    \begin{macrocode}
+\def\forest@def@processor@@n{%
+  \@ifnextchar*%
+    {\forest@temptrue\forest@def@processor@@n@}%
+    {\forest@tempfalse\forest@def@processor@@n@@}%
+}
+\def\forest@def@processor@@n@*{\forest@def@processor@@n@@}  
+\def\forest@def@processor@@n@@#1#2{% #1=args spec, #2=code
+  \csedef{forest@processor@\forest@def@processor@inschar}{%
+    \relax  %% we need this (see above)
+    \noexpand\forestprocess@get@n
+      {\forest@def@processor@@default@n}%
+      \expandonce{\csname forest@processor@\forest@def@processor@inschar @\endcsname}%
+  }%
+  \ifforest@temp
+    \csedef{forest@processor@\forest@def@processor@inschar @}{%
+      \noexpand\forest@repeat@n@times{\forest@process@n}{%
+        \expandonce{\csname forest@processor@\forest@def@processor@inschar @rep\endcsname}%
+      }%
+    }%
+  \fi
+  \edef\forest@temp{%
+    \forest@def@processor@inschar
+    \ifforest@temp\else\noexpand\the\forest@process@n\fi
+    "}%
+  \csedef{forest@processor@\forest@def@processor@inschar @\ifforest@temp rep\fi}#1{%
+    \unexpanded{#2}%
+    \expandafter\forest@def@processor@debuginfo\expandafter{%
+      \forest@temp
+      \ifstrempty{#1}{}{(#1)}}%
+  }%
+}
+\def\forest@def@processor@debuginfo#1{% #1 = instruction call
+  \ifforestdebug
+    \expandonce{\forest@processor@debuginfo@template{#1}}%
+  \fi
+}
+\def\forest@processor@debuginfo@template#1{%
+  \ifforestdebugprocess
+    \edef\forest@temp@left{\forest@process@left@values}%
+    \edef\forest@temp@right{\forest@process@right@values}%
+    \edef\forest@temp@saved{\forest@process@saved@values}%
+    \typeout{[forest .process]\space\space\space\space After #1: left="\expandonce{\forest@temp@left}", right="\expandonce{\forest@temp@right}", saved="\expandonce{\forest@temp@saved}", type=\forestmathresulttype}%
+  \fi
+}
+%    \end{macrocode}
+% A helper macro which puts the optional numeric argument into count |\forest@process@n| (default being |#1|) and then executes control sequence |#2|.
+%    \begin{macrocode}
+\newcount\forest@process@n
+\def\forestprocess@get@n#1#2{%
+  \def\forestprocess@default@n{#1}%
+  \let\forestprocess@after@get@n@#2%
+  \afterassignment\forestprocess@get@n@\forest@process@n=0%
+}
+\def\forestprocess@get@n@{%
+  \ifnum\forest@process@n=0
+    \forest@process@n\forestprocess@default@n\relax
+  \fi
+  \forestprocess@after@get@n@
+}
+%    \end{macrocode}
+%    
+% Definitions of processing instructions. Processors should be defined using |\forest@def@processor|. If they take arguments: yes, they follow, but they were scanned in |\forest@process@catregime|. Processors should manipulate arrays |\forest@process@left@| and |\forest@process@right|. They should set |\def\forestmathresulttype| to |_| not defined, |n| number, |d| dimension, |P| pgfmath or |t| text.
+%    \begin{macrocode}
+\forest@def@processor{_}{1}*{}{% no processing, no type
+  \forest@process@right@bottompop\forest@temp
+  \forest@process@left@letappend\forest@temp
+}
+\forest@def@processor{n}{1}*{}{% numexpr
+  \forest@process@right@bottompop\forest@temp
+  \forest@process@left@esetappend{\number\numexpr\forest@temp}%
+  \let\forestmathresulttype\forestmathtype@count
+}
+\forest@def@processor{d}{1}*{}{% dimexpr
+  \forest@process@right@bottompop\forest@temp
+  \forest@process@left@esetappend{\the\dimexpr\forest@temp}%
+  \let\forestmathresulttype\forestmathtype@dimen
+}
+\forest@def@processor{P}{1}*{}{% pgfmath expression
+  \forest@process@right@bottompop\forest@temp
+  \pgfmathparse{\forest@temp}%
+  \forest@process@left@letappend\pgfmathresult
+  \let\forestmathresulttype\forestmathtype@unitless
+}
+\forest@def@processor{t}{1}*{}{% text
+  \forest@process@right@bottompop\forest@temp
+  \forest@process@left@letappend\forest@temp
+  \let\forestmathresulttype\forestmathtype@textasc
+}
+\forest@def@processor{-}{}{}{% toggle ascending/descending
+  \forest@process@left@toppop\forestmathresult
+  \csname forest@processor@-@\forestmathresulttype\endcsname
+  \forest@process@left@letappend\forestmathresult
+}
+\cslet{forest@processor@-@\forestmathtype@generic}\relax
+\csdef{forest@processor@-@\forestmathtype@count}{%
+  \forestmathadd{\forestmathzero}{-\forestmathresult}}
+\csletcs{forest@processor@-@\forestmathtype@dimen}
+        {forest@processor@-@\forestmathtype@count}
+\csletcs{forest@processor@-@\forestmathtype@unitless}
+        {forest@processor@-@\forestmathtype@count}
+\csdef{forest@processor@-@\forestmathtype@textasc}{%
+  \let\forestmathresulttype\forestmathtype@textdesc}
+\csdef{forest@processor@-@\forestmathtype@textdesc}{%
+  \let\forestmathresulttype\forestmathtype@textasc}
+
+\forest@def@processor{c}{}{}{% to lowercase
+  \forest@process@right@bottompop\forest@temp
+  \expandafter\lowercase\expandafter{\expandafter\def\expandafter\forest@temp\expandafter{\forest@temp}}%
+  \forest@process@left@letappend\forest@temp  
+}
+\forest@def@processor{C}{}{}{% to uppercase
+  \forest@process@right@bottompop\forest@temp
+  \expandafter\uppercase\expandafter{\expandafter\def\expandafter\forest@temp\expandafter{\forest@temp}}%
+  \forest@process@left@letappend\forest@temp  
+}
+%    \end{macrocode}
+% Expansions:
+%    \begin{macrocode}
+\forest@def@processor{x}{}{}{% expand
+  \forest@process@right@bottompop\forest@temp
+  \forest@process@left@esetappend{\forest@temp}%
+  \let\forestmathresulttype\forestmathtype@generic
+}
+\forest@def@processor{o}{1}{}{% expand once (actually, \forest@count@n times)
+  \forest@process@right@bottompop\forest@temp
+  \forest@repeat@n@times{\forest@process@n}{%
+    \expandafter\expandafter\expandafter\def
+      \expandafter\expandafter\expandafter\forest@temp
+      \expandafter\expandafter\expandafter{\forest@temp}%
+  }%
+  \expandafter\forest@process@left@setappend\expandafter{\forest@temp}%
+  \let\forestmathresulttype\forestmathtype@generic
+}
+%    \end{macrocode}
+% Access to \foRest; data.
+%    \begin{macrocode}
+\forest@def@processor{O}{1}*{}{% option
+  \forest@process@right@bottompop\forest@temp
+  \expandafter\forestRNO@getvalueandtype\expandafter{\forest@temp}\forest@tempvalue\forest@temp@type
+  \let\forestmathresulttype\forest@temp@type
+  \forest@process@left@letappend\forest@tempvalue
+}
+\forest@def@processor{R}{1}*{}{% register
+  \forest@process@right@bottompop\forest@temp
+  \forestrget{\forest@temp}\forest@tempvalue
+  \forest@process@left@letappend\forest@tempvalue
+  \pgfkeysgetvalue{/forest/\forest@temp/@type}\forest@temp@type
+  \let\forestmathresulttype\forest@temp@type
+}
+%    \end{macrocode}
+% The following processors muck about with the argument / result list.
+%    \begin{macrocode}
+\forest@def@processor{+}{1}*{}{% join processors = pop one from result
+  \forest@process@left@toppop\forest@temp
+  \forest@process@right@letprepend\forest@temp
+}
+\forest@def@processor{u}{}{}{% ungroup: remove braces and leave in the argument list
+  \forest@process@right@bottompop\forest@temp
+  \forest@temparray@clear
+  \let\forestmathresulttype\forestmathtype@generic
+  \let\forest@topextend@next\forest@processor@u@
+  \expandafter\forest@temparray@topextend\forest@temp\forest@eov
+}
+\def\forest@processor@u@{%
+  \forest@loop
+  \ifnum\forest@temparray@N>0
+    \forest@temparray@toppop\forest@temp
+    \expandafter\forest@process@right@setprepend\expandafter{\expandafter{\forest@temp}}%
+  \forest@repeat
+}
+\def\forest@process@check@mn#1#2#3#4{%
+  % #1 = processor, #2 = given n, #3/#4 = lower/upper bound (inclusive)
+  \ifnum#3>#2\relax
+    \forest@process@check@n@error{#1}{#2}{#3<=}{<=#4}%
+  \else
+    \ifnum#4<#2\relax
+      \forest@process@check@n@error{#1}{#2}{#3<=}{<=#4}%
+    \fi
+  \fi
+}
+\def\forest@process@check@m#1#2#3{%
+  % #1 = processor, #2 = given n, #3 = lower bound (inclusive)
+  \ifnum#2<#3\relax
+    \forest@process@check@n@error{#1}{#2}{#3<=}{}%
+  \fi
+}
+\def\forest@process@check@n@error#1#2#3#4{%
+  \PackageError{forest}{'.process' instruction '#1' requires a numeric modifier #3n#4, but n="#2" was given.}{}%
+}
+\newif\ifforest@process@W
+\forest@def@processor{w}{1}{}{% consuming wrap: first test 1<=#1<=9
+  \forest@process@Wtrue
+  \forest@process@check@mn{w}{0\the\forest@process@n}{1}{9}%
+  \expandafter\forest@processor@wW@\expandafter{\the\forest@process@n}%
+}
+\forest@def@processor{W}{1}{}{% nonconsuming wrap: first test 1<=#1<=9
+  \forest@process@Wfalse
+  \forest@process@check@mn{W}{0\the\forest@process@n}{1}{9}%
+  \expandafter\forest@processor@wW@\expandafter{\the\forest@process@n}%
+}
+\def\forest@processor@wW@#1{%
+  \forest@process@left@checkindex{\forest@process@left@N-#1}%
   \edef\forest@marshal{%
-    \unexpanded{\forest@processargs@getins#1\forest@END}{\the\forest@processargs@current}\unexpanded{#2\forest@END}%
+    \edef\noexpand\forest@temp@args{%
+      \noexpand\forest@process@left@valuesfromrange
+        {\number\numexpr\forest@process@left@N-#1}%
+        {\the\forest@process@left@N}%
+    }%
   }\forest@marshal
+  \ifforest@process@W
+    \advance\forest@process@left@N-#1\relax
+  \fi
+  \forest@process@right@bottompop\forest@temp@macrobody
+  \expandafter\forest@def@n\expandafter\forest@process@temp@macro\expandafter{\expandafter#1\expandafter}\expandafter{\forest@temp@macrobody}%
+  \expandafter\expandafter\expandafter\forest@process@left@setappend\expandafter\expandafter\expandafter{\expandafter\forest@process@temp@macro\forest@temp@args}%
+  \let\forestmathresulttype\forestmathtype@generic
 }
-\csdef{forest@processargs@ins@r}#1\forest@END#2#3\forest@END{% reverse keylist
-  % #1 = rest of ins, #2 = first arg, #3 = rest of args
-  \forest@processargs@maybeappend
-  \forest@processargs@current{}%
-  \pgfqkeys{/forest}{split={#2}{,}{reverse@keylist}}%
-  \forest@processargs@appendtrue
-  \forest@processargs@getins#1\forest@END#3\forest@END
+\def\forest@def@n#1#2{\csname forest@def@n@#2\endcsname#1}
+\csdef{forest@def@n@1}#1{\def#1##1}
+\csdef{forest@def@n@2}#1{\def#1##1##2}
+\csdef{forest@def@n@3}#1{\def#1##1##2##3}
+\csdef{forest@def@n@4}#1{\def#1##1##2##3##4}
+\csdef{forest@def@n@5}#1{\def#1##1##2##3##4##5}
+\csdef{forest@def@n@6}#1{\def#1##1##2##3##4##5##6}
+\csdef{forest@def@n@7}#1{\def#1##1##2##3##4##5##6##7}
+\csdef{forest@def@n@8}#1{\def#1##1##2##3##4##5##6##7##8}
+\csdef{forest@def@n@9}#1{\def#1##1##2##3##4##5##6##7##8##9}
+%    \end{macrocode}
+% Save last |n| arguments from the left side into a special place. |s| deletes them from the left side, |S| keeps them there as well.
+%    \begin{macrocode}
+\forest@def@processor{s}{1}{}{%
+  \forest@temptrue   % delete the originals
+  \expandafter\forest@processor@save\expandafter{%
+      \the\numexpr\forest@process@left@N-\forest@process@n}}
+\forest@def@processor{S}{1}{}{%
+  \forest@tempfalse  % keep the originals
+  \expandafter\forest@processor@save\expandafter{%
+      \the\numexpr\forest@process@left@N-\forest@process@n}}
+\def\forest@processor@save#1{%
+  \forest@process@left@checkindex{#1}%
+  \forest@temp@count#1
+  \forest@loop
+  \ifnum\forest@temp@count<\forest@process@left@N\relax
+    \forest@process@left@get@{\the\forest@temp@count}\forest@temp
+    \forest@process@saved@letappend\forest@temp
+    \advance\forest@temp@count+1
+  \forest@repeat
+  \let\forest@process@savedtype\forestmathresulttype
+  \ifforest@temp
+    \forest@process@left@N=#1
+  \fi
+}
+%    \end{macrocode}
+% Load |n| arguments from the end of the special place to the left side. If $n=0$, load the entire special place. |l| deletes the args from the special place, |L| keeps them there as well.
+%    \begin{macrocode}
+\forest@def@processor{l}{0}{}{%
+  \forest@temptrue
+  \forest@processor@U@@
+}
+\forest@def@processor{L}{0}{}{%
+  \forest@tempfalse
+  \forest@processor@U@@
+}
+
+\def\forest@processor@U@@{%
+  \ifnum\forest@process@n=0
+    \forest@process@n\forest@process@saved@N\relax
+  \fi
+  \expandafter\forest@processor@U@@@\expandafter{%
+      \the\numexpr\forest@process@saved@N-\forest@temp@count}%
+}
+\def\forest@processor@U@@@#1{%
+  \forest@temp@count#1
+  \forest@loop
+  \ifnum\forest@temp@count<\forest@process@saved@N\relax
+    \forest@process@saved@get@{\the\forest@temp@count}\forest@temp
+    \forest@process@left@letappend\forest@temp
+    \advance\forest@temp@count1
+  \forest@repeat
+  \let\forestmathresulttype\forest@process@savedtype
+  \ifforest@temp
+    \let\forest@process@savedtype\forest@result@type@any
+    \forest@process@saved@N#1
+  \fi
+}
+%    \end{macrocode}
+% Boolean operations:
+%    \begin{macrocode}
+\forest@def@processor{&}{2}{}{% and
+  \def\forest@tempa{1}%
+  \forest@repeat@n@times{\forest@process@n}{%
+    \forest@process@left@bottompop\forest@tempb
+    \edef\forest@tempa{\ifnum10<\forest@tempa\forest@tempb\space 1\else0\fi}%
+  }%
+  \forest@process@left@esetappend{\forest@tempa}%
+  \let\forestmathresulttype\forestmathtype@count
+}
+\forest@def@processor{|}{2}{}{% or
+  \def\forest@tempa{0}%
+  \forest@repeat@n@times{\forest@process@n}{%
+    \forest@process@left@bottompop\forest@tempb
+    \edef\forest@tempa{\ifnum0=\forest@tempa\forest@tempb\space 0\else1\fi}%
+  }%
+  \forest@process@left@esetappend{\forest@tempa}%
+  \let\forestmathresulttype\forestmathtype@count
+}
+\forest@def@processor{!}{}{}{% not
+  \forest@process@left@toppop\forest@temp
+  \forest@process@left@esetappend{\ifnum0=\forest@temp\space 1\else0\fi}%
+  \let\forestmathresulttype\forestmathtype@count
+}
+\forest@def@processor{?}{}{}{%
+  \forest@process@left@toppop\forest@temp
+  \forest@process@right@bottompop\forest@tempa
+  \forest@process@right@bottompop\forest@tempb
+  \ifnum\forest@temp=0
+    \forest@process@right@letprepend\forest@tempb
+  \else
+    \forest@process@right@letprepend\forest@tempa
+  \fi
+  \let\forestmathresulttype\forestmathtype@generic
+}
+%    \end{macrocode}
+% Comparisons. They automatically determine the type (number, dimen, other) of the arguments, by checking what the last processing instruction was.
+%    \begin{macrocode}
+\forest@def@processor{=}{}{}{%
+  \forest@process@left@toppop\forest@tempa
+  \forest@process@left@toppop\forest@tempb
+  \forest@process@left@esetappend{\ifx\forest@tempa\forest@tempb 1\else0\fi}%
+  \let\forestmathresulttype\forestmathtype@count
+}
+\forest@def@processor{<}{}{}{%
+  \forest@process@left@toppop\forest@tempb
+  \forest@process@left@toppop\forest@tempa
+  \ifx\forestmathresulttype\forestmathtype@generic
+    \forest@cmp@error\forest@tempa\forest@tempb
+  \else
+    \forestmathlt{\forest@tempa}{\forest@tempb}%
+    \forest@process@left@esetappend{\forestmathresult}%
+  \fi
+}
+\forest@def@processor{>}{}{}{%
+  \forest@process@left@toppop\forest@tempb
+  \forest@process@left@toppop\forest@tempa
+  \ifx\forestmathresulttype\forestmathtype@generic
+    \forest@cmp@error\forest@tempa\forest@tempb
+  \else
+    \forestmathgt{\forest@tempa}{\forest@tempb}%
+    \forest@process@left@esetappend{\forestmathresult}%
+  \fi
+}
+%    \end{macrocode}
+% Various.
+%    \begin{macrocode}
+\forest@def@processor{r}{}{}{% reverse keylist
+  \forest@process@right@bottompop\forest@temp
+  \expandafter\forest@processor@r@\expandafter{\forest@temp}%
+}
+\def\forest@processor@r@#1{%
+  \forest@temp@toks{}%
+  \def\forest@tempcomma{}%
+  \pgfqkeys{/forest}{split={#1}{,}{process@rk}}%
+  \forest@process@left@esetappend{\the\forest@temp@toks}%
+  \let\forestmathresulttype\forestmathtype@generic
 }
 \forestset{%
-  reverse@keylist/.code={%
-    \epretotoks\forest@processargs@current{#1,}%
-  },
+  process@rk/.code={%
+    \epretotoks\forest@temp@toks{#1\forest@tempcomma}%
+    \def\forest@tempcomma{,}%
+  }%
 }
 %    \end{macrocode}
 %
@@ -2565,14 +4035,13 @@
 }
 \def\forest@pgfmathhelper@register@dimen#1#2{%
   \forestrget{#2}\forest@temp
-  \pgfmathparse{+\forest@temp}%
+  \edef\pgfmathresult{\expandafter\Pgf@geT\forest@temp}%
 }
 \def\forest@pgfmathhelper@register@count#1#2{%
-  \forestrget{#2}\forest@temp
-  \pgfmathtruncatemacro\pgfmathresult{\forest@temp}%
+  \forestrget{#2}\pgfmathresult
 }
 \def\forest@declareregisterhandler#1#2{%#1=handler for specific type,#2=option name
-  \pgfkeyssetvalue{/forest/#2/node@or@reg}{register}%
+  \pgfkeyssetvalue{/forest/#2/node@or@reg}{}% empty = register (node id=node)
   \forest@convert@others@to@underscores{#2}\forest@pgfmathoptionname
   \edef\forest@marshal{%
     \noexpand#1{/forest/#2}{/forest}{#2}{\forest@pgfmathoptionname}%
@@ -2643,6 +4112,7 @@
   \pgfkeyssetvalue{#1/option@name}{#3}%  
   \pgfkeyssetvalue{#1+/option@name}{#3}%  
   \pgfkeyssetvalue{#2/+#3/option@name}{#3}%  
+  \pgfkeyslet{#1/@type}\forestmathtype@generic  % for .process & co
   \pgfmathdeclarefunction{#4}{1}{\forest@pgfmathhelper@register@toks{##1}{#3}}%
 }
 \def\forest@declareautowrappedtoksregister@handler#1#2#3#4{% #1=key,#2=path,#3=name,#4=pgfmathname,#5=infix
@@ -2667,24 +4137,41 @@
         \pgfkeysalso{##3}%
       \fi
     },
+    #2/if #3</.code n args={3}{%
+      \forestrget{#3}\forest@temp@option@value
+      \ifdim\forest@temp@option@value>##1\relax
+        \pgfkeysalso{##3}%
+      \else
+        \pgfkeysalso{##2}%
+      \fi
+    },
+    #2/if #3>/.code n args={3}{%
+      \forestrget{#3}\forest@temp@option@value
+      \ifdim\forest@temp@option@value<##1\relax
+        \pgfkeysalso{##3}%
+      \else
+        \pgfkeysalso{##2}%
+      \fi
+    },
   }%
+  \pgfkeyslet{#1/@type}\forestmathtype@dimen   % for .process & co
   \pgfmathdeclarefunction{#4}{1}{\forest@pgfmathhelper@register@dimen{##1}{#3}}%
 }
 \def\forest@declaredimenregister@handler#1#2#3#4{% #1=key,#2=path,#3=name,#4=pgfmathname
   \forest@declarereadonlydimenregister@handler{#1}{#2}{#3}{#4}%
   \pgfkeysalso{%
     #1/.code={%
-      \pgfmathsetlengthmacro\forest@temp{##1}%
+      \forestmathsetlengthmacro\forest@temp{##1}%
       \forestrlet{#3}\forest@temp
     },
     #1+/.code={%
-      \pgfmathsetlengthmacro\forest@temp{##1}%
+      \forestmathsetlengthmacro\forest@temp{##1}%
       \pgfutil@tempdima=\forestrve{#3}
       \advance\pgfutil@tempdima\forest@temp\relax
       \forestreset{#3}{\the\pgfutil@tempdima}%
     },
     #1-/.code={%
-      \pgfmathsetlengthmacro\forest@temp{##1}%
+      \forestmathsetlengthmacro\forest@temp{##1}%
       \pgfutil@tempdima=\forestrve{#3}
       \advance\pgfutil@tempdima-\forest@temp\relax
       \forestreset{#3}{\the\pgfutil@tempdima}%
@@ -2741,36 +4228,53 @@
         \pgfkeysalso{##3}%
       \fi
     },
+    #2/if #3</.code n args={3}{%
+      \forestrget{#3}\forest@temp@option@value
+      \ifnum\forest@temp@option@value>##1\relax
+        \pgfkeysalso{##3}%
+      \else
+        \pgfkeysalso{##2}%
+      \fi
+    },
+    #2/if #3>/.code n args={3}{%
+      \forestrget{#3}\forest@temp@option@value
+      \ifnum\forest@temp@option@value<##1\relax
+        \pgfkeysalso{##3}%
+      \else
+        \pgfkeysalso{##2}%
+      \fi
+    },
   }%
+  \pgfkeyslet{#1/@type}\forestmathtype@count   % for .process & co
   \pgfmathdeclarefunction{#4}{1}{\forest@pgfmathhelper@register@count{##1}{#3}}%
 }
 \def\forest@declarecountregister@handler#1#2#3#4{% #1=key,#2=path,#3=name,#4=pgfmathname
   \forest@declarereadonlycountregister@handler{#1}{#2}{#3}{#4}%
   \pgfkeysalso{
     #1/.code={%
-      \pgfmathtruncatemacro\forest@temp{##1}%
+      \forestmathtruncatemacro\forest@temp{##1}%
       \forestrlet{#3}\forest@temp
     },
     #1+/.code={%
-      \pgfmathtruncatemacro\forest@temp{##1}%
+      \forestmathtruncatemacro\forest@temp{##1}%
       \c@pgf@counta=\forestrve{#3}\relax
       \advance\c@pgf@counta\forest@temp\relax
       \forestreset{#3}{\the\c@pgf@counta}%
     },
     #1-/.code={%
-      \pgfmathtruncatemacro\forest@temp{##1}%
+      \forestmathtruncatemacro\forest@temp{##1}%
       \c@pgf@counta=\forestrve{#3}\relax
       \advance\c@pgf@counta-\forest@temp\relax
       \forestreset{#3}{\the\c@pgf@counta}%
     },
     #1*/.code={%
-      \pgfmathtruncatemacro\forest@temp{##1}%
+      \forestmathtruncatemacro\forest@temp{##1}%
       \c@pgf@counta=\forestrve{#3}\relax
       \multiply\c@pgf@counta\forest@temp\relax
       \forestreset{#3}{\the\c@pgf@counta}%
     },
     #1:/.code={%
-      \pgfmathtruncatemacro\forest@temp{##1}%
+      \forestmathtruncatemacro\forest@temp{##1}%
       \c@pgf@counta=\forestrve{#3}\relax
       \divide\c@pgf@counta\forest@temp\relax
       \forestreset{#3}{\the\c@pgf@counta}%
@@ -2814,16 +4318,13 @@
 \def\forest@declarebooleanregister@handler#1#2#3#4{% #1=key,#2=path,#3=name,#4=pgfmathname
   \pgfkeysalso{%
     #1/.code={%
-      \ifstrequal{##1}{1}{%
-        \forestrset{#3}{1}%
+      \ifcsdef{forest@bh@\detokenize{##1}}{%
+        \letcs\forest@temp{forest@bh@\detokenize{##1}}%
       }{%
-        \ifstrequal{##1}{0}{%
-          \forestrset{#3}{0}%
-        }{%
-          \pgfmathifthenelse{##1}{1}{0}%
-          \forestrlet{#3}\pgfmathresult
-        }%
+        \forestmathtruncatemacro\forest@temp{##1}%
+        \ifx\forest@temp0\else\def\forest@temp{1}\fi
       }%
+      \forestrlet{#3}\forest@temp
     },
     #1/.default=1,
     #2/not #3/.code={\forestrset{#3}{0}},
@@ -2837,6 +4338,7 @@
     },
   }%
   \pgfkeyssetvalue{#1/option@name}{#3}%
+  \pgfkeyslet{#1/@type}\forestmathtype@count   % for .process & co
   \pgfmathdeclarefunction{#4}{1}{\forest@pgfmathhelper@register@count{##1}{#3}}%
 }
 \forestset{
@@ -3010,12 +4512,17 @@
   preamble'={},
   declare autowrapped toks={content}{},
   % #1 = which option to split, #2 = separator (one char!), #3 = receiving options
-  %%% begin listing region: split_option
-  split option/.style n args=3{split/.process args={O}{#1}{#2}{#3}}
-  %%% end listing region: split_option
-  ,
-  split register/.style n args=3{% #1 = which register to split, #2 = separator (one char!), #3 = receiving options
-    split/.process args={R}{#1}{#2}{#3},
+  split option/.code n args=3{%
+    \forestRNOget{#1}\forest@temp
+    \edef\forest@marshal{%
+      \noexpand\pgfkeysalso{split={\expandonce{\forest@temp}}\unexpanded{{#2}{#3}}}%
+    }\forest@marshal
+  },
+  split register/.code n args=3{% #1 = which register to split, #2 = separator (one char!), #3 = receiving options
+    \forestrget{#1}\forest@temp
+    \edef\forest@marshal{%
+      \noexpand\pgfkeysalso{split={\expandonce{\forest@temp}}\unexpanded{{#2}{#3}}}%
+    }\forest@marshal
   },
   TeX={%
     \def\forest@split@sourcevalues{}%
@@ -3213,7 +4720,7 @@
   get node boundary/.code={%
     \forestoget{@boundary}\forest@node@boundary
     \def#1{}%
-    \forest@extendpath#1\forest@node@boundary{\pgfpoint{\forestove{x}}{\forestove{y}}}%
+    \forest@extendpath#1\forest@node@boundary{\pgfqpoint{\forestove{x}}{\forestove{y}}}%
   },
   % get min l tree boundary/.code={%
   %   \forest@get@tree@boundary{negative}{\the\numexpr\forestove{grow}-90\relax}#1},
@@ -3269,7 +4776,7 @@
 \def\forest@get@tree@boundary#1#2#3{%#1=pos/neg,#2=grow,#3=receiving cs
   \def#3{}%
   \forest@node@getedge{#1}{#2}\forest@temp@boundary
-  \forest@extendpath#3\forest@temp@boundary{\pgfpoint{\forestove{x}}{\forestove{y}}}%
+  \forest@extendpath#3\forest@temp@boundary{\pgfqpoint{\forestove{x}}{\forestove{y}}}%
 }
 \def\forest@setter@node{\forest@cn}%
 \def\forest@relatednode@option@compat@ignoreinvalidsteps#1{#1}
@@ -3299,33 +4806,31 @@
 \forestset{
   for tree'/.style 2 args={#1,for children={for tree'={#1}{#2}},#2},
   if/.code n args={3}{%
-    \pgfmathparse{#1}%
-    \ifnum\pgfmathresult=0
+    \forestmathtruncatemacro\forest@temp{#1}%
+    \ifnum\forest@temp=0
       \@escapeif{\pgfkeysalso{#3}}%
     \else
       \@escapeif{\pgfkeysalso{#2}}%
     \fi
   },
+  %LaTeX if/.code n args={3}{#1{\pgfkeysalso{#2}}{\pgfkeysalso{#3}}},
   if nodewalk valid/.code n args={3}{%
-    \edef\forest@marshal{%
-      \unexpanded{\forest@forthis{%
-        \forest@nodewalk{%
-          on invalid={fake}{#1},
-          TeX={\global\let\forest@global@temp\forest@cn}
-        }{}%
-      }%
-      \def\forest@cn}{\forest@cn}\unexpanded{%
-      \ifnum\forest@global@temp=0
-        \@escapeif{\pgfkeysalso{#3}}%
-      \else
-        \@escapeif{\pgfkeysalso{#2}}%
-      \fi}%
-    }\forest@marshal    
+    \forest@forthis{%
+      \forest@configured@nodewalk{independent}{inherited}{fake}{%
+        #1,
+        TeX={\global\let\forest@global@temp\forest@cn}
+      }{}%
+    }%
+    \ifnum\forest@global@temp=0
+      \@escapeif{\pgfkeysalso{#3}}%
+    \else
+      \@escapeif{\pgfkeysalso{#2}}%
+    \fi
   },  
   if nodewalk empty/.code n args={3}{%
     \forest@forthis{%
-      \forest@nodewalk{%
-        on invalid={fake}{#1},
+      \forest@configured@nodewalk{independent}{independent}{fake}{%
+        #1,
         TeX={\global\let\forest@global@temp\forest@nodewalk@n},
       }{}%
     }%
@@ -3335,39 +4840,46 @@
       \@escapeif{\pgfkeysalso{#3}}%
     \fi
   },  
+  if current nodewalk empty/.code 2 args={%
+    \ifnum\forest@nodewalk@n=0
+      \@escapeif{\pgfkeysalso{#1}}%
+    \else
+      \@escapeif{\pgfkeysalso{#2}}%
+    \fi
+  },  
   where/.style n args={3}{for tree={if={#1}{#2}{#3}}},
   where nodewalk valid/.style n args={3}{for tree={if nodewalk valid={#1}{#2}{#3}}},
   where nodewalk empty/.style n args={3}{for tree={if nodewalk empty={#1}{#2}{#3}}},
   repeat/.code 2 args={%
-    \pgfmathtruncatemacro\forest@temp{#1}%
+    \forestmathtruncatemacro\forest@temp{#1}%
     \expandafter\forest@repeatkey\expandafter{\forest@temp}{#2}%
   },
   until/.code 2 args={%
     \ifstrempty{#1}{%
       \forest@untilkey{\ifnum\forest@cn=0\else\relax\forestloopbreak\fi}{on invalid={fake}{#2}}%
     }{%
-      \forest@untilkey{\pgfmathifthenelse{#1}{"\noexpand\forestloopbreak"}{""}\pgfmathresult}{#2}%
+      \forest@untilkey{\forestmath@if{#1}{\forestloopbreak}{}}{#2}%
     }%
   },
   while/.code 2 args={%
     \ifstrempty{#1}{%
       \forest@untilkey{\ifnum\forest@cn=0\relax\forestloopbreak\fi}{on invalid={fake}{#2}}%
     }{%
-      \forest@untilkey{\pgfmathifthenelse{not(#1)}{"\noexpand\forestloopbreak"}{""}\pgfmathresult}{#2}%
+      \forest@untilkey{\forestmath@if{#1}{}{\forestloopbreak}}{#2}%
     }%
   },
   do until/.code 2 args={%
     \ifstrempty{#1}{%
       \forest@dountilkey{\ifnum\forest@cn=0\else\relax\forestloopbreak\fi}{on invalid={fake}{#2}}%
     }{%
-      \forest@dountilkey{\pgfmathifthenelse{#1}{"\noexpand\forestloopbreak"}{""}\pgfmathresult}{#2}%
+      \forest@dountilkey{\forestmath@if{#1}{\forestloopbreak}{}}{#2}%
     }%
   },
   do while/.code 2 args={%
     \ifstrempty{#1}{%
       \forest@dountilkey{\ifnum\forest@cn=0\relax\forestloopbreak\fi}{on invalid={fake}{#2}}%
     }{%
-      \forest@dountilkey{\pgfmathifthenelse{not(#1)}{"\noexpand\forestloopbreak"}{""}\pgfmathresult}{#2}%
+      \forest@dountilkey{\forestmath@if{#1}{}{\forestloopbreak}}{#2}%
     }%
   },
   until nodewalk valid/.code 2 args={%
@@ -3478,48 +4990,174 @@
   \forest@aggregate@pgfmathpostparse@macro
 }
 \let\forest@aggregate@pgfmathpostparse\relax
-\pgfkeys{
+\forestset{
   /handlers/.aggregate/.code n args=4{%
-    % #1 = start value
-    % #2 = pgfmath expression for every step
-    % #3 = pgfmath expression for after walk
+    % #1 = start value (forestmath)
+    % #2 = forestmath expression that calculates "aggregate result" at each step
+    % #3 = forestmath expression that calculates "aggregate result" at the end of the nodewalk
     % #4 = nodewalk
-    \edef\forest@marshal{%
-      \unexpanded{\forest@aggregate{#1}{#2}{#3}{#4}}{\pgfkeyscurrentpath}%
-    }\forest@marshal
+    \forest@aggregate@handler{\forest@aggregate@generic{#1}{#2}{#3}{#4}}%
   },
-  /handlers/.sum/.style 2 args={/handlers/.aggregate={0}{(##1)+(#1)}{##1}{#2}},
-  /handlers/.count/.style={/handlers/.aggregate={0}{1+(##1)}{##1}{#1}},
-  /handlers/.average/.style 2 args={/handlers/.aggregate={0}{(##1)+(#1)}{##1/\forestregister{aggregate n}}{#2}},
-  /handlers/.product/.style 2 args={/handlers/.aggregate={1}{(#1)*(##1)}{##1}{#2}},
-  /handlers/.min/.style 2 args={/handlers/.aggregate={}{min(#1,##1)}{##1}{#2}},
-  /handlers/.max/.style 2 args={/handlers/.aggregate={}{max(#1,##1)}{##1}{#2}},
-  /forest/declare count register={aggregate n},
+  /handlers/.sum/.code 2 args={% #1=forestmath, #2=nodewalk
+    \forest@aggregate@handler{\forest@aggregate@sum{#1}{#2}}%
+  },
+  /handlers/.count/.code={% #1=nodewalk
+    \forest@aggregate@handler{\forest@aggregate@count{#1}}%
+  },
+  /handlers/.average/.code 2 args={% #1=forestmath, #2=nodewalk
+    \forest@aggregate@handler{\forest@aggregate@average{#1}{#2}}%
+  },
+  /handlers/.product/.code 2 args={% #1=forestmath, #2=nodewalk
+    \forest@aggregate@handler{\forest@aggregate@product{#1}{#2}}%
+  },
+  /handlers/.min/.code 2 args={% #1=forestmath, #2=nodewalk
+    \forest@aggregate@handler{\forest@aggregate@min{#1}{#2}}%
+  },
+  /handlers/.max/.code 2 args={% #1=forestmath, #2=nodewalk
+    \forest@aggregate@handler{\forest@aggregate@max{#1}{#2}}%
+  },
+  declare count register={aggregate n},
+  declare toks register={aggregate value},
+  declare toks register={aggregate result},
+  aggregate result={},
 }
-
-\def\forest@aggregate#1#2#3#4#5{%
-    % #5 = current path
-    \def\forest@aggregate@result{#1}%
-    \forest@forthis{%
-      \forestrset{aggregate n}{0}%
-      \forest@nodewalk{#4}{%
-        TeX={%
-          \forestreset{aggregate n}{\number\numexpr\forestrv{aggregate n}+1}%
-          \def\forest@marshal##1{\pgfmathparse{#2}}%
-        \expandafter\forest@marshal\expandafter{\forest@aggregate@result}%
-          \let\forest@aggregate@result\pgfmathresult
-        }%
-      }{}%
+\def\forest@aggregate@handler#1{%
+  \edef\forest@marshal{%
+    \unexpanded{%
+      #1%
+    }{%
+      \noexpand\pgfkeysalso{\pgfkeyscurrentpath/.register=aggregate result}%
     }%
-    \def\forest@marshal##1{\pgfmathparse{#3}}%
-    \expandafter\forest@marshal\expandafter{\forest@aggregate@result}%
-    \let\forest@aggregate@result\pgfmathresult
-    \let\forest@temp@pgfmathpostparse\pgfmathpostparse
-    \let\pgfmathpostparse\forest@aggregate@pgfmathpostparse
-    \pgfmathqparse{\forest@aggregate@result pt}%
-    \let\pgfmathpostparse\forest@temp@pgfmathpostparse
-    \let\forest@aggregate@result\pgfmathresult
-    \pgfkeysalso{#5/.expand once=\forest@aggregate@result}%
+  }\forest@marshal
+}
+\def\forest@aggregate@pgfmathfunction@finish{%
+  \forestrget{aggregate result}\pgfmathresult
+}
+\pgfmathdeclarefunction{aggregate}{4}{%
+  \forest@aggregate@generic{#1}{#2}{#3}{#4}%
+  \forest@aggregate@pgfmathfunction@finish
+}
+\pgfmathdeclarefunction{aggregate_count}{1}{%
+  \forest@aggregate@sum{#1}%
+  \forest@aggregate@pgfmathfunction@finish
+}
+\pgfmathdeclarefunction{aggregate_sum}{2}{%
+  \forest@aggregate@sum{#1}{#2}%
+  \forest@aggregate@pgfmathfunction@finish
+}
+\pgfmathdeclarefunction{aggregate_product}{2}{%
+  \forest@aggregate@product{#1}{#2}%
+  \forest@aggregate@pgfmathfunction@finish
+}
+\pgfmathdeclarefunction{aggregate_average}{2}{%
+  \forest@aggregate@average{#1}{#2}%
+  \forest@aggregate@pgfmathfunction@finish
+}
+\pgfmathdeclarefunction{aggregate_min}{2}{%
+  \forest@aggregate@min{#1}{#2}%
+  \forest@aggregate@pgfmathfunction@finish
+}
+\pgfmathdeclarefunction{aggregate_max}{2}{%
+  \forest@aggregate@max{#1}{#2}%
+  \forest@aggregate@pgfmathfunction@finish
+}
+%    \end{macrocode}
+% Define particular aggregate functions.
+%    \begin{macrocode}
+\def\forest@aggregate#1#2#3#4#5#6{% #1...#5=real args,
+                                % #6=what to do with |aggregate result| register
+    % #1 = start value (forestmath)
+    % #2 = forestmath expression that calculates "aggregate current" at each step
+    % #3 = forestmath expression that calculates "aggregate result" at each step
+    % #4 = forestmath expression that calculates "aggregate result" at the end of the nodewalk
+    % #5 = nodewalk
+  \forest@saveandrestoreregister{aggregate result}{%
+    \forest@saveandrestoreregister{aggregate n}{%
+      \forest@aggregate@{#1}{#2}{#3}{#4}{#5}%
+      #6%
+    }%
+  }%
+}
+\def\forest@aggregate@generic#1#2#3#4{\forest@aggregate
+  {\forestmathparse{#1}}%
+  {}%
+  {\forestmathparse{#2}}%
+  {\forestmathparse{#3}}%
+  {#4}%
+}
+\def\forest@aggregate@sum#1#2{\forest@aggregate
+  {\forestmath@convert@fromto\forestmathtype@count\forestmathtype@generic{0}}%
+  {\forestmathparse{#1}}%
+  {\forestmathadd{\forestregister{aggregate value}}{\forestregister{aggregate result}}}%
+  {\forestrget{aggregate result}\forestmathresult}%
+  {#2}%
+}
+\def\forest@aggregate@count#1{\forest@aggregate
+  {\def\forestmathresult{1}}%
+  {\def\forestmathresult{1}}%
+  {\edef\forestmathresult{\the\numexpr\forestregister{aggregate result}+1}}%
+  {\forestrget{aggregate result}\forestmathresult}%
+  {#1}%
+}
+\def\forest@aggregate@average#1#2{\forest@aggregate
+  {\forestmath@convert@fromto\forestmathtype@count\forestmathtype@generic{0}}%
+  {\forestmathparse{#1}}%
+  {\forestmathadd{\forestregister{aggregate value}}{\forestregister{aggregate result}}}%
+  {\forestmathdivide@P{\forestregister{aggregate result}}{\forestregister{aggregate n}}}%
+  {#2}%
+}
+\def\forest@aggregate@product#1#2{\forest@aggregate
+  {\forestmath@convert@fromto\forestmathtype@count\forestmathtype@generic{1}}%
+  {\forestmathparse{#1}}%
+  {\forestmathmultiply{\forestregister{aggregate value}}{\forestregister{aggregate result}}}%
+  {\forestrget{aggregate result}\forestmathresult}%
+  {#2}%
+}
+\def\forest@aggregate@min#1#2{\forest@aggregate
+  {\def\forestmathresult{}}%
+  {\forestmathparse{#1}}%
+  {\forestmathmin{\forestregister{aggregate value}}{\forestregister{aggregate result}}}%
+  {\forestrget{aggregate result}\forestmathresult}%
+  {#2}%
+}
+\def\forest@aggregate@max#1#2{\forest@aggregate
+  {\def\forestmathresult{}}%
+  {\forestmathparse{#1}}%
+  {\forestmathmax{\forestregister{aggregate value}}{\forestregister{aggregate result}}}%
+  {\forestrget{aggregate result}\forestmathresult}%
+  {#2}%
+}
+%    \end{macrocode}
+% Actual computation.
+%    \begin{macrocode}
+\def\forest@aggregate@#1#2#3#4#5{%
+    % #1 = start value (forestmath)
+    % #2 = forestmath expression that calculates "aggregate current" at each step
+    % #3 = forestmath expression that calculates "aggregate result" at each step
+    % #4 = forestmath expression that calculates "aggregate result" at the end of the nodewalk
+    % #5 = nodewalk
+  #1%
+  \forestrlet{aggregate result}\forestmathresult
+  \forestrset{aggregate value}{}%
+  \forestrset{aggregate n}{0}%
+  \forest@forthis{%
+    \forest@nodewalk{#5}{%
+      TeX={%
+        \forestreset{aggregate n}{\number\numexpr\forestrv{aggregate n}+1}%
+        #2%
+        \forestrlet{aggregate value}\forestmathresult
+        #3%
+        \forestrlet{aggregate result}\forestmathresult
+      }%
+    }{}%
+  }%
+  #4%
+  \let\forest@temp@pgfmathpostparse\pgfmathpostparse
+  \let\pgfmathpostparse\forest@aggregate@pgfmathpostparse
+  \forestmath@convert@to\forestmathtype@dimen{\forestmathresult}
+  \pgfmathqparse{\forestmathresult}%
+  \let\pgfmathpostparse\forest@temp@pgfmathpostparse
+  \forestrlet{aggregate result}\pgfmathresult
 }
 %    \end{macrocode}
 % \subsubsection{\texttt{pgfmath} extensions}
@@ -3539,28 +5177,32 @@
   \forest@forthis{%
     \forest@nameandgo{#1}%
     \forest@compute@minmax@ls{#2}%
-    \pgfmathsetmacro\pgfmathresult{\forestove{min@s}}%
+    \edef\forest@temp{\forestove{min@s}}%
+    \edef\pgfmathresult{\expandafter\Pgf@geT\forest@temp}%
   }%
 }
 \pgfmathdeclarefunction{min_l}{2}{% #1 = node, #2 = context node (for growth rotation)
   \forest@forthis{%
     \forest@nameandgo{#1}%
     \forest@compute@minmax@ls{#2}%
-    \pgfmathsetmacro\pgfmathresult{\forestove{min@l}}%
+    \edef\forest@temp{\forestove{min@l}}%
+    \edef\pgfmathresult{\expandafter\Pgf@geT\forest@temp}%
   }%
 }
 \pgfmathdeclarefunction{max_s}{2}{% #1 = node, #2 = context node (for growth rotation)
   \forest@forthis{%
     \forest@nameandgo{#1}%
     \forest@compute@minmax@ls{#2}%
-    \pgfmathsetmacro\pgfmathresult{\forestove{max@s}}%
+    \edef\forest@temp{\forestove{max@s}}%
+    \edef\pgfmathresult{\expandafter\Pgf@geT\forest@temp}%
   }%
 }
 \pgfmathdeclarefunction{max_l}{2}{% #1 = node, #2 = context node (for growth rotation)
   \forest@forthis{%
     \forest@nameandgo{#1}%
     \forest@compute@minmax@ls{#2}%
-    \pgfmathsetmacro\pgfmathresult{\forestove{max@l}}%
+    \edef\forest@temp{\forestove{max@l}}%
+    \edef\pgfmathresult{\expandafter\Pgf@geT\forest@temp}%
   }%
 }
 \def\forest@compute@minmax@ls#1{% #1 = nodewalk; in the context of which node?
@@ -3568,7 +5210,7 @@
     \pgftransformreset
     \forest@forthis{%
       \forest@nameandgo{#1}%
-      \pgftransformrotate{-\forestove{grow}}%
+      \forest@pgfqtransformrotate{-\forestove{grow}}%
     }%
     \forestoget{min x}\forest@temp@minx
     \forestoget{min y}\forest@temp@miny
@@ -3617,10 +5259,10 @@
   \forest@forthis{%
     \forest@nameandgo{#1}%
     \ifnum\forest@cn=0
-      \def\pgfmathresult{0pt}%
+      \def\pgfmathresult{0}%
     \else
       \forestoget{#2}\forest@temp
-      \pgfmathparse{+\forest@temp}%
+      \edef\pgfmathresult{\expandafter\Pgf@geT\forest@temp}%
     \fi
   }%
 }
@@ -3630,8 +5272,7 @@
     \ifnum\forest@cn=0
       \def\pgfmathresult{0}%
     \else
-      \forestoget{#2}\forest@temp
-      \pgfmathtruncatemacro\pgfmathresult{\forest@temp}%
+      \forestoget{#2}\pgfmathresult
     \fi
   }%
 }
@@ -3679,21 +5320,30 @@
 \def\forest@nodewalk@config@history@inherited@before{}
 \let\forest@nodewalk@config@history@inherited@after\forest@nodewalk@config@history@independent@after
 \def\forest@nodewalk#1#2{% #1 = nodewalk, #2 = every step keylist
-  \def\forest@nodewalk@config@everystep@method{independent}%
-  \def\forest@nodewalk@config@history@method{independent}%
-  \def\forest@nodewalk@config@oninvalid{inherited}%
-  \forest@saveandrestoremacro\forest@nodewalk@oninvalid{%
-    \forest@Nodewalk{#1}{#2}%
-  }%
+  \forest@configured@nodewalk{independent}{independent}{inherited}{#1}{#2}%
 }
+\def\forest@configured@nodewalk#1#2#3#4#5{%
+  % #1 = every step method, #2 = history method, #3 = on invalid
+  % #4 = nodewalk, #5 = every step keylist
+  \def\forest@nodewalk@config@everystep@method{#1}%
+  \def\forest@nodewalk@config@history@method{#2}%
+  \def\forest@nodewalk@config@oninvalid{#3}%
+  \forest@Nodewalk{#4}{#5}%
+}
+\def\forest@nodewalk@oninvalid@inherited@text{inherited}
 \def\forest@Nodewalk#1#2{% #1 = nodewalk, #2 = every step keylist
+  \ifx\forest@nodewalk@config@oninvalid\forest@nodewalk@oninvalid@inherited@text
+    \edef\forest@nodewalk@config@oninvalid{\forest@nodewalk@oninvalid}%
+  \fi
   \edef\forest@marshal{%
     \noexpand\pgfqkeys{/forest/nodewalk}{\unexpanded{#1}}%
     \csname forest@nodewalk@config@everystep@\forest@nodewalk@config@everystep@method @after\endcsname
     \csname forest@nodewalk@config@history@\forest@nodewalk@config@history@method @after\endcsname
+    \edef\noexpand\forest@nodewalk@oninvalid{\forest@nodewalk@oninvalid}%
   }%
   \csname forest@nodewalk@config@everystep@\forest@nodewalk@config@everystep@method @before\endcsname{#2}%
   \csname forest@nodewalk@config@history@\forest@nodewalk@config@history@method @before\endcsname
+  \edef\forest@nodewalk@oninvalid{\forest@nodewalk@config@oninvalid}%
   \forest@nodewalk@fakefalse
   \forest@marshal
 }
@@ -3713,31 +5363,38 @@
 \def\forest@nodewalk@oninvalid{error}
 \def\forest@nodewalk@makestep{%
   \ifnum\forest@cn=0
-    \csname forest@nodewalk@makestep@oninvalid@\forest@nodewalk@config@oninvalid\endcsname
+    \csname forest@nodewalk@makestep@oninvalid@\forest@nodewalk@oninvalid\endcsname
   \else
     \forest@nodewalk@makestep@
   \fi
 }
-\def\forest@nodewalk@makestep@oninvalid@step{\forest@nodewalk@makestep@}
+\csdef{forest@nodewalk@makestep@oninvalid@error if real}{\ifforest@nodewalk@fake\expandafter\forest@nodewalk@makestep@\else\expandafter\forest@nodewalk@makestep@oninvalid@error\fi}
+\csdef{forest@nodewalk@makestep@oninvalid@last valid}{%
+  \forest@nodewalk@tolastvalid
+  \ifforestdebugnodewalks\forest@nodewalk@makestep@invalidtolastvalid@debug\fi}%
 \def\forest@nodewalk@makestep@oninvalid@error{\PackageError{forest}{nodewalk stepped to the invalid node\MessageBreak nodewalk stack: "\forest@nodewalk@currentstepname"}{}}%
 \let\forest@nodewalk@makestep@oninvalid@fake\relax
 \def\forest@nodewalk@makestep@oninvalid@compatfake{%
-  \forest@deprecated{last step in stack "\forest@nodewalk@currentstepname", which stepped on an invalid node; enabled by "compat=ignoreinvalidsteps".  Use "on invalid={fake}{...}" or "for Nodewalk={on invalid=fake}{...}{...}" instead.}%
+  \forest@deprecated{last step in stack "\forest@nodewalk@currentstepname", which stepped on an invalid node; enabled by "compat=1.0-forstep".  Use "on invalid={fake}{...}" or "for Nodewalk={on invalid=fake}{...}{...}" instead.}%
 }%
-\def\forest@nodewalk@makestep@oninvalid@inherited{\csname forest@nodewalk@makestep@oninvalid@\forest@nodewalk@oninvalid\endcsname}
 \def\forest@nodewalk@makestep@{%
+  \ifforestdebugnodewalks\forest@nodewalk@makestep@debug\fi
   \ifforest@nodewalk@fake
   \else
     \edef\forest@nodewalk@n{\number\numexpr\forest@nodewalk@n+1}%
     \epreto\forest@nodewalk@historyback{\forest@cn,}%
     \def\forest@nodewalk@historyforward{0,}%
-    \ifforestdebugnodewalks\forest@nodewalk@makestep@debug\fi
     \forest@process@keylist@register{every step}%
   \fi
 }
 \def\forest@nodewalk@makestep@debug{%
   \edef\forest@marshal{%
     \noexpand\typeout{\ifforest@nodewalk@fake fake \fi "\forest@nodewalk@currentstepname" step to node id=\forest@cn, content=\forestoption{content}}%
+  }\forest@marshal
+}%
+\def\forest@nodewalk@makestep@invalidtolastvalid@debug{%
+  \edef\forest@marshal{%
+    \noexpand\typeout{\ifforest@nodewalk@fake fake \fi "\forest@nodewalk@currentstepname" step to invalid node, (fake) return to last valid id=\forest@cn, content=\forestoption{content}}%
   }\forest@marshal
 }%
 \def\forest@handlers@savecurrentpath{%
@@ -3844,6 +5501,8 @@
             {\noexpand\forest@forstepwrapper{#1\ifnum\forest@nodewalkstephandler@nargs>0=\fi\forest@util@nargs{####}{\number\numexpr\forest@nodewalkstephandler@nargs}{0}}{####\number\numexpr\forest@nodewalkstephandler@nargs+1}},
         }%
       \fi\fi
+      % Uncomment this to collect a list of for-based spatial propagators
+      %\appto\bigbadforlist{[#1]}%
     \fi
   },
 }
@@ -3856,7 +5515,7 @@
 % |\forest@forstepwrapper| is defined so that it can be changed by |compat| to create unfailable spatial propagators from v1.0.
 %    \begin{macrocode}
 \def\forest@forstepwrapper#1#2{\forest@forthis{\forest@nodewalk{#1}{#2}}}
-\def\forest@util@nargs#1#2#3{% #1 = prefix (#, ##, ...), #2 = n args, #3=start; returns {#start}{#start+1}...{#start+n}
+\def\forest@util@nargs#1#2#3{% #1 = prefix (#, ##, ...), #2 = n args, #3=start; returns {#start+1}...{#start+n}
   \ifnum#2>0 {#1\number\numexpr#3+1}\fi
   \ifnum#2>1 {#1\number\numexpr#3+2}\fi
   \ifnum#2>2 {#1\number\numexpr#3+3}\fi
@@ -3868,7 +5527,11 @@
   \ifnum#2>8 {#1\number\numexpr#3+9}\fi
 }
 \def\forest@nodewalk@start@oninvalid@fake#1{}
-\def\forest@nodewalk@start@oninvalid@real#1{}
+\def\forest@nodewalk@start@oninvalid@compatfake#1{%
+  \forest@deprecated{last step in stack "\forest@nodewalk@currentstepname", which started from an invalid node; enabled by "compat=1.0-forstep".  Use "on invalid={fake}{...}" or "for Nodewalk={on invalid=fake}{...}{...}" instead.}%
+}%
+\let\forest@nodewalk@start@oninvalid@errorifreal\forest@nodewalk@start@oninvalid@fake % the step will be to an invalid node anyway
+\let\forest@nodewalk@start@oninvalid@lastvalid\forest@nodewalk@start@oninvalid@fake
 \def\forest@nodewalk@start@oninvalid@error#1{\PackageError{forest}{nodewalk step "#1" cannot start at the invalid node}{}}
 %    \end{macrocode}
 % Define long-form single-step walks.
@@ -3917,21 +5580,21 @@
   },
   define long step={next leaf}{style,strip fake steps=false}{group={do until={n_children()==0}{next node}}},
   define long step={previous leaf}{style,strip fake steps=false}{group={do until={n_children()==0}{previous node}}},
-  define long step={next on tier}{autostep}{%
+  define long step={next on tier}{autostep,n args=1}{%
     \def\forest@temp{#1}%
     \ifx\forest@temp\pgfkeysnovalue@text
       \forestoget{tier}\forest@nodewalk@giventier
     \else
       \def\forest@nodewalk@giventier{#1}%
     \fi
-    \edef\forest@cn{\forest@node@linearnextnotdescendantid}%
+    \edef\forest@cn{\forest@node@linearnextid}%
     \safeloop
-      \forestoget{tier}\forest@nodewalk@tier
-    \unless\ifx\forest@nodewalk@tier\forest@nodewalk@giventier
+      \forest@nodewalk@gettier
+    \ifforest@temp
       \edef\forest@cn{\forest@node@linearnextid}%
     \saferepeat    
   },
-  define long step={previous on tier}{autostep}{%
+  define long step={previous on tier}{autostep,n args=1}{%
     \def\forest@temp{#1}%
     \ifx\forest@temp\pgfkeysnovalue@text
       \forestoget{tier}\forest@nodewalk@giventier
@@ -3940,9 +5603,23 @@
     \fi
     \safeloop
       \edef\forest@cn{\forest@node@linearpreviousid}%
-      \forestoget{tier}\forest@nodewalk@tier    
-    \unless\ifx\forest@nodewalk@tier\forest@nodewalk@giventier
-    \saferepeat    
+      \forest@nodewalk@gettier
+    \ifforest@temp
+    \saferepeat
+  },
+  TeX={%
+    \def\forest@nodewalk@gettier{%
+      \ifnum\forest@cn=0
+        \forest@tempfalse
+      \else
+        \forestoget{tier}\forest@temp
+        \ifx\forest@temp\forest@nodewalk@giventier
+          \forest@tempfalse
+        \else
+          \forest@temptrue
+        \fi
+      \fi
+    }%
   },
   %
   define long step={root}{autostep,must start at valid node=false}{%
@@ -3953,7 +5630,7 @@
   define long step={origin}{autostep,must start at valid node=false}{\edef\forest@cn{\forest@nodewalk@origin}},
   %
   define long step={n}{autostep,n args=1}{%
-    \pgfmathtruncatemacro\forest@temp@n{#1}%
+    \forestmathtruncatemacro\forest@temp@n{#1}%
     \edef\forest@cn{\forest@node@nthchildid{\forest@temp@n}}%
   },
   define long step={n}{autostep,make for=false,n args=1}{%
@@ -3963,19 +5640,19 @@
     \ifx\forest@nodewalk@temp\pgfkeysnovalue@text
       \edef\forest@cn{\forestove{@next}}%
     \else
-      \pgfmathtruncatemacro\forest@temp@n{#1}%
+      \forestmathtruncatemacro\forest@temp@n{#1}%
       \edef\forest@cn{\forest@node@nthchildid{\forest@temp@n}}%
     \fi
   },
   define long step={n'}{autostep,n args=1}{%
-    \pgfmathtruncatemacro\forest@temp@n{#1}%
+    \forestmathtruncatemacro\forest@temp@n{#1}%
     \edef\forest@cn{\forest@node@nbarthchildid{\forest@temp@n}}%
   },
   define long step={to tier}{autostep,n args=1}{%
     \def\forest@nodewalk@giventier{#1}%
     \safeloop
-      \forestoget{tier}\forest@nodewalk@tier
-    \unless\ifx\forest@nodewalk@tier\forest@nodewalk@giventier
+      \forest@nodewalk@gettier
+    \ifforest@temp
       \forestoget{@parent}\forest@cn
     \saferepeat
   },
@@ -3992,45 +5669,35 @@
     \def\forest@nodewalk@config@everystep@method{independent}%
     \def\forest@nodewalk@config@history@method{shared}%
     \def\forest@nodewalk@config@oninvalid{inherited}%
-    \forest@saveandrestoremacro\forest@nodewalk@oninvalid{%
-      \pgfqkeys{/forest/nodewalk@config}{#1}%
-      \forest@Nodewalk{#2}{#3}%
-    }%
+    \pgfqkeys{/forest/nodewalk@config}{#1}%
+    \forest@Nodewalk{#2}{#3}%
   },
   define long step={nodewalk}{n args=2,@bare}{% #1 = nodewalk, #2 = every step
     \forest@nodewalk{#1}{#2}%
   },
-  define long step={nodewalk'}{n args=1,@bare}{% #1 = nodewalk, #2 = every step
-    \def\forest@nodewalk@config@everystep@method{inherited}%
-    \def\forest@nodewalk@config@history@method{independent}%
-    \def\forest@nodewalk@config@oninvalid{inherited}%
-    \forest@saveandrestoremacro\forest@nodewalk@oninvalid{%
-      \forest@Nodewalk{#1}{}%
-    }%
+  define long step={nodewalk'}{n args=1,@bare}{% #1 = nodewalk
+    \forest@configured@nodewalk{inherited}{independent}{inherited}{#1}{}%
   },
-  % these must be defined explicitely, as prefix "for" normally introduces the every-step keylist
-  for nodewalk/.code 2 args={%
+  % these "for ..." keys must be defined explicitely
+  % (and copied into node keyspace manually),
+  % as prefix "for" normally introduces the every-step keylist
+  define long step={for nodewalk}{n args=2,@bare}{% #1 = nodewalk, #2 = every step
     \forest@forthis{\forest@nodewalk{#1}{#2}}},
-  for nodewalk'/.code={%
-    \def\forest@nodewalk@config@everystep@method{inherited}%
-    \def\forest@nodewalk@config@history@method{independent}%
-    \def\forest@nodewalk@config@oninvalid{inherited}%
-    \forest@saveandrestoremacro\forest@nodewalk@oninvalid{%
-      \forest@forthis{\forest@Nodewalk{#1}{}}%
+  define long step={for nodewalk'}{n args=1,@bare}{% #1 = nodewalk
+    \forest@forthis{%
+      \forest@configured@nodewalk{inherited}{independent}{inherited}{#1}{}%
     }%
   },
-  for Nodewalk/.code n args=3{% #1 = config, #2 = nodewalk, #3 = every-step
-    \def\forest@nodewalk@config@everystep@method{inherited}%
-    \def\forest@nodewalk@config@history@method{independent}%
+  define long step={for Nodewalk}{n args=3,@bare}{% #1 = config, #2 = nodewalk, #3 = every-step
+    \def\forest@nodewalk@config@everystep@method{independent}%
+    \def\forest@nodewalk@config@history@method{shared}%
     \def\forest@nodewalk@config@oninvalid{inherited}%
-    \forest@saveandrestoremacro\forest@nodewalk@oninvalid{%
-      \pgfqkeys{/forest/nodewalk@config}{#1}%
-      \forest@forthis{\forest@Nodewalk{#2}{#3}}%
-    }%
+    \pgfqkeys{/forest/nodewalk@config}{#1}%
+    \forest@forthis{\forest@Nodewalk{#2}{#3}}%
   },
-  copy command key={/forest/for nodewalk}{/forest/nodewalk/for nodewalk},
-  copy command key={/forest/for nodewalk'}{/forest/nodewalk/for nodewalk'},
-  copy command key={/forest/for Nodewalk}{/forest/nodewalk/for Nodewalk},
+  copy command key={/forest/nodewalk/Nodewalk}{/forest/Nodewalk},
+  copy command key={/forest/nodewalk/for nodewalk}{/forest/for nodewalk},
+  copy command key={/forest/nodewalk/for Nodewalk}{/forest/for Nodewalk},
   declare keylist register=every step,
   every step'={},
   %%% begin nodewalk config
@@ -4050,23 +5717,25 @@
   on@invalid/.is choice,
   on@invalid/error/.code={},
   on@invalid/fake/.code={},
-  on@invalid/step/.code={},
+  on@invalid/error if real/.code={},
+  on@invalid/last valid/.code={},
   on@invalid/inherited/.code={},
   on invalid/.store in=\forest@nodewalk@config@oninvalid,
   on invalid/.prefix style={on@invalid=#1},  
   %%% end nodewalk config
 }
+\newtoks\forest@nodewalk@branch@toks
 \forestset{
   declare toks register=branch@temp@toks,
   branch@temp@toks={},
   declare keylist register=branched@nodewalk,
   branched@nodewalk={},
-  define long step={branch}{n args=1,@bare,style}{@branch={#1}{branch@build@realstep,branch@build@fakestep}},
-  define long step={branch'}{n args=1,@bare,style}{@branch={#1}{branch@build@realstep}},
+  define long step={branch}{n args=1,@bare,make for,style}{@branch={#1}{branch@build@realstep,branch@build@fakestep}},
+  define long step={branch'}{n args=1,@bare,make for,style}{@branch={#1}{branch@build@realstep}},
   @branch/.style 2 args={%
     save and restore register={branched@nodewalk}{
       branch@temp@toks={},
-      split/.process args={r}{#1}{,}{#2},
+      split/.process={r}{#1}{,}{#2},
       branch@temp@style/.style/.register=branch@temp@toks,
       branch@temp@style,
       branch@temp@style/.style/.register=branched@nodewalk,
@@ -4082,7 +5751,7 @@
     branch@temp@toks/.expanded={for nodewalk={\unexpanded{#1}}{
         \forestregister{branch@temp@toks}}},
   },
-  define long step={group}{autostep}{\forest@go{#1}},
+  define long step={group}{autostep,n args=1}{\forest@go{#1}},
   nodewalk/fake/.code={%
     \forest@saveandrestoreifcs{forest@nodewalk@fake}{%
       \forest@nodewalk@faketrue
@@ -4097,7 +5766,7 @@
   },
   declare keylist register=filtered@nodewalk,
   filtered@nodewalk={},
-  define long step={filter}{n args=2,@bare,style}{% #1 = nodewalk, #2 = condition
+  define long step={filter}{n args=2,@bare,make for,style}{% #1 = nodewalk, #2 = condition
     save and restore register={filtered@nodewalk}{
       filtered@nodewalk'={},
       Nodewalk=%
@@ -4106,12 +5775,13 @@
         {if={#2}{filtered@nodewalk+/.expanded={id=\forestoption{id}}}{}},
       filtered@nodewalk@style/.style/.register=filtered@nodewalk,
       filtered@nodewalk@style
-    }
+    },
   },
   on@invalid/.is choice,
   on@invalid/error/.code={},
   on@invalid/fake/.code={},
-  on@invalid/step/.code={},
+  on@invalid/error if real/.code={},
+  on@invalid/last valid/.code={},
   on invalid/.code 2 args={%
     \pgfkeysalso{/forest/on@invalid={#1}}%
     \forest@saveandrestoremacro\forest@nodewalk@oninvalid{%
@@ -4121,38 +5791,54 @@
   },
   define long step={strip fake steps}{n args=1,@bare}{%
     \forest@nodewalk@stripfakesteps{\pgfkeysalso{#1}}},
+  define long step={unique}{n args=1}{%
+    \begingroup
+    \def\forest@nodewalk@unique@temp{}%
+    \forest@nodewalk{#1}{%
+      TeX={%
+        \forestoget{unique@visited}\forest@temp
+        \ifx\forest@temp\relax
+          \forestoset{unique@visited}{1}%
+          \eappto\forest@nodewalk@unique@temp{,id=\forest@cn}%
+        \fi
+      }%
+    }%
+    \global\let\forest@global@temp\forest@nodewalk@unique@temp
+    \endgroup
+    \pgfkeysalsofrom{\forest@global@temp}%
+  },
   define long step={walk back}{n args=1,@bare}{%
-    \pgfmathtruncatemacro\forest@temp@n{#1}%
+    \forestmathtruncatemacro\forest@temp@n{#1}%
     \forest@nodewalk@walklist{\forest@nodewalk@historyforward}{\forest@nodewalk@historyback}{\ifnum\forest@cn=0 0\else1\fi}{\forest@temp@n+\ifnum\forest@cn=0 0\else1\fi}{\let\forest@cn\forest@nodewalk@cn\forest@nodewalk@makestep}%
     \forest@nodewalk@back@updatehistory
   },
   nodewalk/walk back/.default=1,
   define long step={jump back}{n args=1,@bare}{%
-    \pgfmathtruncatemacro\forest@temp@n{(#1)+\ifnum\forest@cn=0 0\else1\fi}%
+    \forestmathtruncatemacro\forest@temp@n{(#1)+\ifnum\forest@cn=0 0\else1\fi}%
     \forest@nodewalk@walklist{\forest@nodewalk@historyforward}{\forest@nodewalk@historyback}{\forest@temp@n-1}{\forest@temp@n}{\let\forest@cn\forest@nodewalk@cn\forest@nodewalk@makestep}%
     \forest@nodewalk@back@updatehistory
   },
   nodewalk/jump back/.default=1,
   define long step={back}{n args=1,@bare}{%
-    \pgfmathtruncatemacro\forest@temp@n{#1}%
+    \forestmathtruncatemacro\forest@temp@n{#1}%
     \forest@nodewalk@walklist{\forest@nodewalk@historyforward}{\forest@nodewalk@historyback}{\ifnum\forest@cn=0 0\else1\fi}{\forest@temp@n+\ifnum\forest@cn=0 0\else1\fi}{\let\forest@cn\forest@nodewalk@cn\forest@saveandrestoreifcs{forest@nodewalk@fake}{\forest@nodewalk@faketrue\forest@nodewalk@makestep}}%
     \forest@nodewalk@back@updatehistory
   },
   nodewalk/back/.default=1,
   define long step={walk forward}{n args=1,@bare}{%
-    \pgfmathtruncatemacro\forest@temp@n{#1}%
+    \forestmathtruncatemacro\forest@temp@n{#1}%
     \forest@nodewalk@walklist{\forest@nodewalk@historyback}{\forest@nodewalk@historyforward}{0}{\forest@temp@n}{\let\forest@cn\forest@nodewalk@cn\forest@nodewalk@makestep}%
     \forest@nodewalk@forward@updatehistory
   },
   nodewalk/walk forward/.default=1,
   define long step={jump forward}{n args=1,@bare}{%
-    \pgfmathtruncatemacro\forest@temp@n{#1}%
+    \forestmathtruncatemacro\forest@temp@n{#1}%
     \forest@nodewalk@walklist{\forest@nodewalk@historyback}{\forest@nodewalk@historyforward}{\forest@temp@n-1}{\forest@temp@n}{\let\forest@cn\forest@nodewalk@cn\forest@nodewalk@makestep}%
     \forest@nodewalk@forward@updatehistory
   },
   nodewalk/jump forward/.default=1,
   define long step={forward}{n args=1,@bare}{%
-    \pgfmathtruncatemacro\forest@temp@n{#1}%
+    \forestmathtruncatemacro\forest@temp@n{#1}%
     \forest@nodewalk@walklist{\forest@nodewalk@historyback}{\forest@nodewalk@historyforward}{0}{\forest@temp@n}{\let\forest@cn\forest@nodewalk@cn\forest@saveandrestoreifcs{forest@nodewalk@fake}{\forest@nodewalk@faketrue\forest@nodewalk@makestep}}%
     \forest@nodewalk@forward@updatehistory
   },
@@ -4205,7 +5891,9 @@
       \noexpand\forest@nodewalk@sortlist{\noexpand\forest@nodewalk@historyback}{\noexpand\forest@nodewalk@n-\forest@nodewalk@n}\noexpand\forest@sort@descending
     }\forest@marshal
   },
-  sort by/.store in=\forest@nodesort@by,
+  declare keylist register=sort by,
+  copy command key={/forest/sort by'}{/forest/sort by},
+  sort by={},
   define long step={save}{n args=2,@bare,make for}{% #1 = name, #2 = nodewalk
     \forest@forthis{%
       \forest@nodewalk{#2,TeX={%
@@ -4222,6 +5910,21 @@
       \noexpand\forest@nodewalk@walklist{}{\noexpand\forest@nodewalk@historyback}{0}{\noexpand\forest@nodewalk@n-\forest@nodewalk@n}\relax
     }\forest@marshal
     \csedef{forest@nodewalk@saved@#1}{\forest@nodewalk@walklist@walked}%
+  },
+  define long step={save append}{style,n args=2,@bare,make for}{% #1 = nodewalk name, #2 = nodewalk
+    save@append@prepend={#1}{#2}{save}{\cseappto}},
+  define long step={save prepend}{style,n args=2,@bare,make for}{% #1 = nodewalk name, #2 = nodewalk
+    save@append@prepend={#1}{#2}{save}{\csepreto}},
+  define long step={walk and save append}{style,n args=2,@bare,make for}{% #1 = nodewalk name, #2 = nodewalk
+    save@append@prepend={#1}{#2}{walk and save}{\cseappto}},
+  define long step={walk and save prepend}{style,n args=2,@bare,make for}{% #1 = nodewalk name, #2 = nodewalk
+    save@append@prepend={#1}{#2}{walk and save}{\csepreto}},
+  nodewalk/save@append@prepend/.code n args=4{%
+    % #1 = nodewalk name, #2 = nodewalk
+    % #3 = "(walk and) save" #4 = \cseappto/\csepreto
+    \pgfkeysalso{#3={@temp}{#2}}%
+    \letcs\forest@temp{forest@nodewalk@saved@@temp}%
+    #4{forest@nodewalk@saved@#1}{\expandonce{\forest@temp}}%
   },
   nodewalk/save history/.code 2 args={% #1 = back, forward
     \csedef{forest@nodewalk@saved@#1}{\forest@nodewalk@historyback}%
@@ -4313,12 +6016,7 @@
   \let\forest@nodewalk@historyback\forest@nodewalk@walklist@walked
 }
 \def\forest@go#1{%
-  \def\forest@nodewalk@config@everystep@method{independent}%
-  \def\forest@nodewalk@config@history@method{inherited}%
-  \def\forest@nodewalk@config@oninvalid{inherited}%
-  \forest@saveandrestoremacro\forest@nodewalk@oninvalid{%
-    \forest@Nodewalk{#1}{}%
-  }%
+  \forest@configured@nodewalk{independent}{inherited}{inherited}{#1}{}%
 }
 \def\forest@csvlist@getfirst@#1{% assuming that the list is nonempty and finishes with a comma
   \forest@csvlist@getfirst@@#1\forest@csvlist@getfirst@@}
@@ -4366,7 +6064,7 @@
     \expandafter\forest@csvlist@getfirstrest@\expandafter{\forest@nodewalksort@list}\forest@nodewalksort@cn\forest@nodewalksort@list
     \csedef{forest@nodesort@\safeloopn}{\forest@nodewalksort@cn}%
   \saferepeat
-  \edef\forest@nodesort@sortkey{\forest@nodesort@by}%
+  \forestrget{sort by}\forest@nodesort@sortkey
   \forest@sort\forest@nodesort@cmpnodes\forest@nodesort@let#2{1}{#1}%
   \def\forest@nodewalksort@sorted{}%
   \safeloop
@@ -4454,7 +6152,7 @@
   % #2 = max index in list (start with 1)
   % #3 = min/max = ascending/descending = </>
   % #4 = how many results? 1 = {\forest@nodewalk@minmax@node,}, all={\forest@nodewalk@minmax@nodes}, walk in history={}
-  \edef\forest@nodesort@sortkey{\forest@nodesort@by}%
+  \forestrget{sort by}\forest@nodesort@sortkey
   \edef\forest@nodewalk@minmax@N{\number\numexpr#2}%
   \edef\forest@nodewalk@minmax@n{}%
   \edef\forest@nodewalk@minmax@list{#1}%
@@ -4679,7 +6377,7 @@
   define long step={descendants breadth-first}{}{\forest@node@foreach@breadthfirst{0}{\forest@nodewalk@makestep}},
   define long step={descendants breadth-first reversed}{}{\forest@node@foreach@breadthfirst@reversed{0}{\forest@nodewalk@makestep}},
   define long step={level}{n args=1}{%
-    \pgfmathtruncatemacro\forest@temp{#1}%
+    \forestmathtruncatemacro\forest@temp{#1}%
     \edef\forest@marshal{%
       \noexpand\forest@node@foreach@breadthfirst
         {\forest@temp}%
@@ -4687,7 +6385,7 @@
     }\forest@marshal
   },
   define long step={level>}{n args=1}{%
-    \pgfmathtruncatemacro\forest@temp{#1}%
+    \forestmathtruncatemacro\forest@temp{#1}%
     \edef\forest@marshal{%
       \noexpand\forest@node@foreach@breadthfirst
         {-1}%
@@ -4695,8 +6393,7 @@
     }\forest@marshal
   },
   define long step={level<}{n args=1}{%
-    \pgfmathtruncatemacro\forest@temp{(#1)-1}%
-    \show\forest@temp
+    \forestmathtruncatemacro\forest@temp{(#1)-1}%
     \ifnum\forest@temp=-1
       % special case, as \forest@node@foreach@breadthfirst uses level<0 as a signal for unlimited max level
       \ifnum\forestove{level}=0
@@ -4711,7 +6408,7 @@
     \fi
   },
   define long step={level reversed}{n args=1}{%
-    \pgfmathtruncatemacro\forest@temp{#1}%
+    \forestmathtruncatemacro\forest@temp{#1}%
     \edef\forest@marshal{%
       \noexpand\forest@node@foreach@breadthfirst@reversed
         {\forest@temp}%
@@ -4719,7 +6416,7 @@
     }\forest@marshal
   },
   define long step={level reversed>}{n args=1}{%
-    \pgfmathtruncatemacro\forest@temp{#1}%
+    \forestmathtruncatemacro\forest@temp{#1}%
     \edef\forest@marshal{%
       \noexpand\forest@node@foreach@breadthfirst@reversed
         {-1}%
@@ -4727,7 +6424,7 @@
     }\forest@marshal
   },
   define long step={level reversed<}{n args=1}{%
-    \pgfmathtruncatemacro\forest@temp{(#1)-1}%
+    \forestmathtruncatemacro\forest@temp{(#1)-1}%
     \edef\forest@marshal{%
       \noexpand\forest@node@foreach@breadthfirst@reversed
         {\forest@temp}%
@@ -4736,7 +6433,7 @@
   },
   % 
   define long step={relative level}{n args=1}{%
-    \pgfmathtruncatemacro\forest@temp{(#1)+\forestove{level}}%
+    \forestmathtruncatemacro\forest@temp{(#1)+\forestove{level}}%
     \edef\forest@marshal{%
       \noexpand\forest@node@foreach@breadthfirst
         {\forest@temp}%
@@ -4744,7 +6441,7 @@
     }\forest@marshal
   },
   define long step={relative level>}{n args=1}{%
-    \pgfmathtruncatemacro\forest@temp{(#1)+\forestove{level}}%
+    \forestmathtruncatemacro\forest@temp{(#1)+\forestove{level}}%
     \edef\forest@marshal{%
       \noexpand\forest@node@foreach@breadthfirst
         {-1}%
@@ -4752,7 +6449,7 @@
     }\forest@marshal
   },
   define long step={relative level<}{n args=1}{%
-    \pgfmathtruncatemacro\forest@temp{(#1)+\forestove{level}-1}%
+    \forestmathtruncatemacro\forest@temp{(#1)+\forestove{level}-1}%
     \edef\forest@marshal{%
       \noexpand\forest@node@foreach@breadthfirst
         {\forest@temp}%
@@ -4760,7 +6457,7 @@
     }\forest@marshal
   },
   define long step={relative level reversed}{n args=1}{%
-    \pgfmathtruncatemacro\forest@temp{(#1)+\forestove{level}}%
+    \forestmathtruncatemacro\forest@temp{(#1)+\forestove{level}}%
     \edef\forest@marshal{%
       \noexpand\forest@node@foreach@breadthfirst@reversed
         {\forest@temp}%
@@ -4768,7 +6465,7 @@
     }\forest@marshal
   },
   define long step={relative level reversed>}{n args=1}{%
-    \pgfmathtruncatemacro\forest@temp{(#1)+\forestove{level}}%
+    \forestmathtruncatemacro\forest@temp{(#1)+\forestove{level}}%
     \edef\forest@marshal{%
       \noexpand\forest@node@foreach@breadthfirst@reversed
         {-1}%
@@ -4776,12 +6473,25 @@
     }\forest@marshal
   },
   define long step={relative level reversed<}{n args=1}{%
-    \pgfmathtruncatemacro\forest@temp{(#1)+\forestove{level}-1}%
+    \forestmathtruncatemacro\forest@temp{(#1)+\forestove{level}-1}%
     \edef\forest@marshal{%
       \noexpand\forest@node@foreach@breadthfirst@reversed
         {\forest@temp}%
         {\noexpand\forest@nodewalk@makestep}%
     }\forest@marshal
+  },
+  define long step={leaves}{}{%
+    \forest@node@foreach{%
+      \ifnum\forestove{n children}=0
+        \forest@nodewalk@makestep
+      \fi
+    }%
+  },
+  define long step={-level}{n args=1,style}{%
+    unique={branch={leaves,{group={repeat={#1}{parent}}}}}
+  },
+  define long step={-level'}{n args=1,style}{%
+    unique={on invalid={fake}{branch={leaves,{group={repeat={#1}{parent}}}}}}
   },
   define long step={children}{}{\forest@node@foreachchild{\forest@nodewalk@makestep}},
   define long step={children reversed}{}{\forest@node@foreachchild@reversed{\forest@nodewalk@makestep}},
@@ -4867,7 +6577,13 @@
 \def\forest@saveandrestoreifcs#1#2{% #1 = the if cs to save before and restore after processing code in #2
   \edef\forest@marshal{%
     \unexpanded{#2}%
-    \ifbool{#1}{\noexpand\setbool{#1}{true}}{\noexpand\setbool{#1}{false}}
+    \ifbool{#1}{\noexpand\setbool{#1}{true}}{\noexpand\setbool{#1}{false}}%
+  }\forest@marshal
+}
+\def\forest@globalsaveandrestoreifcs#1#2{% #1 = the if cs to save before and restore after processing code in #2
+  \edef\forest@marshal{%
+    \unexpanded{#2}%
+    \ifbool{#1}{\global\noexpand\setbool{#1}{true}}{\global\noexpand\setbool{#1}{false}}%
   }\forest@marshal
 }
 \def\forest@saveandrestoretoks#1#2{% #1 = the toks to save before and restore after processing code in #2
@@ -4884,7 +6600,7 @@
 }
 \forestset{
   save and restore register/.code 2 args={%
-    \forest@saveandrestoreregister{filter@ed}{%
+    \forest@saveandrestoreregister{#1}{%
       \pgfkeysalso{#2}%
     }%
   },
@@ -4995,21 +6711,16 @@
   replace by''/.code={\forest@replaceby@code{#1}{insert after''}},
   sort/.code={%
     \eapptotoks\forest@do@dynamics{%
-      \noexpand\forest@nodesort
-        \noexpand\forest@sort@ascending
-        {\forest@cn}%
-        {\expandonce{\forest@nodesort@by}}%
+      \def\noexpand\forest@nodesort@sortkey{\forestrv{sort by}}%
+      \noexpand\forest@nodesort\noexpand\forest@sort@ascending{\forest@cn}
     }%
   },
   sort'/.code={%
     \eapptotoks\forest@do@dynamics{%
-      \noexpand\forest@nodesort
-        \noexpand\forest@sort@descending
-        {\forest@cn}%
-        {\expandonce{\forest@nodesort@by}}%
+      \def\noexpand\forest@nodesort@sortkey{\forestrv{sort by}}%
+      \noexpand\forest@nodesort\noexpand\forest@sort@descending{\forest@cn}
     }%
   },
-  sort by/.store in=\forest@nodesort@by,
 }
 \def\forest@replaceby@code#1#2{%#1=node spec,#2=insert after['][']
   \ifnum\forestove{@parent}=0
@@ -5025,10 +6736,9 @@
     }%
   \fi
 }
-\def\forest@nodesort#1#2#3{% #1 = direction, #2 = parent node, #3 = sort key
+\def\forest@nodesort#1#2{% #1 = direction, #2 = parent node
   \ifforestdebugdynamics\forestdebug@dynamics{before sorting children of #2}\fi
-  \def\forest@nodesort@sortkey{#3}%
-  \forest@fornode{#2}{\forest@nodesort@#1}%
+    \forest@fornode{#2}{\forest@nodesort@#1}%
   \ifforestdebugdynamics\forestdebug@dynamics{after sorting children of #2}\fi
 }
 \def\forest@nodesort@#1{%
@@ -5056,29 +6766,56 @@
   \forest@loop
   \ifnum\c@pgf@counta<\forest@nodesort@n\relax
     \advance\c@pgf@counta 1
-    \edef\temp{\csname forest@nodesort@\the\c@pgf@counta\endcsname}%
     \forest@node@append{\csname forest@nodesort@\the\c@pgf@counta\endcsname}%
   \forest@repeat
 }
 \def\forest@nodesort@cmpnodes#1#2{%
-  \global\let\forest@nodesort@cmpresult\forest@sort@cmp@eq
-  \foreach \forest@temp@pgfmath in \forest@nodesort@sortkey {%
-    \forest@fornode{\csname forest@nodesort@#1\endcsname}{%
-      \pgfmathparse{\forest@temp@pgfmath}\global\let\forest@global@tempa\pgfmathresult}%
-    \forest@fornode{\csname forest@nodesort@#2\endcsname}{%
-      \pgfmathparse{\forest@temp@pgfmath}\global\let\forest@global@tempb\pgfmathresult}%
-    \ifdim\forest@global@tempa pt<\forest@global@tempb pt
-      \global\let\forest@nodesort@cmpresult\forest@sort@cmp@lt
-      \breakforeach
-    \else
-      \ifdim\forest@global@tempa pt>\forest@global@tempb pt
-        \global\let\forest@nodesort@cmpresult\forest@sort@cmp@gt
-        \breakforeach
-      \fi
-    \fi
-  }%
-  \forest@nodesort@cmpresult
+  \expandafter\forest@nodesort@cmpnodes@\forest@nodesort@sortkey,\forest@END{#1}{#2}%
 }
+\def\forest@nodesort@cmpnodes@#1,#2\forest@END#3#4{%
+  % #1=process ins+arg for this dimension, #2=for next dimensions
+  % #3, #4 = node ids
+  {%
+    \forest@fornode{\csname forest@nodesort@#3\endcsname}{%
+      \forestmathsetmacro\forest@nodesort@resulta{#1}%
+    }%
+    \forest@fornode{\csname forest@nodesort@#4\endcsname}{%
+      \forestmathsetmacro\forest@nodesort@resultb{#1}%
+    }%
+    \ifx\forestmathresulttype\forestmathtype@generic
+      \forest@cmp@error{\forest@nodesort@resulta}{\forest@nodesort@resultb}%
+    \fi
+    \edef\forest@temp{%
+      \noexpand\forest@nodesort@cmp
+      {\expandonce{\forest@nodesort@resulta}}%
+      {\expandonce{\forest@nodesort@resultb}}%
+    }%
+    \xdef\forest@global@temp{\forest@temp}%
+  }%
+  \if=\forest@global@temp
+    \let\forest@next\forest@nodesort@cmpnodes@
+  \else
+    \let\forest@next\forest@nodesort@cmpnodes@finish
+  \fi
+  \ifstrempty{#2}{\let\forest@next\forest@nodesort@cmpnodes@finish}{}%
+  \forest@next#2\forest@END{#3}{#4}%
+}
+\def\forest@nodesort@cmpnodes@finish#1\forest@END#2#3{%
+  \let\forest@sort@cmp@result\forest@global@temp
+}
+%    \end{macrocode}
+% Usage: |\forest@nodesort@cmp|\meta{first}\meta{second}. Fully expandable. Return |<|, |=| or |>|, as required by |\forest@sort|.
+%    \begin{macrocode}
+\def\forest@nodesort@cmp{\csname fRsT@nsc@\forestmathresulttype\endcsname}
+\def\fRsT@nsc@#1{\csname fRsT@nsc@#1\endcsname}
+\def\fRsT@nsc@n#1#2{\ifnum#1<#2 <\else\ifnum#1=#2 =\else>\fi\fi}
+\def\fRsT@nsc@d#1#2{\ifdim#1<#2 <\else\ifdim#1=#2 =\else>\fi\fi}
+\def\fRsT@nsc@P#1#2{\ifdim#1pt<#2pt <\else\ifdim#1pt=#2pt =\else>\fi\fi}
+\def\fRsT@nsc@t#1#2{\csname fRsT@nsc@\pdfstrcmp{#1}{#2}\endcsname}
+\def\fRsT@nsc@T#1#2{\csname fRsT@nsc@\pdfstrcmp{#2}{#1}\endcsname}
+\csdef{fRsT@nsc@-1}{<}
+\csdef{fRsT@nsc@0}{=}
+\csdef{fRsT@nsc@1}{>}
 \def\forest@nodesort@let#1#2{%
   \csletcs{forest@nodesort@#1}{forest@nodesort@#2}%
 }
@@ -5141,9 +6878,16 @@
   declare keylist={before computing xy}{},
   declare keylist={before drawing tree}{},
   declare keylist={delay}{},
-  delay n/.style 2 args={if={#1==0}{#2}{delay@n={#1}{#2}}},
-  delay@n/.style 2 args={
-    if={#1==1}{delay={#2}}{delay={delay@n/.process args={P}{#1-1}{#2}}}
+  delay n/.code 2 args={%
+    \forestmathsetcount\forest@temp@count{#1}%
+    \pgfkeysalso{delay n'={\forest@temp@count}{#2}}%
+  },
+  delay n'/.code 2 args={
+    \ifnum#1=0
+      \pgfkeysalso{#2}%
+    \else
+      \pgfkeysalso{delay={delay n'/.expand once=\expandafter{\number\numexpr#1-1\relax}{#2}}}%
+    \fi    
   },
   if have delayed/.style 2 args={if have delayed'={processing order}{#1}{#2}},
   if have delayed'/.code n args=3{%
@@ -5732,7 +7476,7 @@
 \def\forest@pack@pgfpoint@childsposition#1{%
   {%
     \pgftransformreset
-    \pgftransformrotate{\forestove{grow}}%
+    \forest@pgfqtransformrotate{\forestove{grow}}%
     \forest@fornode{#1}{%
       \pgfpointtransformed{\pgfqpoint{\forestove{l}}{\forestove{s}}}%
     }%
@@ -5745,7 +7489,7 @@
 \def\forest@pack@pgfpoint@positioningrow#1{%
   {%
     \pgftransformreset
-    \pgftransformrotate{#1}%
+    \forest@pgfqtransformrotate{#1}%
     \pgfpointtransformed{\pgfqpoint{\forestove{l}}{\forestove{s}}}%
   }%
 }
@@ -5766,7 +7510,7 @@
   {%
     \edef\forest@temp@child{\forest@node@nornbarthchildid{\forestove{calign primary child}}}%
     \pgftransformreset
-    \pgftransformrotate{\forestove{grow}}%
+    \forest@pgfqtransformrotate{\forestove{grow}}%
     \pgfpointtransformed{\pgfqpoint{\forestOve{\forest@temp@child}{l}}{\forestOve{\forest@temp@child}{s}}}%
     \pgf@xa=\pgf@x\relax\pgf@ya=\pgf@y\relax
     \forest@Pointanchor{\forest@temp@child}{child anchor}%
@@ -5775,7 +7519,7 @@
     \advance\pgf@xa-\pgf@x\relax\advance\pgf@ya-\pgf@y\relax
     \edef\forest@marshal{%
       \noexpand\pgftransformreset
-      \noexpand\pgftransformrotate{-\forestove{grow}}%
+      \noexpand\forest@pgfqtransformrotate{-\forestove{grow}}%
       \noexpand\pgfpointtransformed{\noexpand\pgfqpoint{\the\pgf@xa}{\the\pgf@ya}}%
     }\forest@marshal
   }%
@@ -5793,7 +7537,7 @@
     \edef\forest@temp@firstchild{\forest@node@nornbarthchildid{\forestove{calign primary child}}}%
     \edef\forest@temp@secondchild{\forest@node@nornbarthchildid{\forestove{calign secondary child}}}%
     \pgftransformreset
-    \pgftransformrotate{\forestove{grow}}%
+    \forest@pgfqtransformrotate{\forestove{grow}}%
     \pgfpointtransformed{\pgfqpoint{\forestOve{\forest@temp@firstchild}{l}}{\forestOve{\forest@temp@firstchild}{s}}}%
     \pgf@xa=\pgf@x\relax\pgf@ya=\pgf@y\relax
     \forest@Pointanchor{\forest@temp@firstchild}{child anchor}%
@@ -5809,7 +7553,7 @@
     \advance\pgf@xa-\pgf@x\relax\advance\pgf@ya-\pgf@y\relax
     \edef\forest@marshal{%
       \noexpand\pgftransformreset
-      \noexpand\pgftransformrotate{-\forestove{grow}}%
+      \noexpand\forest@pgfqtransformrotate{-\forestove{grow}}%
       \noexpand\pgfpointtransformed{\noexpand\pgfqpoint{\the\pgf@xa}{\the\pgf@ya}}%
     }\forest@marshal
   }%
@@ -5823,6 +7567,10 @@
 % angles between node anchors; the version |fixes_edge_angles| calculates the angles between the
 % node edges. 
 %    \begin{macrocode}
+\def\forest@edef@strippt#1#2{%
+  \edef#1{#2}%
+  \edef#1{\expandafter\Pgf@geT#1}%
+}
 \csdef{forest@calign@fixed angles}{%
   \ifnum\forestove{n children}>1
     \edef\forest@ca@first@child{\forest@node@nornbarthchildid{\forestove{calign primary child}}}%
@@ -5833,45 +7581,84 @@
       \let\forest@ca@second@child\forest@temp
     \fi
     \forestOget{\forest@ca@first@child}{l}\forest@ca@first@l
+    \edef\forest@ca@first@l{\expandafter\Pgf@geT\forest@ca@first@l}%
     \forestOget{\forest@ca@second@child}{l}\forest@ca@second@l
-    \pgfmathsetlengthmacro\forest@ca@desired@s@distance{%
-      tan(\forestove{calign secondary angle})*\forest@ca@second@l
-      -tan(\forestove{calign primary angle})*\forest@ca@first@l
-    }%
+    \edef\forest@ca@second@l{\expandafter\Pgf@geT\forest@ca@second@l}%
+    \pgfmathtan@{\forestove{calign secondary angle}}%
+    \pgfmathmultiply@{\pgfmathresult}{\forest@ca@second@l}%
+    \let\forest@calign@temp\pgfmathresult
+    \pgfmathtan@{\forestove{calign primary angle}}%
+    \pgfmathmultiply@{\pgfmathresult}{\forest@ca@first@l}%
+    \edef\forest@ca@desired@s@distance{\the\dimexpr
+      \forest@calign@temp pt-\pgfmathresult pt}%
+    % \pgfmathsetlengthmacro\forest@ca@desired@s@distance{%
+    %   tan(\forestove{calign secondary angle})*\forest@ca@second@l
+    %   -tan(\forestove{calign primary angle})*\forest@ca@first@l
+    % }%
     \forestOget{\forest@ca@first@child}{s}\forest@ca@first@s
     \forestOget{\forest@ca@second@child}{s}\forest@ca@second@s
-    \pgfmathsetlengthmacro\forest@ca@actual@s@distance{%
+    \edef\forest@ca@actual@s@distance{\the\dimexpr
       \forest@ca@second@s-\forest@ca@first@s}%
+    %\pgfmathsetlengthmacro\forest@ca@actual@s@distance{%
+    %  \forest@ca@second@s-\forest@ca@first@s}%
     \ifdim\forest@ca@desired@s@distance>\forest@ca@actual@s@distance\relax
       \ifdim\forest@ca@actual@s@distance=0pt
-        \pgfmathsetlength\pgfutil@tempdima{tan(\forestove{calign primary angle})*\forest@ca@second@l}%
-        \pgfmathsetlength\pgfutil@tempdimb{\forest@ca@desired@s@distance/(\forestove{n children}-1)}%
+        \pgfmathtan@{\forestove{calign primary angle}}%
+        \pgfmathmultiply@{\pgfmathresult}{\forest@ca@second@l}%
+        \pgfutil@tempdima=\pgfmathresult pt
+        % \pgfmathsetlength\pgfutil@tempdima{tan(\forestove{calign primary angle})*\forest@ca@second@l}%
+        \pgfutil@tempdimb=\dimexpr
+          \forest@ca@desired@s@distance/(\forestove{n children}-1)\relax%
+        %\pgfmathsetlength\pgfutil@tempdimb{\forest@ca@desired@s@distance/(\forestove{n children}-1)}%
         \forest@node@foreachchild{%
           \forestoeset{s}{\the\pgfutil@tempdima}%
           \advance\pgfutil@tempdima\pgfutil@tempdimb
         }%
         \def\forest@calign@anchor{0pt}%
       \else
-        \pgfmathsetmacro\forest@ca@ratio{%
-          \forest@ca@desired@s@distance/\forest@ca@actual@s@distance}%
+        \edef\forest@marshal{\noexpand\pgfmathdivide@
+          {\expandafter\Pgf@geT\forest@ca@desired@s@distance}%
+          {\expandafter\Pgf@geT\forest@ca@actual@s@distance}%
+        }\forest@marshal
+        \let\forest@ca@ratio\pgfmathresult
+        %\pgfmathsetmacro\forest@ca@ratio{%
+        %  \forest@ca@desired@s@distance/\forest@ca@actual@s@distance}%
         \forest@node@foreachchild{%
-          \pgfmathsetlengthmacro\forest@temp{\forest@ca@ratio*\forestove{s}}%
-          \forestolet{s}\forest@temp
+          \forest@edef@strippt\forest@temp{\forestove{s}}%
+          \pgfmathmultiply@{\forest@ca@ratio}{\forest@temp}%
+          \forestoeset{s}{\the\dimexpr\pgfmathresult pt}%
+          %\pgfmathsetlengthmacro\forest@temp{\forest@ca@ratio*\forestove{s}}%
+          %\forestolet{s}\forest@temp
         }%
-        \pgfmathsetlengthmacro\forest@calign@anchor{%
-          -tan(\forestove{calign primary angle})*\forest@ca@first@l}%
+        \pgfmathtan@{\forestove{calign primary angle}}%
+        \pgfmathmultiply@{\pgfmathresult}{\forest@ca@first@l}%
+        \edef\forest@calign@anchor{\the\dimexpr-\pgfmathresult pt}%
+        %\pgfmathsetlengthmacro\forest@calign@anchor{%
+        %  -tan(\forestove{calign primary angle})*\forest@ca@first@l}%
       \fi
     \else
       \ifdim\forest@ca@desired@s@distance<\forest@ca@actual@s@distance\relax
-        \pgfmathsetlengthmacro\forest@ca@ratio{%
-          \forest@ca@actual@s@distance/\forest@ca@desired@s@distance}%
+        \edef\forest@marshal{\noexpand\pgfmathdivide@
+          {\expandafter\Pgf@geT\forest@ca@actual@s@distance}%
+          {\expandafter\Pgf@geT\forest@ca@desired@s@distance}%
+        }\forest@marshal
+        \let\forest@ca@ratio\pgfmathresult
+        %\pgfmathsetlengthmacro\forest@ca@ratio{%
+        %  \forest@ca@actual@s@distance/\forest@ca@desired@s@distance}%
         \forest@node@foreachchild{%
-          \pgfmathsetlengthmacro\forest@temp{\forest@ca@ratio*\forestove{l}}%
-          \forestolet{l}\forest@temp
+          \forest@edef@strippt\forest@temp{\forestove{l}}%
+          \pgfmathmultiply@{\forest@ca@ratio}{\forest@temp}%
+          \forestoeset{l}{\the\dimexpr\pgfmathresult pt}%
+          %\pgfmathsetlengthmacro\forest@temp{\forest@ca@ratio*\forestove{l}}%
+          %\forestolet{l}\forest@temp
         }%
         \forestOget{\forest@ca@first@child}{l}\forest@ca@first@l
-        \pgfmathsetlengthmacro\forest@calign@anchor{%
-          -tan(\forestove{calign primary angle})*\forest@ca@first@l}%
+        \edef\forest@ca@first@l{\expandafter\Pgf@geT\forest@ca@first@l}%
+        \pgfmathtan@{\forestove{calign primary angle}}%
+        \pgfmathmultiply@{\pgfmathresult}{\forest@ca@first@l}%
+        \edef\forest@calign@anchor{\the\dimexpr-\pgfmathresult pt}%
+        %\pgfmathsetlengthmacro\forest@calign@anchor{%
+        %  -tan(\forestove{calign primary angle})*\forest@ca@first@l}%
       \fi
     \fi
     \forest@calign@s@shift{-\forest@calign@anchor}%
@@ -5897,64 +7684,123 @@
     \forest@Pointanchor{\forest@ca@second@child}{child anchor}%
     \edef\forest@ca@second@child@anchor@s{\the\pgf@x}%
     \edef\forest@ca@second@child@anchor@l{\the\pgf@y}%
-    \pgfmathsetlengthmacro\forest@ca@desired@second@edge@s{tan(\forestove{calign secondary angle})*%
-      (\forest@ca@second@l-\forest@ca@second@child@anchor@l+\forest@ca@parent@anchor@l)}%
-    \pgfmathsetlengthmacro\forest@ca@desired@first@edge@s{tan(\forestove{calign primary angle})*%
-      (\forest@ca@first@l-\forest@ca@first@child@anchor@l+\forest@ca@parent@anchor@l)}
-    \pgfmathsetlengthmacro\forest@ca@desired@s@distance{\forest@ca@desired@second@edge@s-\forest@ca@desired@first@edge@s}%
+    \pgfmathtan@{\forestove{calign secondary angle}}%
+    \edef\forest@temp{\the\dimexpr
+      \forest@ca@second@l-\forest@ca@second@child@anchor@l+\forest@ca@parent@anchor@l}%
+    \pgfmathmultiply@{\pgfmathresult}{\expandafter\Pgf@geT\forest@temp}%
+    \edef\forest@ca@desired@second@edge@s{\the\dimexpr\pgfmathresult pt}%
+    %\pgfmathsetlengthmacro\forest@ca@desired@second@edge@s{%
+    %  tan(\forestove{calign secondary angle})*%
+    %  (\forest@ca@second@l-\forest@ca@second@child@anchor@l+\forest@ca@parent@anchor@l)}%
+    \pgfmathtan@{\forestove{calign primary angle}}%
+    \edef\forest@temp{\the\dimexpr
+      \forest@ca@first@l-\forest@ca@first@child@anchor@l+\forest@ca@parent@anchor@l}%
+    \pgfmathmultiply@{\pgfmathresult}{\expandafter\Pgf@geT\forest@temp}%
+    \edef\forest@ca@desired@first@edge@s{\the\dimexpr\pgfmathresult pt}%
+    %\pgfmathsetlengthmacro\forest@ca@desired@first@edge@s{%
+    %  tan(\forestove{calign primary angle})*%
+    %  (\forest@ca@first@l-\forest@ca@first@child@anchor@l+\forest@ca@parent@anchor@l)}%
+    \edef\forest@ca@desired@s@distance{\the\dimexpr
+      \forest@ca@desired@second@edge@s-\forest@ca@desired@first@edge@s}%
+    %\pgfmathsetlengthmacro\forest@ca@desired@s@distance{\forest@ca@desired@second@edge@s-\forest@ca@desired@first@edge@s}%
     \forestOget{\forest@ca@first@child}{s}\forest@ca@first@s
     \forestOget{\forest@ca@second@child}{s}\forest@ca@second@s
-    \pgfmathsetlengthmacro\forest@ca@actual@s@distance{%
+    \edef\forest@ca@actual@s@distance{\the\dimexpr
       \forest@ca@second@s+\forest@ca@second@child@anchor@s
       -\forest@ca@first@s-\forest@ca@first@child@anchor@s}%
+    %\pgfmathsetlengthmacro\forest@ca@actual@s@distance{%
+    %  \forest@ca@second@s+\forest@ca@second@child@anchor@s
+    %  -\forest@ca@first@s-\forest@ca@first@child@anchor@s}%
     \ifdim\forest@ca@desired@s@distance>\forest@ca@actual@s@distance\relax
       \ifdim\forest@ca@actual@s@distance=0pt
         \forestoget{n children}\forest@temp@n@children
         \forest@node@foreachchild{%
           \forest@pointanchor{child anchor}%
           \edef\forest@temp@child@anchor@s{\the\pgf@x}%
-          \pgfmathsetlengthmacro\forest@temp{%
-            \forest@ca@desired@first@edge@s+(\forestove{n}-1)*\forest@ca@desired@s@distance/(\forest@temp@n@children-1)+\forest@ca@first@child@anchor@s-\forest@temp@child@anchor@s}%
-          \forestolet{s}\forest@temp
+          \forestoeset{s}{\the\dimexpr
+            \forest@ca@desired@first@edge@s+\forest@ca@desired@s@distance*(\forestove{n}-1)/(\forest@temp@n@children-1)+\forest@ca@first@child@anchor@s-\forest@temp@child@anchor@s}%
+          %\pgfmathsetlengthmacro\forest@temp{%
+          %  \forest@ca@desired@first@edge@s+(\forestove{n}-1)*\forest@ca@desired@s@distance/(\forest@temp@n@children-1)+\forest@ca@first@child@anchor@s-\forest@temp@child@anchor@s}%
+          %\forestolet{s}\forest@temp
         }%
         \def\forest@calign@anchor{0pt}%
       \else
-        \pgfmathsetmacro\forest@ca@ratio{%
-          \forest@ca@desired@s@distance/\forest@ca@actual@s@distance}%
+        \edef\forest@marshal{\noexpand\pgfmathdivide@
+          {\expandafter\Pgf@geT\forest@ca@desired@s@distance}%
+          {\expandafter\Pgf@geT\forest@ca@actual@s@distance}%
+        }\forest@marshal
+        \let\forest@ca@ratio\pgfmathresult
+        %\pgfmathsetmacro\forest@ca@ratio{%
+        %  \forest@ca@desired@s@distance/\forest@ca@actual@s@distance}%
         \forest@node@foreachchild{%
           \forest@pointanchor{child anchor}%
           \edef\forest@temp@child@anchor@s{\the\pgf@x}%
-          \pgfmathsetlengthmacro\forest@temp{%
-            \forest@ca@ratio*(%
-              \forestove{s}-\forest@ca@first@s
-              +\forest@temp@child@anchor@s-\forest@ca@first@child@anchor@s)%
-            +\forest@ca@first@s
+          \edef\forest@marshal{\noexpand\pgfmathmultiply@
+            {\forest@ca@ratio}%
+            {\expandafter\Pgf@geT\the\dimexpr
+              \forestove{s}-\forest@ca@first@s+%
+              \forest@temp@child@anchor@s-\forest@ca@first@child@anchor@s}%
+          }\forest@marshal
+          \forestoeset{s}{\the\dimexpr\pgfmathresult pt+\forest@ca@first@s
             +\forest@ca@first@child@anchor@s-\forest@temp@child@anchor@s}%
-          \forestolet{s}\forest@temp
+          % \pgfmathsetlengthmacro\forest@temp{%
+          %   \forest@ca@ratio*(%
+          %     \forestove{s}-\forest@ca@first@s
+          %     +\forest@temp@child@anchor@s-\forest@ca@first@child@anchor@s)%
+          %   +\forest@ca@first@s
+          %   +\forest@ca@first@child@anchor@s-\forest@temp@child@anchor@s}%
+          % \forestolet{s}\forest@temp
         }%
-        \pgfmathsetlengthmacro\forest@calign@anchor{%
-          -tan(\forestove{calign primary angle})*(\forest@ca@first@l-\forest@ca@first@child@anchor@l+\forest@ca@parent@anchor@l)%
-          +\forest@ca@first@child@anchor@s-\forest@ca@parent@anchor@s
-        }%
+        \pgfmathtan@{\forestove{calign primary angle}}%
+        \edef\forest@marshal{\noexpand\pgfmathmultiply@
+          {\pgfmathresult}%
+          {\expandafter\Pgf@geT\the\dimexpr
+            \forest@ca@first@l-\forest@ca@first@child@anchor@l+\forest@ca@parent@anchor@l}%
+        }\forest@marshal
+        \edef\forest@calign@anchor{\the\dimexpr
+          -\pgfmathresult pt+\forest@ca@first@child@anchor@s-\forest@ca@parent@anchor@s}%
+        % \pgfmathsetlengthmacro\forest@calign@anchor{%
+        %   -tan(\forestove{calign primary angle})*(\forest@ca@first@l-\forest@ca@first@child@anchor@l+\forest@ca@parent@anchor@l)%
+        %   +\forest@ca@first@child@anchor@s-\forest@ca@parent@anchor@s
+        % }%
       \fi
     \else
       \ifdim\forest@ca@desired@s@distance<\forest@ca@actual@s@distance\relax
-        \pgfmathsetlengthmacro\forest@ca@ratio{%
-          \forest@ca@actual@s@distance/\forest@ca@desired@s@distance}%
+        \edef\forest@marshal{\noexpand\pgfmathdivide@
+          {\expandafter\Pgf@geT\forest@ca@actual@s@distance}%
+          {\expandafter\Pgf@geT\forest@ca@desired@s@distance}%
+        }\forest@marshal
+        \let\forest@ca@ratio\pgfmathresult
+        %\pgfmathsetlengthmacro\forest@ca@ratio{%
+        %  \forest@ca@actual@s@distance/\forest@ca@desired@s@distance}%
         \forest@node@foreachchild{%
           \forest@pointanchor{child anchor}%
           \edef\forest@temp@child@anchor@l{\the\pgf@y}%
-          \pgfmathsetlengthmacro\forest@temp{%
-            \forest@ca@ratio*(%
-              \forestove{l}+\forest@ca@parent@anchor@l-\forest@temp@child@anchor@l)
-              -\forest@ca@parent@anchor@l+\forest@temp@child@anchor@l}%
-          \forestolet{l}\forest@temp
+          \edef\forest@marshal{\noexpand\pgfmathmultiply@
+            {\forest@ca@ratio}%
+            {\expandafter\Pgf@geT\the\dimexpr\forestove{l}+\forest@ca@parent@anchor@l-\forest@temp@child@anchor@l}%
+          }\forest@marshal
+          \forestoeset{l}{\the\dimexpr
+            \pgfmathresult pt-\forest@ca@parent@anchor@l+\forest@temp@child@anchor@l}%
+          % \pgfmathsetlengthmacro\forest@temp{%
+          %   \forest@ca@ratio*(%
+          %     \forestove{l}+\forest@ca@parent@anchor@l-\forest@temp@child@anchor@l)
+          %     -\forest@ca@parent@anchor@l+\forest@temp@child@anchor@l}%
+          % \forestolet{l}\forest@temp
         }%
         \forestOget{\forest@ca@first@child}{l}\forest@ca@first@l
-        \pgfmathsetlengthmacro\forest@calign@anchor{%
-          -tan(\forestove{calign primary angle})*(\forest@ca@first@l+\forest@ca@parent@anchor@l-\forest@temp@child@anchor@l)%
-          +\forest@ca@first@child@anchor@s-\forest@ca@parent@anchor@s
-        }%
+        \pgfmathtan@{\forestove{calign primary angle}}%
+        \edef\forest@marshal{\noexpand\pgfmathmultiply@
+          {\pgfmathresult}%
+          {\expandafter\Pgf@geT\the\dimexpr
+            \forest@ca@first@l+\forest@ca@parent@anchor@l-\forest@temp@child@anchor@l}%
+        }\forest@marshal
+        \edef\forest@calign@anchor{\the\dimexpr
+          -\pgfmathresult pt+\forest@ca@first@child@anchor@s-\forest@ca@parent@anchor@s}%
+        % \pgfmathsetlengthmacro\forest@calign@anchor{%
+        %   -tan(\forestove{calign primary angle})*(\forest@ca@first@l+\forest@ca@parent@anchor@l-\forest@temp@child@anchor@l)%
+        %   +\forest@ca@first@child@anchor@s-\forest@ca@parent@anchor@s
+        % }%
       \fi
     \fi
     \forest@calign@s@shift{-\forest@calign@anchor}%
@@ -6030,7 +7876,7 @@
 %    \begin{macrocode}
     \pgfgettransform\forest@temp@transform
     \pgftransformreset
-    \pgftransformrotate{\forestove{grow}}%
+    \forest@pgfqtransformrotate{\forestove{grow}}%
 %    \end{macrocode}
 % Get the child's (cached) edge, translate it by the child's position,
 % and add it to the path holding all edges.  Also add the edge from parent to the child to the path.
@@ -6662,8 +8508,12 @@
   }\forest@marshal
 }
 \def\forest@node@computeabsolutepositions@#1#2#3{%
-  \pgfpointadd{\pgfpoint{#1}{#2}}{%
-    \pgfpointadd{\pgfpolar{#3}{\forestove{l}}}{\pgfpolar{90 + #3}{\forestove{s}}}}%
+  \pgfpointadd
+    {\pgfqpoint{#1}{#2}}%
+    {\pgfpointadd
+      {\pgfqpointpolar{#3}{\forestove{l}}}%
+      {\pgfqpointpolar{\numexpr 90+#3\relax}{\forestove{s}}}%
+    }%
   \pgfgetlastxy\forest@temp@x\forest@temp@y
   \forestolet{x}\forest@temp@x
   \forestolet{y}\forest@temp@y
@@ -6835,7 +8685,7 @@
 \newdimen\forest@ys
 \def\forest@setupgrowline#1{%
   \edef\forest@grow{#1}%
-  \pgfpointpolar\forest@grow{1pt}%
+  \pgfqpointpolar{\forest@grow}{1pt}%
   \forest@xg=\pgf@x
   \forest@yg=\pgf@y
   \forest@xs=-\pgf@y
@@ -7236,6 +9086,10 @@
   \let\forest@previous@px\forest@px
   \let\forest@previous@py\forest@py
 }
+%    \end{macrocode}
+% Patch for speed: no need to call |\pgfmathparse| here.
+%    \begin{macrocode}
+\patchcmd{\pgfpointintersectionoflines}{\pgfpoint}{\pgfqpoint}{}{}
 %    \end{macrocode}
 %
 % \subsection{Get tight edge of path}
@@ -7659,7 +9513,11 @@
         \pgf@x=0pt
       \fi
     \fi
-    \csname pgfmathatan2\endcsname{\pgf@x}{\pgf@y}%
+    \edef\forest@marshal{%
+      \noexpand\pgfmathatantwo@
+        {\expandafter\Pgf@geT\the\pgf@x}%
+        {\expandafter\Pgf@geT\the\pgf@y}%
+      }\forest@marshal
     \let\forest@current@atan\pgfmathresult
     \ifx\forest@last@atan\relax
 %    \end{macrocode}
@@ -7722,7 +9580,7 @@
   }%
   {%
     \pgftransformreset
-    \pgftransformrotate{\forest@grow}%
+    \forest@pgfqtransformrotate{\forest@grow}%
     \forest@pgfpathtransformed\forest@gre@path
   }%
   \pgfsyssoftpath@getcurrentpath#2%
@@ -7735,7 +9593,7 @@
   }%
   {%
     \pgftransformreset
-    \pgftransformrotate{\forest@grow}%
+    \forest@pgfqtransformrotate{\forest@grow}%
     \forest@pgfpathtransformed\forest@gre@path
   }%
   \pgfsyssoftpath@getcurrentpath#2%
@@ -7752,13 +9610,13 @@
   }%
   {%
     \pgftransformreset
-    \pgftransformrotate{\forest@grow}%
+    \forest@pgfqtransformrotate{\forest@grow}%
     \forest@pgfpathtransformed\forest@gre@negpath
   }%
   \pgfsyssoftpath@getcurrentpath#2%
   {%
     \pgftransformreset
-    \pgftransformrotate{\forest@grow}%
+    \forest@pgfqtransformrotate{\forest@grow}%
     \forest@pgfpathtransformed\forest@gre@pospath
   }%
   \pgfsyssoftpath@getcurrentpath#3%
@@ -8001,7 +9859,7 @@
 \def\forest@path@getboundingrectangle@ls#1#2{%
   {%
     \pgftransformreset
-    \pgftransformrotate{-(#2)}%
+    \forest@pgfqtransformrotate{-#2}%
     \forest@pgfpathtransformed#1%
   }%
   \pgfsyssoftpath@getcurrentpath\forest@gbr@rotatedpath
@@ -8025,6 +9883,20 @@
   \ifdim#2<\pgf@ya\relax\pgf@ya=#2 \fi
   \ifdim#2>\pgf@yb\relax\pgf@yb=#2 \fi
 }
+%    \end{macrocode}
+% Hack: create our own version of |pgf|'s |\pgftransformrotate| which does not call |\pgfmathparse|. Nothing really bad happens if patch fails. We're just a bit slower.
+%    \begin{macrocode}
+\let\forest@pgfqtransformrotate\pgftransformrotate
+\let\forest@pgftransformcm\pgftransformcm
+\let\forest@pgf@transformcm\pgf@transformcm
+\patchcmd{\forest@pgfqtransformrotate}{\pgfmathparse{#1}}{\edef\pgfmathresult{\number\numexpr#1}}{}{}
+\patchcmd{\forest@pgfqtransformrotate}{\pgftransformcm}{\forest@pgftransformcm}{}{}
+\patchcmd{\forest@pgftransformcm}{\pgf@transformcm}{\forest@pgf@transformcm}{}{}
+\patchcmd{\forest@pgf@transformcm}{\pgfmathsetlength}{\forest@pgf@transformcm@setlength}{}{} % 4x
+\patchcmd{\forest@pgf@transformcm}{\pgfmathsetlength}{\forest@pgf@transformcm@setlength}{}{} % 4x
+\patchcmd{\forest@pgf@transformcm}{\pgfmathsetlength}{\forest@pgf@transformcm@setlength}{}{} % 4x
+\patchcmd{\forest@pgf@transformcm}{\pgfmathsetlength}{\forest@pgf@transformcm@setlength}{}{} % 4x
+\def\forest@pgf@transformcm@setlength#1#2{#1=#2pt}
 %    \end{macrocode}
 %
 % \section{The outer UI}
@@ -8053,10 +9925,11 @@
     }%
   }{}%
 }
+\newread\forest@copy@in
+\newwrite\forest@copy@out
 \def\forest@file@copy@#1#2{%
-  \newread\forest@copy@in
+  \begingroup
   \openin\forest@copy@in=#1
-  \newwrite\forest@copy@out
   \immediate\openout\forest@copy@out#2
   \endlinechar-1
   \loop
@@ -8066,6 +9939,7 @@
   \repeat
   \immediate\closeout\forest@copy@out
   \closein\forest@copy@in
+  \endgroup
 }
 \newif\ifforest@external@optimize@
 \forest@external@optimize@true
@@ -8137,11 +10011,15 @@
   \forest@next{#3}%
 }
 \def\forest@config#1{%
-  \def\forest@stages{stages}%
+  \forest@defstages{stages}%
   \forestset{@config/.cd,#1}%
 }
+\def\forest@defstages#1{%
+  \def\forest@stages{#1}%
+}
 \forestset{@config/.cd,
-  stages/.store in=\forest@stages,
+  %stages/.store in=\forest@stages,
+  stages/.code={\forest@defstages{#1}},
   .unknown/.code={\PackageError{forest}{Unknown config option for forest environment/command.}{In Forest v2.0.0 and v2.0.1, this (parenthesized) argument accepted the definition of style stages for the current forest environment/macro. Since v2.0.2, you should write "\string\begin{forest}(stages={...})...\string\end{forest}", or "\string\Forest(stages={...}){...}" instead.}}
 }
 \def\forest@group@env#1{{\forest@env{#1}}}
@@ -8413,9 +10291,9 @@
     \pgfkeysvalueof{/pgf/inner xsep},\pgfkeysvalueof{/pgf/outer xsep}%
   }
   {
-    l sep={\the\ht\strutbox+\pgfkeysvalueof{/pgf/inner ysep}},
+    l sep'/.expanded={\the\dimexpr\the\ht\strutbox+\pgfkeysvalueof{/pgf/inner ysep}},
     l={l_sep()+abs(max_y()-min_y())+2*\pgfkeysvalueof{/pgf/outer ysep}},
-    s sep={2*\pgfkeysvalueof{/pgf/inner xsep}}
+    s sep'/.expanded={\the\dimexpr \pgfkeysvalueof{/pgf/inner xsep}*2}
   }
   {l sep,l,s sep}
 %    \end{macrocode}
@@ -8437,11 +10315,11 @@
     \forest@forestcs@resetxy},
   anchor/.code={\forest@forestcs@anchor{#1}},
   l/.code={%
-    \pgfmathsetlengthmacro\forest@forestcs@l{#1}%
+    \forestmathsetlengthmacro\forest@forestcs@l{#1}%
     \forest@forestcs@ls
   },
   s/.code={%
-    \pgfmathsetlengthmacro\forest@forestcs@s{#1}%
+    \forestmathsetlengthmacro\forest@forestcs@s{#1}%
     \forest@forestcs@ls
   },
   .unknown/.code={%
@@ -8456,16 +10334,16 @@
 }
 \def\forest@forestcs@resetxy{%
   \ifnum\forest@cn=0 \forest@cs@invalidnodeerror\fi
-  \global\pgf@x\forestove{x}%
-  \global\pgf@y\forestove{y}%
+  \global\pgf@x\forestove{x}\relax
+  \global\pgf@y\forestove{y}\relax
 }
 \def\forest@forestcs@ls{%
   \ifdefined\forest@forestcs@l
     \ifdefined\forest@forestcs@s
       {%
         \pgftransformreset
-        \pgftransformrotate{\forestove{grow}}%
-        \pgfpointtransformed{\pgfpoint{\forest@forestcs@l}{\forest@forestcs@s}}%
+        \forest@pgfqtransformrotate{\forestove{grow}}%
+        \pgfpointtransformed{\pgfqpoint{\forest@forestcs@l}{\forest@forestcs@s}}%
       }%
       \global\advance\pgf@x\forestove{x}%
       \global\advance\pgf@y\forestove{y}%
@@ -8590,9 +10468,17 @@
   \forest@anchor@forwardtotikztrue
   \forest@anchor@do{#1}{children}{\forest@referencednodeid}%
 }
+\pgfdeclaregenericanchor{-children}{%
+  \forest@anchor@forwardtotikztrue
+  \forest@anchor@do{#1}{-children}{\forest@referencednodeid}%
+}
 \pgfdeclaregenericanchor{children first}{%
   \forest@anchor@forwardtotikztrue
   \forest@anchor@do{#1}{children first}{\forest@referencednodeid}%
+}
+\pgfdeclaregenericanchor{-children first}{%
+  \forest@anchor@forwardtotikztrue
+  \forest@anchor@do{#1}{-children first}{\forest@referencednodeid}%
 }
 \pgfdeclaregenericanchor{first}{%
   \forest@anchor@forwardtotikztrue
@@ -8602,13 +10488,25 @@
   \forest@anchor@forwardtotikztrue
   \forest@anchor@do{#1}{parent first}{\forest@referencednodeid}%
 }
+\pgfdeclaregenericanchor{-parent first}{%
+  \forest@anchor@forwardtotikztrue
+  \forest@anchor@do{#1}{-parent first}{\forest@referencednodeid}%
+}
 \pgfdeclaregenericanchor{parent}{%
   \forest@anchor@forwardtotikztrue
   \forest@anchor@do{#1}{parent}{\forest@referencednodeid}%
 }
+\pgfdeclaregenericanchor{-parent}{%
+  \forest@anchor@forwardtotikztrue
+  \forest@anchor@do{#1}{-parent}{\forest@referencednodeid}%
+}
 \pgfdeclaregenericanchor{parent last}{%
   \forest@anchor@forwardtotikztrue
   \forest@anchor@do{#1}{parent last}{\forest@referencednodeid}%
+}
+\pgfdeclaregenericanchor{-parent last}{%
+  \forest@anchor@forwardtotikztrue
+  \forest@anchor@do{#1}{-parent last}{\forest@referencednodeid}%
 }
 \pgfdeclaregenericanchor{last}{%
   \forest@anchor@forwardtotikztrue
@@ -8618,13 +10516,25 @@
   \forest@anchor@forwardtotikztrue
   \forest@anchor@do{#1}{children last}{\forest@referencednodeid}%
 }
+\pgfdeclaregenericanchor{-children last}{%
+  \forest@anchor@forwardtotikztrue
+  \forest@anchor@do{#1}{-children last}{\forest@referencednodeid}%
+}
 \pgfdeclaregenericanchor{children'}{%
   \forest@anchor@forwardtotikztrue
   \forest@anchor@do{#1}{children'}{\forest@referencednodeid}%
 }
+\pgfdeclaregenericanchor{-children'}{%
+  \forest@anchor@forwardtotikztrue
+  \forest@anchor@do{#1}{-children'}{\forest@referencednodeid}%
+}
 \pgfdeclaregenericanchor{children first'}{%
   \forest@anchor@forwardtotikztrue
   \forest@anchor@do{#1}{children first'}{\forest@referencednodeid}%
+}
+\pgfdeclaregenericanchor{-children first'}{%
+  \forest@anchor@forwardtotikztrue
+  \forest@anchor@do{#1}{-children first'}{\forest@referencednodeid}%
 }
 \pgfdeclaregenericanchor{first'}{%
   \forest@anchor@forwardtotikztrue
@@ -8634,13 +10544,25 @@
   \forest@anchor@forwardtotikztrue
   \forest@anchor@do{#1}{parent first'}{\forest@referencednodeid}%
 }
+\pgfdeclaregenericanchor{-parent first'}{%
+  \forest@anchor@forwardtotikztrue
+  \forest@anchor@do{#1}{-parent first'}{\forest@referencednodeid}%
+}
 \pgfdeclaregenericanchor{parent'}{%
   \forest@anchor@forwardtotikztrue
   \forest@anchor@do{#1}{parent'}{\forest@referencednodeid}%
 }
+\pgfdeclaregenericanchor{-parent'}{%
+  \forest@anchor@forwardtotikztrue
+  \forest@anchor@do{#1}{-parent'}{\forest@referencednodeid}%
+}
 \pgfdeclaregenericanchor{parent last'}{%
   \forest@anchor@forwardtotikztrue
   \forest@anchor@do{#1}{parent last'}{\forest@referencednodeid}%
+}
+\pgfdeclaregenericanchor{-parent last'}{%
+  \forest@anchor@forwardtotikztrue
+  \forest@anchor@do{#1}{-parent last'}{\forest@referencednodeid}%
 }
 \pgfdeclaregenericanchor{last'}{%
   \forest@anchor@forwardtotikztrue
@@ -8649,6 +10571,10 @@
 \pgfdeclaregenericanchor{children last'}{%
   \forest@anchor@forwardtotikztrue
   \forest@anchor@do{#1}{children last'}{\forest@referencednodeid}%
+}
+\pgfdeclaregenericanchor{-children last'}{%
+  \forest@anchor@forwardtotikztrue
+  \forest@anchor@do{#1}{-children last'}{\forest@referencednodeid}%
 }
 %    \end{macrocode}
 % The driver. The result is being passed around in |\forest@temp@anchor|.
@@ -8688,9 +10614,19 @@
   \forest@anchor@isbordertrue
   \edef\forest@temp@anchor{\number\numexpr\forestove{grow}-\forestove{rotate}}%
 }
+\csdef{forest@anchor@@-children'}{%
+  \forest@anchor@isbordertrue
+  \edef\forest@temp@anchor{\number\numexpr 180+\forestove{grow}-\forestove{rotate}}%
+}
 \csdef{forest@anchor@@parent'}{%
   \forest@anchor@isbordertrue
-  \edef\forest@temp@anchor{\number\numexpr\forestove{grow}-\forestove{rotate}+180}%
+  \edef\forest@temp@grow{\ifnum\forestove{@parent}=0 \forestove{grow}\else\forestOve{\forestove{@parent}}{grow}\fi}%
+  \edef\forest@temp@anchor{\number\numexpr\forest@temp@grow-\forestove{rotate}+180}%
+}
+\csdef{forest@anchor@@-parent'}{%
+  \forest@anchor@isbordertrue
+  \edef\forest@temp@grow{\ifnum\forestove{@parent}=0 \forestove{grow}\else\forestOve{\forestove{@parent}}{grow}\fi}%
+  \edef\forest@temp@anchor{\number\numexpr\forest@temp@grow-\forestove{rotate}}%
 }
 \csdef{forest@anchor@@first'}{%
   \forest@anchor@isbordertrue
@@ -8702,14 +10638,34 @@
 }
 \csdef{forest@anchor@@parent first'}{%
   \forest@anchor@isbordertrue
-  \edef\forest@temp@anchor@parent{\number\numexpr\forestove{grow}-\forestove{rotate}+180}%
-  \edef\forest@temp@anchor@first{\number\numexpr\forestove{grow}-\forestove{rotate}\ifnum\forestove{reversed}=0 -\else+\fi90}%
+  \edef\forest@temp@grow{\ifnum\forestove{@parent}=0 \forestove{grow}\else\forestOve{\forestove{@parent}}{grow}\fi}%
+  \edef\forest@temp@reversed{\ifnum\forestove{@parent}=0 \forestove{reversed}\else\forestOve{\forestove{@parent}}{reversed}\fi}%
+  \edef\forest@temp@anchor@parent{\number\numexpr\forest@temp@grow-\forestove{rotate}+180}%
+  \edef\forest@temp@anchor@first{\number\numexpr\forest@temp@grow-\forestove{rotate}\ifnum\forest@temp@reversed=0 -\else+\fi90}%
+  \forest@getaverageangle{\forest@temp@anchor@parent}{\forest@temp@anchor@first}\forest@temp@anchor
+}
+\csdef{forest@anchor@@-parent first'}{%
+  \forest@anchor@isbordertrue
+  \edef\forest@temp@grow{\ifnum\forestove{@parent}=0 \forestove{grow}\else\forestOve{\forestove{@parent}}{grow}\fi}%
+  \edef\forest@temp@reversed{\ifnum\forestove{@parent}=0 \forestove{reversed}\else\forestOve{\forestove{@parent}}{reversed}\fi}%
+  \edef\forest@temp@anchor@parent{\number\numexpr\forest@temp@grow-\forestove{rotate}}%
+  \edef\forest@temp@anchor@first{\number\numexpr\forest@temp@grow-\forestove{rotate}\ifnum\forest@temp@reversed=0 -\else+\fi90}%
   \forest@getaverageangle{\forest@temp@anchor@parent}{\forest@temp@anchor@first}\forest@temp@anchor
 }
 \csdef{forest@anchor@@parent last'}{%
   \forest@anchor@isbordertrue
-  \edef\forest@temp@anchor@parent{\number\numexpr\forestove{grow}-\forestove{rotate}+180}%
-  \edef\forest@temp@anchor@last{\number\numexpr\forestove{grow}-\forestove{rotate}\ifnum\forestove{reversed}=0 +\else-\fi90}%
+  \edef\forest@temp@grow{\ifnum\forestove{@parent}=0 \forestove{grow}\else\forestOve{\forestove{@parent}}{grow}\fi}%
+  \edef\forest@temp@reversed{\ifnum\forestove{@parent}=0 \forestove{reversed}\else\forestOve{\forestove{@parent}}{reversed}\fi}%
+  \edef\forest@temp@anchor@parent{\number\numexpr\forest@temp@grow-\forestove{rotate}+180}%
+  \edef\forest@temp@anchor@last{\number\numexpr\forest@temp@grow-\forestove{rotate}\ifnum\forest@temp@reversed=0 +\else-\fi90}%
+  \forest@getaverageangle{\forest@temp@anchor@parent}{\forest@temp@anchor@last}\forest@temp@anchor
+}
+\csdef{forest@anchor@@-parent last'}{%
+  \forest@anchor@isbordertrue
+  \edef\forest@temp@grow{\ifnum\forestove{@parent}=0 \forestove{grow}\else\forestOve{\forestove{@parent}}{grow}\fi}%
+  \edef\forest@temp@reversed{\ifnum\forestove{@parent}=0 \forestove{reversed}\else\forestOve{\forestove{@parent}}{reversed}\fi}%
+  \edef\forest@temp@anchor@parent{\number\numexpr\forest@temp@grow-\forestove{rotate}}%
+  \edef\forest@temp@anchor@last{\number\numexpr\forest@temp@grow-\forestove{rotate}\ifnum\forest@temp@reversed=0 +\else-\fi90}%
   \forest@getaverageangle{\forest@temp@anchor@parent}{\forest@temp@anchor@last}\forest@temp@anchor
 }
 \csdef{forest@anchor@@children first'}{%
@@ -8717,18 +10673,36 @@
   \edef\forest@temp@anchor@first{\number\numexpr\forestove{grow}-\forestove{rotate}\ifnum\forestove{reversed}=0 -\else+\fi90}%
   \forest@getaverageangle{\forestove{grow}-\forestove{rotate}}{\forest@temp@anchor@first}\forest@temp@anchor
 }
+\csdef{forest@anchor@@-children first'}{%
+  \forest@anchor@isbordertrue
+  \edef\forest@temp@anchor@first{\number\numexpr\forestove{grow}-\forestove{rotate}\ifnum\forestove{reversed}=0 -\else+\fi90}%
+  \forest@getaverageangle{180+\forestove{grow}-\forestove{rotate}}{\forest@temp@anchor@first}\forest@temp@anchor
+}
 \csdef{forest@anchor@@children last'}{%
   \forest@anchor@isbordertrue
   \edef\forest@temp@anchor@last{\number\numexpr\forestove{grow}-\forestove{rotate}\ifnum\forestove{reversed}=0 +\else-\fi90}%
   \forest@getaverageangle{\forestove{grow}-\forestove{rotate}}{\forest@temp@anchor@last}\forest@temp@anchor
 }
+\csdef{forest@anchor@@-children last'}{%
+  \forest@anchor@isbordertrue
+  \edef\forest@temp@anchor@last{\number\numexpr\forestove{grow}-\forestove{rotate}\ifnum\forestove{reversed}=0 +\else-\fi90}%
+  \forest@getaverageangle{180+\forestove{grow}-\forestove{rotate}}{\forest@temp@anchor@last}\forest@temp@anchor
+}
 \csdef{forest@anchor@@children}{%
   \forest@anchor@snapbordertocompasstrue
   \csuse{forest@anchor@@children'}%
 }
+\csdef{forest@anchor@@-children}{%
+  \forest@anchor@snapbordertocompasstrue
+  \csuse{forest@anchor@@-children'}%
+}
 \csdef{forest@anchor@@parent}{%
   \forest@anchor@snapbordertocompasstrue
   \csuse{forest@anchor@@parent'}%
+}
+\csdef{forest@anchor@@-parent}{%
+  \forest@anchor@snapbordertocompasstrue
+  \csuse{forest@anchor@@-parent'}%
 }
 \csdef{forest@anchor@@first}{%
   \forest@anchor@snapbordertocompasstrue
@@ -8742,17 +10716,33 @@
   \forest@anchor@snapbordertocompasstrue
   \csuse{forest@anchor@@parent first'}%
 }
+\csdef{forest@anchor@@-parent first}{%
+  \forest@anchor@snapbordertocompasstrue
+  \csuse{forest@anchor@@-parent first'}%
+}
 \csdef{forest@anchor@@parent last}{%
   \forest@anchor@snapbordertocompasstrue
   \csuse{forest@anchor@@parent last'}%
+}
+\csdef{forest@anchor@@-parent last}{%
+  \forest@anchor@snapbordertocompasstrue
+  \csuse{forest@anchor@@-parent last'}%
 }
 \csdef{forest@anchor@@children first}{%
   \forest@anchor@snapbordertocompasstrue
   \csuse{forest@anchor@@children first'}%
 }
+\csdef{forest@anchor@@-children first}{%
+  \forest@anchor@snapbordertocompasstrue
+  \csuse{forest@anchor@@-children first'}%
+}
 \csdef{forest@anchor@@children last}{%
   \forest@anchor@snapbordertocompasstrue
   \csuse{forest@anchor@@children last'}%
+}
+\csdef{forest@anchor@@-children last}{%
+  \forest@anchor@snapbordertocompasstrue
+  \csuse{forest@anchor@@-children last'}%
 }
 %    \end{macrocode}
 % This macro computes the "average" angle of |#1| and |#2| and stores in into |#3|. 
@@ -8761,30 +10751,40 @@
 %    \begin{macrocode}
 \def\forest@getaverageangle#1#2#3{%
   \edef\forest@temp{\number\numexpr #1-#2+540}%
-  \pgfmathMod{\forest@temp}{360}\pgfmathtruncatemacro\pgfmathresult{\pgfmathresult}
-  \edef\forest@temp{360+#2+((\pgfmathresult-180)/2)}%
-  \pgfmathMod{\forest@temp}{360}\pgfmathtruncatemacro#3{\pgfmathresult}%
+  \expandafter\pgfmathMod@\expandafter{\forest@temp}{360}%
+  \forest@truncatepgfmathresult
+  \edef\forest@temp{\number\numexpr 360+#2+((\pgfmathresult-180)/2)}%
+  \expandafter\pgfmathMod@\expandafter{\forest@temp}{360}%
+  \forest@truncatepgfmathresult
+  \let#3\pgfmathresult
 }
+\def\forest@truncatepgfmathresult{%
+  \afterassignment\forest@gobbletoEND
+  \forest@temp@count=\pgfmathresult\forest@END
+  \def\pgfmathresult{\the\forest@temp@count}%
+}
+\def\forest@gobbletoEND#1\forest@END{}
 %    \end{macrocode}
 % The first macro changes border anchor to compass anchor. The second one does this only if the node shape allows it.
 %    \begin{macrocode}
 \def\forest@anchor@border@to@compass{%
-  \ifforest@anchor@isborder
+  \ifforest@anchor@isborder % snap to 45 deg, to range 0-360
     \ifforest@anchor@snapbordertocompass
       \forest@anchor@snap@border@to@compass
-    \else
-      \pgfmathMod{\forest@temp@anchor}{360}%
-      \pgfmathtruncatemacro\forest@temp@anchor{\pgfmathresult}%
+    \else % to range 0-360
+      \pgfmathMod@{\forest@temp@anchor}{360}%
+      \forest@truncatepgfmathresult
+      \let\forest@temp@anchor\pgfmathresult 
     \fi
-    \ifforest@anchor@forwardtotikz
-      \ifcsname pgf@anchor%
-          @\csname pgf@sh@ns@\pgfreferencednodename\endcsname
-          @\csname forest@compass@\forest@temp@anchor\endcsname
-          \endcsname
-        \letcs\forest@temp@anchor{forest@compass@\forest@temp@anchor}%
-      \fi
-    \else
-      \ifforest@anchor@snapbordertocompass
+    \ifforest@anchor@snapbordertocompass
+      \ifforest@anchor@forwardtotikz
+        \ifcsname pgf@anchor%
+            @\csname pgf@sh@ns@\pgfreferencednodename\endcsname
+            @\csname forest@compass@\forest@temp@anchor\endcsname
+        \endcsname
+          \letcs\forest@temp@anchor{forest@compass@\forest@temp@anchor}%
+        \fi
+      \else
         \letcs\forest@temp@anchor{forest@compass@\forest@temp@anchor}%
       \fi
     \fi
@@ -8803,11 +10803,12 @@
 % This macro approximates an angle (stored in |\forest@temp@anchor|) with a compass direction (stores it in the same macro).
 %    \begin{macrocode}
 \def\forest@anchor@snap@border@to@compass{%
-  \pgfmathMod{\forest@temp@anchor}{360}%
-  \pgfmathdivide{\pgfmathresult}{45}%
-  \pgfmathround{\pgfmathresult}%
-  \pgfmathmultiply{\pgfmathresult}{45}%
-  \pgfmathtruncatemacro\forest@temp@anchor{\pgfmathresult}%
+  \pgfmathMod@{\forest@temp@anchor}{360}%
+  \pgfmathdivide@{\pgfmathresult}{45}%
+  \pgfmathround@{\pgfmathresult}%
+  \pgfmathmultiply@{\pgfmathresult}{45}%
+  \forest@truncatepgfmathresult
+  \let\forest@temp@anchor\pgfmathresult
 }
 %    \end{macrocode}
 % This macro forwards the resulting anchor to \TikZ;.
@@ -8840,33 +10841,31 @@
 %    
 % This macro sets up |\pgf@x| and |\pgf@y| to the given anchor's coordinates, within the node's coordinate system. It works even before the node was positioned. If the anchor is empty, i.e.\ if is the implicit border anchor, we return the coordinates for the center. 
 %    \begin{macrocode}
-\def\forest@Pointanchor#1#2{% #1 = node id, #2 = anchor
-  {%
-    \def\forest@pa@temp@name{name}%
-    \forestOifdefined{#1}{@box}{%
-      \forestOget{#1}{@box}\forest@temp
-      \ifdefempty\forest@temp{}{%
-        \def\forest@pa@temp@name{later@name}%
-      }%
-    }{}%
-    \setbox0\hbox{%
-      \begin{pgfpicture}%
-        \if\relax\forestOve{#1}{#2}\relax
-          \pgfpointanchor{\forestOve{#1}{\forest@pa@temp@name}}{center}%
-        \else
-          \pgfpointanchor{\forestOve{#1}{\forest@pa@temp@name}}{\forestOve{#1}{#2}}%
-        \fi
-        \xdef\forest@global@marshal{%
-          \noexpand\global\noexpand\pgf@x=\the\pgf@x\relax
-          \noexpand\global\noexpand\pgf@y=\the\pgf@y
-        }%
-      \end{pgfpicture}%
-    }%
-  }%
-  \forest@global@marshal    
-}
 \def\forest@pointanchor#1{% #1 = anchor
   \forest@Pointanchor{\forest@cn}{#1}%
+}
+\def\forest@Pointanchor#1#2{% #1 = node id, #2 = anchor
+  \def\forest@pa@temp@name{name}%
+  \forestOifdefined{#1}{@box}{%
+    \forestOget{#1}{@box}\forest@temp
+    \ifdefempty\forest@temp{}{%
+      \def\forest@pa@temp@name{later@name}%
+    }%
+  }{}%
+  \setbox0\hbox{%
+    \begin{pgfpicture}% this is expensive: so that's why caching
+      \if\relax\forestOve{#1}{#2}\relax
+        \pgfpointanchor{\forestOve{#1}{\forest@pa@temp@name}}{center}%
+      \else
+        \pgfpointanchor{\forestOve{#1}{\forest@pa@temp@name}}{\forestOve{#1}{#2}}%
+      \fi
+      \xdef\forest@global@marshal{%
+        \noexpand\global\noexpand\pgf@x=\the\pgf@x\relax
+        \noexpand\global\noexpand\pgf@y=\the\pgf@y\relax\relax
+      }%
+    \end{pgfpicture}%
+  }%
+  \forest@global@marshal
 }
 %    \end{macrocode}
 %    

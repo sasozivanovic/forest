@@ -1,7 +1,7 @@
 %% forest-doc.tex
 %% `forest-doc.tex` is a main documentation source of package `forest`.
 %%
-%% Copyright (c) 2015 Saso Zivanovic
+%% Copyright (c) 2016 Saso Zivanovic
 %%                    (Sa\v{s}o \v{Z}ivanovi\'{c})
 %% saso.zivanovic@guest.arnes.si
 %%
@@ -29,7 +29,7 @@
   nohead
 ]{geometry}
 
-%\immediate\write18{makeindex -s forest-doc.ist forest-doc}
+\immediate\write18{makeindex -s forest-doc.ist forest-doc}
 \def\indexlettertotoc#1\relax{%
   \phantomsection\addcontentsline{toc}{subsection}{#1}%
   #1%
@@ -55,6 +55,23 @@
 }
 
 \usepackage{forest-doc} 
+% \usepackage{patchpgf}
+% \newcommand\pgfprofilenewforcommandcs[2]{%
+%   \expandafter\pgfprofilenewforcommand\expandafter{\csname #1\endcsname}{#2}}
+% \newcommand\pgfprofilenewforpgfkey[1]{%
+%   \edef\marshal{%
+%     \noexpand\pgfprofilenewforcommandpattern[#1]{\expandonce{\csname pgfk@#1/.@cmd\endcsname}}{####1\noexpand\pgfeov}{####1\noexpand\pgfeov}
+%   }\marshal
+% }
+% \usetikzlibrary{profiler}
+% \makeatletter
+% \pgfprofilenewforcommand{\forestindex@index}{3}
+% \pgfprofilenewforcommand{\pgfmathparse}{1}
+% \pgfprofilenewforpgfkey{/forest/split}
+% \pgfprofilenewforpgfkey{/forest/nodewalk/reverse}
+% \pgfprofilenewforcommand{\forest@Nodewalk}{2}
+% \pgfprofilenewforcommand{\pgfkeysalso}{1}
+% \makeatother
 
 \usepackage{hyperref}
 \hypersetup{unicode=true,colorlinks=true,linkcolor=blue,citecolor=blue,hyperindex=false}
@@ -100,11 +117,11 @@
       if index entry type={definition}{
         temptoksa/.register=result,
         hyper,
-        result/.wrap 2 pgfmath args={%
+        result/.process=ROw2{result}{argument}{%
           \texttt{\string\begin\char`\{##1\char`\}}%
-            \forestoption{argument}%
-            \texttt{\string\end\char`\{##2\char`\}}%
-        }{result}{temptoksa},
+            ##2%
+          \texttt{\string\end\char`\{##1\char`\}}%
+        }
       }{
         hyper
       }
@@ -186,7 +203,7 @@
   >{aggregate}
 
 \indexset
-  [form={\texttt{pgfmath} function},for first={format={pgfkey}}]
+  [form={\texttt{pgfmath} function},for first={format={detokenize,pgfkey}}]
   >{pgfmath}
 
 \indexset
@@ -197,9 +214,9 @@
     form={},
     for first={
       for first={
-        key+/.pgfmath=argument("!parent"),
+        key+/.option=!parent.argument,
         index format={
-          result+/.wrap pgfmath arg={\protect\meta{##1 option}}{argument("!parent")}
+          result+/.process={Ow1} {!parent.argument} {\protect\meta{##1 option}},
         },
         print format={
           if argument={}{}{
@@ -217,9 +234,9 @@
     form={},
     for first={
       for first={
-        +key/.pgfmath=argument("!parent"),
+        +key/.option=!parent.argument,
         index format={
-          +result/.wrap pgfmath arg={\protect\meta{##1 option}}{argument("!parent")}
+          +result/.process={Ow1} {!parent.argument} {\protect\meta{##1 option}},
         },
         print format={
           if argument={}{}{
@@ -237,10 +254,9 @@
     form={},
     for first={
       for first={
-        key/.wrap 2 pgfmath args={##1 ##2}{key}{argument("!parent,parent")},
+        key/.process={OOw2} {key} {!parent,parent.argument} {##1 ##2},
         index format={
-          result+={\space},
-          result+/.wrap pgfmath arg={\protect\meta{##1}}{argument("!parent,parent")}
+          result+/.process={Ow1} {!parent,parent.argument} {\space\protect\meta{##1}},
         },
         print format={
           if argument={}{}{
@@ -259,10 +275,9 @@
     form={},
     for first={
       for first={
-        key/.wrap 2 pgfmath args={##2 ##1}{key}{argument("!parent,parent")},
+        key/.process={OOw2} {key} {!parent,parent.argument} {##2 ##1},
         index format={
-          +result={\space},
-          +result/.wrap pgfmath arg={\protect\meta{##1}}{argument("!parent,parent")}
+          +result/.process={Ow1} {!parent,parent.argument} {\protect\meta{##1}\space},
         },
         print format={
           if argument={}{}{
@@ -281,7 +296,7 @@
   index key format={result/.expanded=\forestoption{argument} value},
   format={result/.expanded=\noexpand\texttt{\forestoption{argument}} value},
   for first={format=pgfkey}
-  ]>{value} 
+  ]>{value of} 
 
 \indexset[
   index key format={result/.expanded=\forestoption{argument} option},
@@ -290,8 +305,13 @@
   ]>{option of}
   
 \indexset
-  [form={},for first={format=meta}]
-  >{meta}
+  [form={},for first={
+    print format={if argument={}{}{
+        result+={:\ },
+        result+/.option=argument,
+      }},
+    format=meta,
+  }]>{meta}
 
 \indexset[
     for first={+key={{cs }},format={pgfkey}}
@@ -305,6 +325,10 @@
   [for first={format=pgfkey}]
   >{named nodewalk}
 
+\indexset[
+  format={result/.expanded=\noexpand\texttt{process instruction}},
+  for first={format=pgfkey}
+  ]>{processor}
   
 {\makeatletter % an dirty patch: \lst@nolig can sneak in the name...
 \gdef\myexampleindex#1{{\def\lst@nolig{}\lstaspectindex{#1}{}}}
@@ -329,7 +353,7 @@
     web:
     \href{http://spj.ff.uni-lj.si/zivanovic/}{http://spj.ff.uni-lj.si/zivanovic/}}}
 
-%\usepackage[trace]{trace-pgfkeys} % silent, stack, trace, verbose
+%\usepackage[verbose]{trace-pgfkeys} % silent, stack, trace, verbose
 %\pgfkeystracelevel{trace}
 
 \begin{document}
@@ -338,6 +362,7 @@
 
 % short verbatim: | (changes spaces into _)
 \DeleteShortVerb\|
+\def\indexpipe{|}
 {\catcode`\_=12 \def\marshal{%
 \lstMakeShortInline[basicstyle=\ttfamily,literate={_}{ }1 {__}{_}1]}%
 \expandafter}\marshal |
@@ -368,7 +393,7 @@ other kinds of) trees.  Its main features are
 
 \vspace{1cm}
 
-\begin{forestexample}[basicstyle=\ttfamily\scriptsize,layout=tree on top,no label,v sep=1cm,index={content,pgfmath,propagator>if,repeat,append,before drawing tree,y,alias,for step,step>children,edge,before typesetting nodes,tree,s sep,dimen+,l,ancestors,typeset node,nodewalk,readonly option>level,sort by,step>min}]
+\begin{forestexample}[basicstyle=\ttfamily\scriptsize,layout=tree on top,no label,v sep=1cm,index={content,pgfmath,conditional>if,repeat,append,before drawing tree,y,alias,for step,step>children,edge,before typesetting nodes,tree,s sep,dimen+,option>l,ancestors,typeset node,nodewalk,readonly option>level,sort by,step>min}]
   \pgfmathsetseed{14285}
   \begin{forest}
     random tree/.style n args={3}{% #1 = max levels, #2 = max children, #3 = max content
@@ -444,8 +469,13 @@ can show your appreciation by making a PayPal donation to \url{saso.zivanovic@gu
 \section{Tutorial}
 \label{sec:tutorial}
 
-This short tutorial progresses from basic through useful to
-obscure \dots
+This short tutorial progresses from basic through useful to obscure \dots fortunately, it is not the
+only newcomer's source of information on \foRest;: check out
+\href{http://mirrors.ctan.org/info/forest-quickstart/ForestQuickstart.pdf}{Forest Quickstart Guide
+  for Linguists}. Another very useful source of information (and help!) about \foRest; and \TeX\ in
+general is \href{http://tex.stackexchange.com}{\TeX\ StackExchange}.  Check out the questions tagged
+\href{http://tex.stackexchange.com/questions/tagged/forest}{\texttt{forest}}!
+
 
 \subsection{Basic usage}
 \label{tut:basic-usage}
@@ -529,6 +559,7 @@ typeset (Government Phonology) phonological representations.  The style is appli
 writing its name before the first (opening) bracket of the tree.
 \begin{forestexample}[label=ex:gp1-frost,code prefix={\def\usepackage[##1]##2{}}]
   \usepackage[~linguistics~]{forest}
+  % ...
   \begin{forest} ~GP1~ [
     [O[x[f]][x[r]]]
     [R[N[x[o]]][x[s]]]
@@ -545,9 +576,6 @@ load a library is as shown in the example, by loading the package with an option
 more information on loading libraries, see \S\ref{ref:package-options}.
 
 
-(Style \index{GP1} used above is defined in the \keyname{linguistics}
-library of the \foRest; package.)
-
 \subsection{Options}
 \label{tut:options}
 
@@ -556,7 +584,7 @@ properties of the node and the tree.  For example, at the end of
 section~\ref{tut:basic-usage}, we have seen that the \index{GP1} style
 vertically aligns the parent with the first
 child.  This is achieved by setting option \index{calign} (for
-\emph{c}hild-\emph{align}ment) to \index{value=calign>first} (child).
+\emph{c}hild-\emph{align}ment) to \index{value of=calign>first} (child).
 
 Let's try.  Options are given inside the brackets, following the
 content, but separated from it by a comma.  (If multiple options are
@@ -564,7 +592,7 @@ given, they are also separated by commas.)  A single option
 assignment takes the form \meta{option name}|=|\meta{option value}.  (There are
 also options which do not require a value or have a default value:
 these are given simply as \meta{option name}.)
-\begin{forestexample}[label=ex:numerals-simple,index={calign,value=calign>first}]
+\begin{forestexample}[label=ex:numerals-simple,index={calign,value of=align>first}]
   \begin{forest}
     [\LaTeX\ numerals, ~calign=first~
       [arabic[1][2][3][4]]
@@ -575,7 +603,7 @@ these are given simply as \meta{option name}.)
 \end{forestexample}
 
 The experiment has succeeded only partially.  The root node's
-children are aligned as desired (so \index{calign}|=|\index{value=calign>first} applied to the
+children are aligned as desired (so \index{calign}|=|\index{value of=calign>first} applied to the
 root node), but the value of the \index{calign} option didn't get
 automatically assigned to the root's children! \emph{An option given
 at some node applies only to that node.} In \foRest;, the options
@@ -593,9 +621,9 @@ propagator.  Observe:
     ]
   \end{forest}
 \end{forestexample}
-The value of propagator \index{for step=\index{tree}} is the option string that we
-want to process.  This option string is propagated to all the nodes in
-the subtree\footnote{It might be more precise to call this option
+The value of propagator \index{for step=\index{tree}} is a list of keys that we
+want to process.  This keylist is propagated to all the nodes in
+the subtree\footnote{It might be more precise to call \index{for step=\index{tree}}
 \texttt{for subtree} \dots\@ but this name at least saves some typing.}
 rooted in the current node (i.e.\ the node where \index{for step=\index{tree}} was
 given), including the node itself.  (Propagator \index{for step=\index{descendants}} is
@@ -657,7 +685,8 @@ easiest case of roman numerals: to get them, we can use the (plain)
 \TeX\ command |\romannumeral|.  To change the content of the node,
 we use option \index{content}.  When specifying its new value, we can use
 |#1| to insert the current content.\footnote{This mechanism is called
-\emph{wrapping}. \index{content} is the only option where wrapping works implicitely (simply
+  \emph{wrapping}. By default, \index{content} is the only \index{autowrapped toks} option,
+  i.e.\ option where wrapping works implicitely (simply
 because I assume that wrapping will be almost exclusively used with this option).  To wrap values
 of other options, use handler \index{wrap value}; see~\S\ref{ref:handlers}.}
 \begin{forestexample}[point={content,delay},index={for step,step>children,content,delay},label=ex:romannumeral]
@@ -671,8 +700,8 @@ This example introduces another option: \index{delay}.  Without it, the example 
 would get arabic numerals.  This is so because of the order in which the options are processed.
 First, the processing proceeds through the tree in a depth-first, parent-first fashion (first the
 parent is processed, and then its children, recursively; but see \index{processing order}).  Next,
-the option string of a node is processed linearly, in the order they were given.  (Option
-\index{content} is specified implicitely and is always the first.) If a propagator is encountered,
+the option string of a node is processed linearly, in the order they were given.  Option
+\index{content} is specified implicitely and is always the first.  If a propagator is encountered,
 the options given as its value are propagated \emph{immediately}.  The net effect is that if the
 above example contained simply |roman,for_children={content=...}|, the \index{content} option
 given there would be processed \emph{before} the implicit content options given to the children
@@ -687,19 +716,19 @@ Unlike \index{for step=\meta{step}} keys we have met before, \index{delay} is no
 spatial, but a temporal propagator.  Several other temporal propagators options exist, see
 \S\ref{ref:stages}.
 
-We are now ready to learn about simple conditionals.  Every node option has the corresponding
-\index{if option=\meta{option}} and \index{where option=\meta{option}} keys.
-\index{if option=\meta{option}}|=|\meta{value}\meta{true options}\meta{false options} checks whether
-the value of \meta{option} equals \meta{value}.  If so, \meta{true options} are
-processed, otherwise \meta{false options}.  The \index{where option=\meta{option}} keys are
-the same, but do this for the every node in the subtree; informally
-speaking, |where| = |for_tree| + |if|.  To see this in action,
-consider the rewrite of the \index{tier} example (\ref{ex:tier-manual}) from above.  We don't set
-the tiers manually, but rather put the terminal nodes (option
-\index{n children} is a read-only option containing the number
-of children) on tier \keyname{word}.\footnote{We could omit the braces around \texttt{0} because
-it is a single character. If we were hunting for nodes with 42 children, we'd have to write 
-\texttt{where n children=\{42\}...}.}
+We are now ready to learn about simple conditionals.\footnote{See \S\ref{ref:conditionals} for
+  further information on conditionals, including the generic \index{if} and \index{where}.} Every
+node option has the corresponding \index{if option=\meta{option}} and \index{where
+  option=\meta{option}} keys.  \index{if option=\meta{option}}|=|\meta{value}\meta{true
+  options}\meta{false options} checks whether the value of \meta{option} equals \meta{value}.  If
+so, \meta{true options} are processed, otherwise \meta{false options}.  The \index{where
+  option=\meta{option}} keys are the same, but do this for the every node in the subtree; informally
+speaking, |where| = |for_tree| + |if|.  To see this in action, consider the rewrite of the
+\index{tier} example (\ref{ex:tier-manual}) from above.  We don't set the tiers manually, but rather
+put the terminal nodes (option \index{n children} is a read-only option containing the number of
+children) on tier \keyname{word}.\footnote{We could omit the braces around \texttt{0} because it is
+  a single character. If we were hunting for nodes with 42 children, we'd have to write
+  \texttt{where n children=\{42\}...}.}
 \begin{forestexample}[index={tier,where option,n children}]
   \begin{forest}
     ~where n children~=0{tier=word}{}
@@ -714,15 +743,26 @@ it is a single character. If we were hunting for nodes with 42 children, we'd ha
   \end{forest}
 \end{forestexample}
 
-Note that you usually don't want to embed a \index{where} conditional in a \index{for step=\index{tree}}, as this will lead to a multiple traversal of many nodes, resulting in a slower execution.
-If you're inside a \index{for step=\index{tree}}, you probably want to use \index{if}.
+\begin{advise}
+\item Note that you usually don't want to embed a \index{where option=...} conditional in a \index{for
+    step=\index{tree}}, as this will lead to a multiple traversal of many nodes, resulting in a
+  slower execution.  If you're inside a \index{for step=\index{tree}}, you probably want to use
+  \index{if}.
+\end{advise}
 
-Finally, let's talk about styles. Styles are simply collections of
-options and/or other keys.  (They are not actually defined in the \foRest; package, but
-rather inherited from |pgfkeys|.)  If you often want to have non-default 
-parent/child anchors, say south/north as in example (\ref{ex:tier-manual}), you would save some
-typing by defining a style.  Styles are defined using \PGF;'s handler 
-|.style|, like shown below.\footnote{Style \index{sn edges} is actually already defined by library \reflibrary{linguistics}. The definition there is a bit more generic.}
+
+Finally, let's talk about styles.
+(They are not actually defined in the \foRest; package, but rather
+inherited from |pgfkeys|.)
+
+
+
+
+At the first approximation, styles are abbreviations: if you
+often want to have non-default parent/child anchors, say south/north as in example
+(\ref{ex:tier-manual}), you could save some typing by defining a style.  Styles are defined using
+\PGF;'s handler |.style|, like shown below.\footnote{Style \index{sn edges} is actually already
+  defined by library \reflibrary{linguistics}. The definition there is a bit more generic.}
 \begin{forestexample}[index={tier,option>parent anchor,option>child anchor}]
   \begin{forest}
     ~sn edges~/~.style~={for tree={
@@ -746,7 +786,7 @@ environment.  Use macro \index{forestset} to do this.
   }
 \end{lstlisting}
 
-You might have noticed that in the last two examples contain, some keys occurred even before the
+You might have noticed that in the last two examples, some keys occurred even before the
 first opening bracket, contradicting was said at the beginning of this section.  This is mainly
 just syntactic sugar (it can separate the design and the content): such \emph{preamble}
 keys behave as if they were given in the root node, the only difference (which often does not
@@ -754,7 +794,7 @@ matter) being that they get processed before all other root node options, even t
 \index{content}.
 
 If you find yourself writing the same preamble for every tree in your document,
-consider redefining style \index{default preamble}, which is implicitely included at the beginning
+consider modifying \index{default preamble}, which is implicitely included at the beginning
 of every preamble.  
 
 \subsection{Decorating the tree}
@@ -834,10 +874,10 @@ errors.)
 Finally, the most powerful tool in the node reference toolbox:
 \emph{relative nodes}.  It is possible to refer to other nodes which stand
 in some (most often geometrical) relation to the current node.  To
-do this, follow the node's name with a \index>{!} and a \emph{node walk}
+do this, follow the node's name with a \index>{!} and a \emph{nodewalk}
 specification.
 
-A node walk is a concise\footnote{Actually, \foRest; distinguishes two kinds of steps in node walks:
+A nodewalk is a concise\footnote{Actually, \foRest; distinguishes two kinds of steps in node walks:
   long-form and short-form steps.  This section introduces only short-form steps.  See
   \S\ref{ref:nodewalks}.} way of expressing node relations.  It is simply a string of steps, which
 are represented by single characters, where: \index{ss u} stands for the parent node (up); \index{ss
@@ -884,7 +924,7 @@ sibling.
 \end{forestexample}%
 \endgroup
 
-The second example uses \TikZ;'s fitting library to compute the
+The second example uses \TikZ;'s fitting library (automatically loaded by \foRest;) to compute the
 smallest rectangle containing node VP, its first child (DP$_2$) and its last grandchild (DP$_3$).
 The example also illustrates that the \TikZ; code 
 can be specified via the ``normal'' option syntax, i.e.\ as a value
@@ -915,19 +955,23 @@ grows down.  More generally, however, the direction of growth can change from no
 controlled by option \index{grow}=\meta{direction}.\footnote{The direction can be specified either in
   degrees (following the standard mathematical convention that $0$ degrees is to the right, and that
   degrees increase counter-clockwise) or by the compass directions: \texttt{east}, \texttt{north east},
-  \texttt{north}, etc.}  The system thus computes and stores the positions of children using a
+  \texttt{north}, etc.}  The system computes and stores the positions of children using a
 coordinate system dependent on the parent, called an \emph{ls-coordinate system}: the origin is the
 parent's anchor; l-axis is in the direction of growth in the parent; s-axis is orthogonal to the
 l-axis (positive side in the counter-clockwise direction from $l$-axis); l stands for \emph{l}evel,
-s for \emph{s}ibling.  The example shows the ls-coordinate system for a node with |grow=45|.
+s for \emph{s}ibling.  The example shows the ls-coordinate system for a node with
+|grow=45|.\footnote{The axes are drawn using coordinates given in \texttt{forest cs} coordinate
+  system; the ``manually'' given polar coordinate equivalent is shown in the comment.}
 
-\begin{forestexample}[point=grow,index=grow]
+\begin{forestexample}[point=grow,index={grow}]
   \begin{forest} background tree
     [parent, grow=45
       [child 1][child 2][child 3][child 4][child 5]
     ]
-    \draw[,->](-135:1cm)--(45:3cm) node[below]{$l$};
-    \draw[,->](-45:1cm)--(135:3cm) node[right]{$s$};
+    %\draw[,->](-135:1cm)--(45:3cm) node[below]{$l$};
+    \draw[,->](forest cs:l=-1cm,s=0)--(forest cs:l=3cm,s=0) node[below]{$l$};
+    %\draw[,->](-45:1cm)--(135:3cm) node[right]{$s$};
+    \draw[,->](forest cs:s=-1cm,l=0)--(forest cs:s=3cm,l=0) node[right]{$s$};
   \end{forest}
 \end{forestexample}
 
@@ -956,18 +1000,19 @@ s for \emph{s}ibling.  The example shows the ls-coordinate system for a node wit
 \input{\jobname.tmp}
 
 
-The l-coordinate of children is (almost) completely under your control, i.e.\ you set what is
-often called the level distance by yourself.  Simply set option \index{option>l} to change the
-distance of a node from its parent.  More precisely, \index{option>l}, and the related option
+The l-coordinate of children is (almost) completely under your control, i.e.\ you set what is often
+called the level distance by yourself.  Simply set option \index{option>l} to change the distance of
+a node from its parent.\footnote{If setting \index{option>l} seems to have no effect, read about
+  \index{l sep} further down this section.}  More precisely, \index{option>l}, and the related option
 \index{option>s}, control the distance between the (node) anchors of a node and its parent.  The
-anchor of a node can be changed using option \index{option>anchor}: by default, nodes are anchored at
-their base; see \cite[\S16.5.1]{tikzpgf2.10}.)  In the example below, positions of the anchors are
-shown by dots: observe that anchors of nodes with the same \index{option>l} are aligned and that the
-distances between the anchors of the children and the parent are as specified in the
+anchor of a node can be changed using option \index{option>anchor}: by default, nodes are anchored
+at their base; see \cite[\S16.5.1]{tikzpgf2.10}.)  In the example below, positions of the anchors
+are shown by dots: observe that anchors of nodes with the same \index{option>l} are aligned and that
+the distances between the anchors of the children and the parent are as specified in the
 code.\footnote{Here are the definitons of the macros for measuring distances.  Args: the x or y
-distance between points \#2 and \#3 is measured; \#4 is where the distance line starts (given as an
-absolute coordinate or an offset to \#2); \#5 are node options; the optional arg \#1 is the format of
-label. (Lengths are printed using package \texttt{printlen}.)
+  distance between points \#2 and \#3 is measured; \#4 is where the distance line starts (given as
+  an absolute coordinate or an offset to \#2); \#5 are node options; the optional arg \#1 is the
+  format of label. (Lengths are printed using package \texttt{printlen}.)
 
 \box\codebox}
 \begin{forestexample}[layout=tree on top,index={for step,tree,tikz,option>l,option>anchor},index>={!}]
@@ -1139,8 +1184,8 @@ some child is too high, or the parent is too deep.  The first problem is easier 
 situation using a bottom-aligned multiline node.  (Multiline nodes can be easily created using |\\|
 as a line-separator.  However, you must first specify the horizontal alignment using option
 \index{align} (see \S\ref{ref:node-appearance}). 
-Bottom vertical alignment is achieved by setting \index{base}|=|\index{value=base>bottom};
-the default, unlike in \TikZ;, is \index{base}|=|\index{value=base>top}). 
+Bottom vertical alignment is achieved by setting \index{base}|=|\index{value of=base>bottom};
+the default, unlike in \TikZ;, is \index{base}|=|\index{value of=base>top}). 
 \begin{forestexample}[point={align,base},index={align,base}]
   \begin{forest}
     [parent
@@ -1159,7 +1204,7 @@ needed to decrease the level distance? And nothing happened, like below on the l
 you used lots of parenthesis in your nodes?  And got a strange vertical misalignment, like below
 on the right?  Then rest assured that these (at least) are features not bugs and read
 \S\ref{tut:defaults}.
-\begin{forestexample}[layout=tree on top,v sep=-55ex,code left skip=-3cm,label=ex:misalignments,index={option>phantom,for step,step>children,fit,propagator>for,baseline,edge,descendants,content,pgfmath,ss 1}]
+\begin{forestexample}[layout=tree on top,v sep=-55ex,code left skip=-3cm,label=ex:misalignments,index={option>phantom,for step,step>children,fit,baseline,edge,descendants,content,pgfmath,ss 1}]
   \begin{forest}
     [,phantom,for children={l sep=1ex,fit=band,
       for 1={edge'=,l=0},baseline}
@@ -1274,18 +1319,18 @@ Setting only a default \index{l sep} thus does not work well enough in general. 
 is true for the reverse possibility, setting a default \index{option>l} (and leaving \index{l sep} at 0).  In the example below, the depth of the multiline node (anchored at the top
 line) is such that the child--parent edges are just too short if the level distance is kept constant.
 Sometimes, misalignment is much preferred \dots
-\begin{forestexample}[index={align,{value=align>center},for step,tree,l sep}]
+\begin{forestexample}[index={align,{value of=align>center},for step,tree,l sep}]
   \mbox{}\begin{forest}
-    [default
+    [default,baseline
       [first child[a][b][c]]
-      [second child\\[-1ex]\scriptsize(a copy),
+      [{second child\\[-1ex]\scriptsize(a copy)},
        align=center[a][b][c]]
     ]
-  \end{forest}\\
+  \end{forest}\quad
   \begin{forest} for tree={l sep=0}
-    [{\texttt{l sep}=0}
+    [{\texttt{l sep}=0},baseline
       [first child[a][b][c]]
-      [second child\\[-1ex]\scriptsize(a copy),
+      [{second child\\[-1ex]\scriptsize(a copy)},
                    align=center[a][b][c]]
     ]
   \end{forest}
@@ -1308,19 +1353,20 @@ and the standard node needs to be modified.  But for many applications, includin
 indices, the default works.
 
 The standard node can be changed using macro \index{forestStandardNode};
-see \ref{ref:standard-node}. 
+see \ref{ref:standard-node}.
+% TODO: primer? ali raje po spremembi interfaceja
 
 \subsection{Advanced option setting}
 \label{tut:advanced-option-setting}
 
-We have already seen that the value of options can be manipulated: in (\ref{ex:romannumeral}) we have
-converted numeric content from arabic into roman numerals using the \emph{wrapping} mechanism
-|content=\romannumeral#1|; in (\ref{ex:l*}), we have tripled the value of |l|
-by saying |l*=3|.  In this section, we will learn about the mechanisms for setting and
-referring to option values offered by \foRest;.
+We have already seen that the value of options can be manipulated: in (\ref{ex:romannumeral}), we
+have converted numeric content from arabic into roman numerals using the \emph{wrapping} mechanism
+|content=\romannumeral#1|; in (\ref{ex:l*}), we have tripled the value of |l| by saying |l*=3|.  In
+this section, we will learn more about the mechanisms for setting options and referring to their
+values.
 
 One other way to access an option value is using macro \index{forestoption}.  The macro takes a
-single argument: an option name.  (For details, see \S\ref{sec:option-reading}.)  In the
+single argument: an option name.  In the
 following example, the node's child sequence number is appended to the existing content. (This is
 therefore also an example of wrapping.)
 \begin{forestexample}[label=ex:forestoption,index={option>phantom,delay,for step,descendants,content,readonly option>n,forestoption}]
@@ -1331,11 +1377,11 @@ therefore also an example of wrapping.)
   \end{forest}
 \end{forestexample}
 
-However, only options of the current node can be accessed using \index{forestoption}.  To
-access option values of other nodes, \foRest;'s extensions to the \PGF;'s mathematical library
-|pgfmath|, documented in \citep[part VI]{tikzpgf2.10}, must be used.  To see |pgfmath| in action,
+However, only options of the current node can be accessed using \index{forestoption}.  Possibly the simplest way to
+access option values of other nodes is to use \foRest;'s extensions to the \PGF;'s mathematical library
+|pgfmath|, documented in \citep[part VI]{tikzpgf2.10}.  To see |pgfmath| in action,
 first take a look at the crazy tree on the title page, and observe how the nodes are
-rotated: the value given to (\TikZ;) option \texttt{rotate} is a full-fledged |pgfmath| expression
+rotated: the value given to option \index{rotate} is a full-fledged |pgfmath| expression
 yielding an integer
 in the range from $-30$ to $30$.  Similiarly, \index{dimen+=l} adds a random float
 in the $[-5,5]$ range to the current value of \index{option>l}.
@@ -1370,7 +1416,7 @@ the
 current node is just a short-hand notation for \texttt{option\string_name()} --- note that in some
 contexts, like preceding \texttt{+} or \texttt{-}, the short form does not work! (The same
 seems to be true for all pgfmath functions with ``optional'' arguments.)}  In the next example, we
-rotate the node based on the content of its parent.
+rotate the node based on the content of its parent (\index{short step>u} means `up').
 \begin{forestexample}[index={delay,for step,descendants,content,ss u},index>={!}]
   \begin{forest}
     delay={for descendants={rotate=content~("!u")~}}
@@ -1380,82 +1426,14 @@ rotate the node based on the content of its parent.
 Note that the argument of the option function is surrounded by double quotation marks: this is
 to prevent evaluation of the relative node name as a |pgfmath| function --- which it is not.
 
-Handlers \index{wrap pgfmath arg} and \index{wrap $n$ pgfmath args}
-(for $n=2,\dots,8$) combine the wrapping mechanism with the |pgfmath| evaluation.  The
-idea is to compute (most often, just access option values) arguments using |pgfmath| and then
-wrap them with the given macro.  Below, this is used to include the number of parent's children in
-the index. 
-\begin{forestexample}[index={option>phantom,delay,for step,descendants,content,readonly option>n,n children,wrap $n$ pgfmath args},index>={!}]
-  \begin{forest} [,phantom,delay={for descendants={
-              ~content/.wrap 3 pgfmath args=
-              {#1$_{#2/#3}$}{content}{n}{n_children("!u")}~}}
-    [c][o][u][n][t]]
-  \end{forest}
-\end{forestexample}
-Note the underscore |__| character in |n__children|: in |pgfmath| function names, spaces,
-apostrophes and other non-alphanumeric characters from option names are all replaced by
-underscores. 
-
-As another example, let's make the numerals example (\ref{ex:numerals-simple}) a bit fancier.
-The numeral type is read off the parent's content and used to construct the appropriate control
-sequence (|\@arabic|, |\@roman| and |\@alph|).  (Also, the numbers are not specified in content
-anymore: we simply read the sequence number \index{readonly option>n}.  And, to save some horizontal space for the
-code, each child of the root is pushed further down.)
-\begin{forestexample}[index={delay,where option,readonly option>level,content,readonly option>n,for step,step>children,option>l,wrap $n$ pgfmath args},index>={!}]
-  \begin{forest}
-    delay={where level={2}{~content/.wrap 2 pgfmath args=
-        {\csname @#1\endcsname{#2}}{content("!u")}{n}~}{}},
-    for children={l*=n},
-    [\LaTeX numerals,
-      [arabic[][][][]]
-      [roman[][][][]]
-      [alph[][][][]]
-    ]
-  \end{forest}
-\end{forestexample}
-
-The final way to use |pgfmath| expressions in \foRest;: |if| clauses.  In
-section~\ref{tut:options}, we have seen that every option has a corresponding \index{if option=\meta{option}}
-(and \index{where option=\meta{option}} key.  However, these are just a matter of convenience.  The full
-power resides 
-in the general \index{conditional>if} conditional, which takes three arguments: 
-|if=|\meta{condition}\meta{true options}\meta{false options}, where \meta{condition} can be any
-|pgfmath| expression 
-(non-zero means true, zero means false).  (Once again, propagator \index{propagator>where} is an abbreviation
-for \index{for step=\index{tree}}|={|\index{conditional>if}|=...}|.)  In the following example, \index{conditional>if} option
-is used to orient the 
-arrows from the smaller number to the greater, and to color the odd and even numbers differently.
-
-\forestset{random tree/.style n args={3}{% #1=max levels, #2=max children, #3=max content
-      content/.pgfmath={random(0,#3)},
-      if={#1>0}{repeat={random(0,#2)}{append={[,random tree={#1-1}{#2}{#3}]}}}{}}}
-\begin{forestexample}[index={before typesetting nodes,for step,descendants,conditional>if,content,edge,edge label,tree},index>={!},point=if]
-  \pgfmathsetseed{314159}
-  \begin{forest}
-    before typesetting nodes={
-      for descendants={
-        if={content()>content("!u")}{edge=->}{
-          if={content()<content("!u")}{edge=<-}{}},
-        edge label/.wrap pgfmath arg=
-          {node[midway,above,sloped,font=\scriptsize]{+#1}}
-          {int(abs(content()-content("!u")))}
-      },
-      for tree={circle,if={mod(content(),2)==0}
-                          {fill=yellow}{fill=green}}
-    }
-    [,random tree={3}{3}{100}]
-  \end{forest}
-\end{forestexample}
-
-This exhausts the ways of using |pgfmath| in forest.  We continue by introducing \emph{relative
-node setting}: write \index{relative node name}|.|\meta{option}|=|\meta{value} to set the
-value of \meta{option} of the specified relative node. Important: computation (pgfmath or wrap) of
-the value is 
+For further ways to access option values, see \S\ref{tut:wrapping}. Here, we continue by introducing
+\emph{relative node setting}: write \index{relative node name}|.|\meta{option}|=|\meta{value} to set
+the value of \meta{option} of the specified relative node. Important: computation of the value is
 done in the context of the original node.  The following example defines style \keyname{move} which
-not only draws an arrow from the source to the target, but also moves the content of the source
-to the target (leaving a trace).  Note the difference between |#1| and |##1|: |#1| is the argument
-of the style \keyname{move}, i.e.\ the given node walk, while |##1| is the original option value
-(in this case, content).
+not only draws an arrow from the source (the current node) to the target, but also moves the content
+of the source to the target (leaving a trace).  Note the difference between |#1| and |##1|: |#1| is
+the argument of the style \keyname{move} (a node walk determining the target), while |##1| is the
+original option (in this case, \indexex{option>content}) value.
 \begin{forestexample}[index={for step,tree,calign,tikz,delay,content},index>={!}]
   \begin{forest}
     for tree={calign=fixed edge angles},
@@ -1466,19 +1444,212 @@ of the style \keyname{move}, i.e.\ the given node walk, while |##1| is the origi
   \end{forest}
 \end{forestexample}
 
-In the following example, the content of the branching nodes is computed by \foRest;: a branching
-node is a sum of its 
-children.  Besides the use of the relative node setting, this example notably uses a recursive
-style: for each child of the node, style \keyname{calc} first applies itself to the child and then
-adds the result to the node; obviously, recursion is made to stop at terminal nodes. 
-\begin{forestexample}[index={if option,n children,content,for step,step>children,delay,pgfmath},index>={!}]
+\begin{forestexample}[index={if option,n children,content,for step,step>children,delay,pgfmath},index>={!},basicstyle=\scriptsize\ttfamily,layout=export]
   \begin{forest}
-    calc/.style={if n children={0}{}{content=0,for children={
-          calc,~!u.content~/.pgfmath=int(content("!u")+content())}}},
+    calc/.style={if n children={0}{}{content=0,for children={calc,~!u.content~/.pgfmath=int(content("!u")+content())}}},
     delay=calc,
     [[[3][4][5]][[3][9]][8][[[1][2][3]]]]
   \end{forest}
 \end{forestexample}
+
+In the following example, the content of the branching nodes is computed by \foRest;: a branching
+node is a sum of its children.  The algorithm visits each node (but the root node) and adds its
+content to the content of the parent.  Note that as the computation must proceed bottom-up,
+\index{for step=\index{descendants children-first}} propagator is used to walk through the
+tree.\footnote{It would be possible to emulate \index{for step=\index{descendants children-first}}
+  by defining a recursive style, as was done in this manual for versions of the package prior to
+  introduction of the bottom-up propagator. The following code produces identical result as the code
+  in the main text.
+
+  \box\codebox}
+
+\begin{forestexample}[index={if option,n children,content,for step,step>children,delay,pgfmath},index>={!}]
+  \begin{forest}
+    delay={
+      where n children={0}{}{content=0},
+      for descendants children-first={
+        ~!u.content~/.pgfmath=int(content("!u")+content())}
+    }
+    [[[3][4][5]][[3][9]][8][[[1][2][3]]]]
+  \end{forest}
+\end{forestexample}
+
+Actually, for common computations such as summing things up, \foRest; provides an easier way to do it: aggregate functions (\S\ref{ref:aggregate-functions}). Below, aggregate function \index{sum}, defined as |pgfkeys| handler, walks through the \index{step>children} (second argument) of the current node, summing up their \index{content} (first argument) and stores the result as the \index{content} of the current node (because \index{content} is the handled key).
+
+\begin{forestexample}[index={sum,aggregate postparse,for step,tree children-first,delay,n children,if option,content,step>children}]
+  \begin{forest}
+    delay={
+      aggregate postparse=int,
+      for tree children-first={
+        if n children={0}{}{
+          content/~.sum~={content}{children}
+        }
+      }
+    }
+    [[[3][4][5]][[3][9]][8][[[1][2][3]]]]
+  \end{forest}
+\end{forestexample}
+
+\subsection{Wrapping}
+\label{tut:wrapping}
+
+We have already seen examples of inserting option values into other expressions. In example
+(\ref{ex:romannumeral}), we have wrapped the value of the option being assigned to (|#1| stood for
+the current value of option \index{content}); example (\ref{ex:forestoption}) additionally wrapped
+the value of option \index{readonly option>n} (of the current node) using macro \index{forestoption}.  In general,
+\foRest; offers two ways to perform computations (from simple option value lookups to
+complicated formulas) and insert their results into another expression (of any kind: \TeX\ code,
+|pgfkeys| keylist, |pgfmath| expression, etc.).
+
+Historically, the first \foRest;'s mechanism that offered wrapping of computed values were handlers
+\index{wrap pgfmath arg} and \index{wrap $n$ pgfmath args} (for $n=2,\dots,8$), which combine the
+wrapping mechanism with the |pgfmath| evaluation.  The idea is to compute (most often, just access
+option values) arguments using |pgfmath| and then wrap them into the given macro body (marked below)
+using \TeX's parameters (|#1| etc.).  Below, this is used to subscript the contents of a node with
+its sequential number and the number of parent's children.
+\begin{forestexample}[index={option>phantom,delay,for step,descendants,content,readonly option>n,n children,wrap $n$ pgfmath args},index>={!},label=ex:pgfmathwrap]
+  \begin{forest} [,phantom,delay={for descendants={
+              content/.wrap 3 pgfmath args=
+              ~{#1$_{#2/#3}$}~
+              {content}{n}{n_children("!u")}}}
+    [c][o][u][n][t]]
+  \end{forest}
+\end{forestexample}
+Note the underscore |__| character in |n__children|: in |pgfmath| function names, spaces,
+apostrophes and other non-alphanumeric characters from option names are all replaced by
+underscores. 
+
+As another example, let's make the numerals example (\ref{ex:numerals-simple}) a bit fancier.
+The numeral type is read off the parent's content and used to construct the appropriate control
+sequence (|\@arabic|, |\@roman| and |\@alph|).  (The numbers are not specified in content
+anymore: we simply read the sequence number \index{readonly option>n}.)
+\begin{forestexample}[index={delay,where option,readonly option>level,content,readonly option>n,for step,step>children,option>l,wrap $n$ pgfmath args},index>={!}]
+  \begin{forest}
+    delay={where level={2}{content/.wrap 2 pgfmath args=
+        {\csname @#1\endcsname{#2}}
+        {content("!u")}{n}}{}},
+    for children={l*=n},
+    [\LaTeX\ numerals,
+      [arabic[][][][]]
+      [roman[][][][]]
+      [alph[][][][]]
+    ]
+  \end{forest}
+\end{forestexample}
+
+Invoking |pgfmath| is fairly time consuming and using it to do nothing but retrieve an option value
+seems a bit of an overkill.  To remedy the situation, argument processor
+(\S\ref{ref:argument-processor}) was introduced in \FoRest; v2.0 and considerably expanded in v2.1.
+One way to invoke it is using handler \index{handler>process}.
+
+The argument processor takes a sequence of instructions and an arbitrary number of arguments,
+transforms the given arguments according to the instructions, and feeds the resulting list of
+arguments into the handled key.
+
+An instruction is given by a single-character code.  The simplest instructions are:
+\index{processor>O}, which expects its argument to be an option name (possibly preceded by a
+\index{relative node name}|.| to access the option value of a non-current node) and returns the
+value of the option; \index{processor>R}, which does the same for registers; and \index{processor>noop}, which
+leaves the argument unchanged.
+
+In the following example, we define style |test| taking four arguments and call it by providing
+the arguments via \index{handler>process}. The instruction string |ROO__| tells the argument processor that
+the first argument is the value of (scratch) register \indexex{temptoksa}, the second the value of
+option \indexex{n children} at the current node, the third the value of option \indexex{content} of
+the second child of the current node, and the fourth just a plain string.  Macro |test| is thus
+actually invoked with argument list |{Hello}{3}{Jane}{Goodbye}|.
+
+\begin{forestexample}[index={handler>process,processor>noop,processor>R,processor>O,delay,content,n
+children,temptoksa}]
+  \begin{forest}
+    test/.style n args={4}{align=center,
+      content={#1!\\I have #2 children.\\One of them is #3.\\#4!}}
+    [,delay={temptoksa=Hello,
+      test/.process={~ROO_~}{temptoksa}{n children}{!2.content}{Goodbye}}
+      [John][Jane][Joe]]
+  \end{forest}
+\end{forestexample}
+
+To wrap using the argument processor, use instruction \index{processor>w}. Unless wrapping a single
+argument, this instruction should be followed by a number indicating the number of arguments
+consumed.  \index{processor>w} will take the required number of arguments from the list of already
+processed arguments and wrap them in the macro body given as the next (yet unprocessed) argument.
+
+The following example has the same result as example (\ref{ex:pgfmathwrap}).  Note that the
+order of the wrapper-macro body and the arguments is different for \index{handler>process} and \index{wrap
+  $n$ pgfmath args}.  (Experience shows that \index{handler>process}'s order is easier on the eyes.)  The
+example also illustrates that (i) the instructions need not be enclosed in braces and (ii) that
+repetition of an argument processor instruction can be indicated by appending a number to the
+instruction: thus |O3| below means the same as |OOO|.
+
+\begin{forestexample}[index={option>phantom,delay,for step,descendants,content,readonly option>n,n children},index>={!}]
+  \begin{forest} [,phantom,delay={for descendants={
+              content/.process=~O3 w3~
+                {content}{n}{!u.n children}
+                {#1$_{#2/#3}$}
+              }}
+    [c][o][u][n][t]]
+  \end{forest}
+\end{forestexample}
+
+Note that the order of the wrapper-macro body and the arguments is different for
+\index{handler>process} and \index{wrap $n$ pgfmath args}.  Experience shows that
+\index{handler>process}'s order is easier on the eyes. The example also illustrates that the
+instructions need not be enclosed in braces and that repetition of an argument processor instruction
+can be indicated by appending a number to the instruction: |O3| above is equivalent to |OOO|.
+
+% \begin{forestexample}[index={process,processor>w}]
+%   \begin{forest}
+%     [root,delay={align=center,
+%       content/.process={OO ~w2~}
+%         {n children}{content}
+%         {This node has #1 children.\\It's original content is ``#2''.}
+%       }]
+%   \end{forest}
+% \end{forestexample}
+
+\index{wrap $n$ pgfmath args} always returns a single braced expression and is thus a bit cumbersome
+to use when the handled key expects multiple arguments: the trick is to enclose the expected
+argument list in extra braces (marked in the code below).  As \index{handler>process} can return multiple
+arguments, there is no need for such a workaround. See the following example for comparison of the
+two methods.
+
+\begin{forestexample}[index={for step,step>name,handler>process,processor>O,processor>w,wrap $n$ pgfmath args}]
+  \begin{forest}
+    [,phantom
+      [pgfmath[2,delay={for n/.wrap 2 pgfmath args=
+          ~{~{#1}{content=#2,draw}~}~
+          {content}{content("!u")}
+        } [x][x][x][x]]]
+      [process[3, delay={for n/.process=
+          {O Ow1}{content}
+          {!u.content}{content=#1,draw}
+        } [x][x][x][x]]]
+    ]
+  \end{forest}
+\end{forestexample}
+
+A single \index{handler>process} invocation can perform multiple wrappings. The numbering of arguments of
+each wrapping starts at |#1|. In the example below, \index{for step=\index{nodewalk}} takes two
+arguments, a nodewalk and a list of nodekeys. Each is produced by an independent wrapping (wrap bodies
+are marked in the code).
+
+\begin{forestexample}[index={handler>process,processor>R,processor>w,for step,nodewalk,+toks,content}]
+  \begin{forest}
+    declare toks register=prefix,
+    declare count register=level to prefix,
+    prefix=X-,
+    level to prefix=1,
+    delay={
+      for nodewalk/.process=Rw Rw
+      {level to prefix}{~level=#1~}
+      {prefix}{~+content=#1~}
+    }
+    [0[1[2]][3[4][5]][6[7][8][9]]]
+  \end{forest}
+\end{forestexample}
+
+
 
 
 \subsection{Externalization}
@@ -1541,7 +1712,7 @@ the result, the token following the action character was expanded before the par
 
 The action character is not hard coded into \foRest;.  Actually, there is no action character by
 default.  (There's enough special characters in \foRest; already, anyway, and the situations where
-controlling the expansion is preferable to using the pgfkeys interface are not numerous.)  It is
+controlling the expansion is preferable to using the |pgfkeys| interface are not numerous.)  It is
 defined at the top of the example by processing key \index{action character} in the
 |/bracket| path; the definition is local to the \TeX\ group.
 
@@ -1608,7 +1779,7 @@ sticked in front of the expansion.
 \label{sec:reference}
 
 This section documents all publicly exposed keys and macros defined by the core package.  All other
-commands defined by the package (see the implementation typeset in |forest.doc|) are considered
+commands defined by the package (see the implementation typeset in |forest.pdf|) are considered
 internal and might change without prior notice or compatibility support.
 
 \subsection{Package loading and options}
@@ -1672,23 +1843,26 @@ If at all possible, each backwards incompatible change is given a key in the |co
   step=\meta{step}}, where a propagator could not fail.
 
 While each compatibility feature can be enabled individually, they are grouped for ease of use.  To
-load compatibility features since version |x|[|.y|[|.z|]], write |compat=x|[|.y|[|.z|]]|-all| or
+load compatibility features since the last version of form
+|x|[|.y|[|.z|]], write |compat=x|[|.y|[|.z|]]|-all| or
 |compat=x|[|.y|[|.z|]]|-most|.  The former enables all compatibility features since that release, the
 latter only those that are guaranteed to not disrupt any new functionality of the package.
 
 To load all compatibility features since the last major release (|x| in |x.y.z|), write
-|compat=|\indexdef{option of=compat>all}; to load most of them, write |compat=|\indexdef{option
-  of=compat>most} or simply |compat|.  
+|compat=|\indexdef{value of=compat>all}; to load most of them, write |compat=|\indexdef{value of=compat>most} or simply |compat|.
+
+To enable multiple compatibility features, either use this option multiple times, or provide it with
+a comma-separated list of compatibility features. (Surround the list by braces.)
 
 Specifying this option also defines macro \indexdef{macro>forestcompat} (taking the same arguments
 as the package option) which can be used to enable compatibility features locally, within the
 document body.  To enable compatibility mode but not enable any specific compatibility feature for
-the entire document, write |compat=|\indexdef{option of=compat>none} as a package option.
+the entire document, write |compat=|\indexdef{value of=compat>none} as a package option.
 
 For a list of compatibility features, see \S\ref{sec:changelog}.
 
 By default, the package warns when a compatibility feature is used.  Disable this behaviour by
-|compat=|\indexdef{option of=compat>silent}.
+|compat=|\indexdef{value of=compat>silent}.
 
 \indexitem(true){package option>tikzcshack}|=|\alternative{true,false}
 
@@ -1705,8 +1879,9 @@ Prints out some debugging info to the log file.  When given no argument, prints 
 available information, otherwise only the information on the listed (comma-separated) debug categories.  The available categories are listed below.
 
 \begin{syntax}
-  \indexitem{option of=debug>nodewalks}
-  \indexitem{option of=debug>dynamics}
+  \indexitem{value of=debug>nodewalks}
+  \indexitem{value of=debug>dynamics}
+  \indexitem{value of=debug>process}
 \end{syntax}
   
 \end{syntax}
@@ -1744,11 +1919,14 @@ available information, otherwise only the information on the listed (comma-separ
     }
 \end{forestexample}}
 
-  Using \meta{config}, it is possible to configure behaviour of the environment/macro prior to
-  application of \index{style>stages}.  The following keys are defined.
+\meta{config} is a keylist that configures the behaviour of the environment/macro.  The
+configuration is the first operation that the environment/macro does; it precedes even the reading
+of the tree specification.  Currently, \meta{config} accepts only one key:
   \begin{syntax}
-    \indexitem{option of=forest>stages}|=|\meta{style definition} overrides the contents of style
-    \index{style>stages} for the current environment/macro.
+    \indexitem{option of=forest>stages}|=|\meta{keylist}
+
+    By default, after reading the tree specification, \foRest; executes style \index{style>stages}.
+    If key |stages| is used in \meta{config}, \meta{keylist} is executed instead.
   \end{syntax}
   
 \indexitem{macro>forestset}\marg{keylist}
@@ -1838,7 +2016,7 @@ By redefining the following two keys, the bracket parser can be used outside \fo
   computed so that the nodes don't overlap.  That's difficult.  The result: option \index{option>s} is
   set for all nodes.  (Sometimes, the value of \index{option>l} is adjusted as well.)
 \item\label{step:compute-xy} Absolute positions, or rather, positions of the nodes relative to the
-  root node are computed.  That's easy.  The result: options \index{x} and \index{y} are
+  root node are computed.  That's easy.  The result: options \index{option>x} and \index{y} are
   set.
 \item\label{step:draw-tree} The \TikZ; code that will draw the tree is produced and executed.  (The nodes are
   drawn by using the boxes typeset in step~\ref{step:typeset-nodes}.)
@@ -1858,7 +2036,7 @@ better.
 
 Second, the execution of the processing stages \ref{step:given-options}--\ref{step:draw-tree} is
 \emph{completely} under user's control.  To facilitate adjusting the processing flow, the approach
-is twofold.  The outer level: \foRest; initiates the processing by executing style \keyname{stages},
+is twofold.  The outer level: \foRest; initiates the processing by executing style \index{style>stages},
 which by default executes the processing stages \ref{step:given-options}--\ref{step:draw-tree},
 preceding the execution of each but the first stage by processing the keys embedded in temporal
 propagators \keyname{before ...} (see \S\ref{ref:temporal-propagators}).  The inner level: each
@@ -1930,13 +2108,13 @@ processing flow.
   (Experimental, use with care, especially when combining with tier alignment.)
 
 \indexitem{stage>compute xy} Computes the positions of the nodes in the subtree relative to the
-  current node.  The results are stored into options \index{x} and \index{y}.  The current node's
-  \index{x} and \index{y} remain unchanged.
+  current node.  The results are stored into options \index{option>x} and \index{y}.  The current node's
+  \index{option>x} and \index{y} remain unchanged.
 
 \indexitem{stage>draw tree}
 \itemnosep
 \indexitem{stage>draw tree'}
-  Produces and executed the \TikZ; code that draws the (sub)tree rooted in the current node.
+  Produces and executes the \TikZ; code that draws the (sub)tree rooted in the current node.
 
   The procedure uses the node boxes typeset by \index{typeset nodes} or friends.  The |'| variant
   includes the node boxes in the picture using \cmdname{copy}, not \cmdname{box}, thereby preserving
@@ -1968,7 +2146,8 @@ processing flow.
 
   Dynamic creation of nodes happens between the cycles. The options given to the dynamically
   created nodes are implicitely delayed and thus processed at the end of the next cycle.
-  
+
+  This key is primarily intended for use within \index{style>stages}. 
   The calls of this key should \emph{not} be nested, and it should not be embedded under
   \index{process keylist'} or \index{process keylist register}.
 
@@ -2027,22 +2206,23 @@ It is safe to embed this key within \index{process keylist} and (all) friends.
   This key is safe to use within \index{process keylist}, \index{process keylist'} and
   \index{process keylist register}.
   
-\indexitem(tree){nodewalk style>processing order}|=|\meta{nodewalk}
+\indexitem(tree){nodewalk style>processing order}|/.nodewalk style=|\meta{nodewalk}
 
 Redefine this style to change the default order in which \index{process keylist} processes a keylist
 option.  For example, to process the nodes in a child-first fashion, write
 \begin{lstlisting}
-  for nodewalk={processing order/.style={tree children first}}{}
+  processing order/.nodewalk style=tree children first
 \end{lstlisting}
-Note that this is a \emph{nodewalk} style, so it must be defined during a nodewalk.
+Note that this is a \emph{nodewalk} style, so it must be defined either using |.style| handler
+during a nodewalk or using \index{nodewalk style}.
 
-\indexitem(processing order)[form={processing order}]{word suffix=keylist option>nodewalk style>processing order=\meta{keylist option}}|=|\meta{nodewalk}
+\indexitem(processing order)[form={processing order}]{word suffix=keylist option>nodewalk style>processing order=\meta{keylist option}}|/.nodewalk style=|\meta{nodewalk}
 
 Redefine this style to change the \index{process keylist} processing order for a specific
 \meta{keylist option}.  For example, to process \index{before drawing tree} options in the
 child-first fashion, leaving the processing of other |before ...| keylists untouched, write
 \begin{lstlisting}
-  for nodewalk={before drawing tree processing order/.style={tree children first}}{}
+  before drawing tree processing order/.nodewalk style=tree children first
 \end{lstlisting}
 
 \indexitem{node key>do dynamics} Experimental. Perform pending dynamic tree operations.
@@ -2055,12 +2235,12 @@ child-first fashion, leaving the processing of other |before ...| keylists untou
 \label{ref:temporal-propagators}
 
 Temporal propagators delay processing of given keys until some other point in the processing of the
-tree.  There are three kinds of temporal propagators.  Most of the |before_...| and |after_...|
-propagators defer the processing of the given keys to a hook just before some stage in the workflow
-(\S\ref{ref:stages}).  \index{before packing node} and \index{after packing node} are special as
-they fire \emph{during} the packing stage.  The \keyname{delay} propagator is ``internal'' to the
-current hook: the keys in the hook are processed cyclically, and \keyname{delay} delays the
-processing of the given keys until the next cycle.
+tree.  There are three kinds of temporal propagators.  Most of the propagators have the form
+|before_...| and defer the processing of the given keys to a hook just before some stage in the
+workflow (\S\ref{ref:stages}).  \index{before packing node} and \index{after packing node} are
+special as they fire \emph{during} the packing stage.  The \index{delay} propagator is
+``internal'' to the current hook: the keys in the hook are processed cyclically, and \keyname{delay}
+delays the processing of the given keys until the next cycle.
 
 Formally, temporal propagators are keylist options (except \index{delay n}, which is a style), so
 augmented assignments are possible (\S\ref{sec:option-setting}).
@@ -2136,7 +2316,7 @@ All temporal propagators can be nested without limit.
   the processing of the \meta{keylist} given to the node to until just after \emph{this specific
     node} is packed.
 
-\begin{forestexample}[index={after packing node,no edge,calign,value=calign>first,option>l,l sep,content format,content,if option,n children,pgfmath,option>s,max x,min x,for step,step>children,wrap pgfmath arg,typeset node,dimen+=s}]
+\begin{forestexample}[index={after packing node,no edge,calign,value of=calign>first,option>l,l sep,content format,content,if option,n children,pgfmath,option>s,max x,min x,for step,step>children,wrap pgfmath arg,typeset node,dimen+=s}]
   \forestset{box/.style={
     draw, no edge, l=0, l sep=1.5ex, 
     calign=first, anchor=base west,
@@ -2335,6 +2515,9 @@ declaration mechanism (\S\ref{sec:option-declaring}).
   \dots)
 \end{advise}
 
+By default, unknown keys are assumed to be \TikZ; keys and are forwarded to \index{node options}.
+This behaviour can be changed using \index{unknown to}.
+
 The following subsections list the node keys which are not described elsewhere (see above): spatial
 propagators (\S\ref{ref:spatial-propagators}) and general-purpose node keys, i.e.\ those which don't
 deal with tree formatting (\S\ref{sec:node-keys-various}).
@@ -2345,25 +2528,33 @@ deal with tree formatting (\S\ref{sec:node-keys-various}).
 
 Spatial propagators pass the given \meta{keylist} to other node(s) in the tree.
 
-\FoRest; provides many spatial propagators.  Almost all of them are built from long-form nodewalk
-steps using prefix \index{for step}.  This is why the list below is so short: it only documents
-this prefix and the exceptions.  For the list of nodewalk steps, see \S\ref{ref:nodewalks}.
-
 Spatial propagation does not change the current node: after visiting the nodes the keys are
-propagated to, a spatial propagator (silently) returns to the origin of the embedded nodewalk.
+propagated to, a spatial propagator (silently, using a so-called fake step) returns to the origin of
+the embedded nodewalk.
+
+\FoRest; provides many spatial propagators.  Almost all of them are built from long-form nodewalk
+steps using prefix \index{for step}.  This is why the list below is so short: it only documents this
+prefix and the exceptions.  For the list of nodewalk steps, see \S\ref{ref:nodewalks}, in particular
+\S\ref{ref:single-step-keys} for single-step keys and \S\ref{ref:multi-step-keys} for multi-step
+keys.
+
 
 \begin{syntax}
-\indexitem{word prefix=step>propagator>for=\meta{step}}|=|\meta{arg$_1$}|...|\meta{arg$_n$}\meta{keylist}
+\indexitem{word prefix=step>propagator>for=\meta{step}}|=|\meta{arg$_1$}|...|\meta{arg$_n$}\meta{keylist: every-step}
+\itemnosep
+\indexitem[not short]{word prefix=step>propagator>for=\index{nodewalk}}|=|\meta{nodewalk}\meta{keylist: every-step}
+\itemnosep
+\indexitem[not short]{word prefix=step>propagator>for=\index{nodewalk key>Nodewalk}}|=|\meta{keylist: config}\meta{nodewalk}\meta{keylist: every-step}
 
   Walks the (single- or multi-step) \meta{step} from the current node and executes the given
   \meta{keylist} at every visited node.  The current node remains unchanged.
 
-  \meta{step} must be a long-form nodewalk step.  If it has any arguments, they should be given
-  before the keylist, with one exception: \meta{keylist: every-step} arguments of embedded nodewalks
-  should be omitted, as it makes no sense to provide the every-step keylist twice.
+  \meta{step} must be a long-form nodewalk step.  If it has any arguments, they
+  (\meta{arg$_1$}|...|\meta{arg$_n$}) should be given before every-step \meta{keylist}, with two
+  exceptions: embedded nodewalk steps (\index{step>Nodewalk} and \index{nodewalk}) already require
+  the \meta{keylist: every-step} argument, so it should be omitted, as it makes no sense to provide
+  the every-step keylist twice.
 
-  For details on nodewalk steps, see \S\ref{ref:nodewalks}.
-  
   Examples:
   \begin{itemize}
   \item |for_parent={l_sep+=3mm}|
@@ -2372,6 +2563,40 @@ propagated to, a spatial propagator (silently) returns to the origin of the embe
   \item |for_tree={s_sep+=1em}|
   \end{itemize}
 
+\long\def\printbigbadforlist#1{%
+  {%
+    \tikzexternaldisable
+    \bracketset{action character=!}%
+    \begin{forest}(stages={
+        process keylist=given options,
+        for root'={
+          sort by={>O+t+c{content}},
+          %sort=children,
+          temptoksa={},
+          for sort={children}{
+            TeX and memoize/.process=ROw2{temptoksa}{content}{####1\texttt{for\space}\index{step>####2}},
+            temptoksa={,\space},
+          },
+        }
+      })
+      [!\bigbadforlist[nodewalk][nodewalk'][Nodewalk]]
+    \end{forest}%
+  }%
+}%
+\makeatletter
+\forest@memoize\printbigbadforlist
+\makeatother
+
+{\tolerance=10000
+Here's the big list of all spatial propagators built with prefix |for|:
+% to update,
+% - uncomment \appto\bigbadforlist{[#1]} in define long step in forest.dtx
+% - delete line \forest@memo@load {forest@memo@\printbigbadforlist ... in forest-doc.memo
+\printbigbadforlist{}.
+For details on nodewalk steps, see \S\ref{ref:nodewalks}.
+
+}
+  
 \indexitem{propagator>for tree'}|=|\meta{keylist 1}\meta{keylist 2} A ``combination'' of
   \index{for step=\index{tree children-first}} and \index{for step=\index{tree}}.
 
@@ -2398,11 +2623,13 @@ Configures and executes the \meta{nodewalk}.  This key is a nodekey-space copy o
   \item Use this key carefully as it can change the current node!
   \item The envisioned purpose of this key is to change the current node within the every-step
     keylist of (an outer) nodewalk, where only node keys are accepted.  The config defaults
-    (independent every-step, shared history) are set to facilitate that purpose.
+    (independent every-step, shared history) are set to facilitate that purpose. But it can also be
+    used as a simple node key, of course.
   \end{advise}
   
-\indexitem{node key>node walk}|=|\meta{node walk} \textbf{Deprecated!!!} Please use \index{for
-    step=\index{nodewalk}} in new code.  From the old documentation:
+\indexitem{node key>node walk}|=|\meta{node walk} \textbf{Deprecated!!!}  Requires
+  \index{compat}|=1.0-nodewalk|. Please use \index{for step=\index{nodewalk}} in new code.  From the
+  old documentation:
 
   \begin{quote}
     This is the most general way to use a \meta{node walk}.
@@ -2491,6 +2718,10 @@ store the given content using \meta{key}|=|\meta{content}.
   not need to be doubled: you can freely copy and paste your keylists between the node options of
   the root node, the preamble and the default preamble. The only difference will be the order of
   execution: first default preamble, then preamble, and finally the root node's options.
+
+\indexitem{node key>save and restore register}|=|\meta{register}\meta{keylist}
+
+Restores the current value of \meta{register} after executing the \meta{keylist}.
   
 \indexitem{node key>split}|=|\meta{toks}\meta{separator}\meta{keylist}
   \itemnosep
@@ -2502,14 +2733,42 @@ Split \meta{toks} or the value of \meta{option} or \meta{register} at occurrence
 \meta{separator} (which must be a single token), and process the keys in \meta{keylist} with the
 pieces of the split token list as arguments, in the order given.
 
-  The keys in \meta{keylist} can be any valid keys, including augmented assignments, non-current
-  option assignments, even \index{TeX}.
+\meta{option} can be either a simple \meta{option name} or a \meta{relative node name}\texttt{.}\meta{option name}.
 
   The difference in the number of split values and given keys is handled gracefully.  If there is
   not enough values, the superfluous keys are not processed; if there are too many values, the last
   key is called repeatedly.
 
-  For an example, see \S\ref{sec:example-decision-tree}.
+  The keys in \meta{keylist} can be any valid keys, including augmented assignments, non-current
+  option assignments, even \index{TeX} or user-defined styles.  Actually, as |split| works by simply
+  appending |={|\meta{current value}|}| to the relevant given key, it is possible for the key to be
+  a (sub)keylist ending in a simple, non-valued key, like shown below.
+
+  \begin{advise}
+  \item Pay attention to |%| characters around the subkeylist. In order for it to actually function
+    as a sublist, its braces should be stripped, but this can only happen if no spaces surround it.
+  \end{advise}
+
+\begin{forestexample}[point=split option,index={delay,content,split option,process args},label=ex:split option]
+  \begin{forest}
+    [
+      {1,2,3,4}
+      [,delay={
+        ~split option~=
+          {!parent.content}
+          {,}
+          {
+            content',%
+            {content+={+},content+}%
+          },
+          tempcounta'/.process={O+n}{content},
+          content+={=},
+          content+/.register=tempcounta,
+        }
+      ]
+    ]
+  \end{forest}
+\end{forestexample}
   
 \indexitem{node key>TeX}|=|\meta{toks: \TeX\ code} The given code is executed immediately.
 
@@ -2771,14 +3030,14 @@ nodes; the existing nodes are not affected.
   \indexitem{node key>declare keylist}|=|\meta{option name}\meta{default value}
   Declares a \meta{keylist} option.
 
-  \indexitem{node key>declare dimen}|=|\meta{option name}\meta{pgfmath: default value}
-  Declares a \meta{dimen} option.
+  \indexitem{node key>declare dimen}|=|\meta{option name}\meta{default value}
+  Declares a \meta{dimen} option.  The default value is processed by \index{forestmath}.
 
-  \indexitem{node key>declare count}|=|\meta{option name}\meta{pgfmath: default value}
-  Declares a \meta{count} option.
+  \indexitem{node key>declare count}|=|\meta{option name}\meta{default value}
+  Declares a \meta{count} option.   The default value is processed by \index{forestmath}.
 
-  \indexitem{node key>declare boolean}|=|\meta{option name}\meta{pgfmath: default value}
-  Declares a \meta{boolean} option.
+  \indexitem{node key>declare boolean}|=|\meta{option name}\meta{default value}
+  Declares a \meta{boolean} option.   The default value is processed by \index{forestmath}.
   
   \indexitem{node key>declare toks register}|=|\meta{register name}
   Declares a \meta{toks} register.
@@ -2825,7 +3084,7 @@ The following options apply at stage \index{typeset nodes}. Changing them
 afterwards has no effect in the normal course of events. 
 
 \begin{syntax}
-\indexitem({{{{{}}}}}){option>align}|=|\index{value=align>left}\OR\index{value=align>center}\OR\index{value=align>right}\OR\meta{toks: tabular header}
+\indexitem({{{{{}}}}}){option>align}|=|\index{value of=align>left}\OR\index{value of=align>center}\OR\index{value of=align>right}\OR\meta{toks: tabular header}
 
   Creates a left/center/right-aligned multiline node, or a tabular node.  In the
   \index{content} option, the lines of the node should separated by |\\| and the columns (if
@@ -2836,9 +3095,9 @@ afterwards has no effect in the normal course of events.
 \begin{forestexample}[index={l sep,align,base}]
   \begin{forest} l sep+=2ex
     [special value&actual value\\\hline
-      \indexdef{value=align>left}&||\texttt{@\{\}l@\{\}}\\
-      \indexdef{value=align>center}&||\texttt{@\{\}c@\{\}}\\
-      \indexdef{value=align>right}&||\texttt{@\{\}r@\{\}}\\
+      \indexdef{value of=align>left}&||\texttt{@\{\}l@\{\}}\\
+      \indexdef{value of=align>center}&||\texttt{@\{\}c@\{\}}\\
+      \indexdef{value of=align>right}&||\texttt{@\{\}r@\{\}}\\
       ,~align~=ll,draw
       [top base\\right aligned, ~align~=right,~base~=top]
       [left aligned\\bottom base, ~align~=left,~base~=bottom]
@@ -2869,12 +3128,12 @@ afterwards has no effect in the normal course of events.
 
 This option controls the vertical alignment of multiline (and in general, \texttt{tabular}) nodes
 created with \index{align}.  Its value becomes the optional argument to the \texttt{tabular}
-environment.  Thus, sensible values are \indexdef{value=base>t} (the top line of the table will
-be the baseline) and \indexdef{value=base>b} (the bottom line of the table will be the baseline).
+environment.  Thus, sensible values are \indexdef{value of=base>t} (the top line of the table will
+be the baseline) and \indexdef{value of=base>b} (the bottom line of the table will be the baseline).
 Note that this will only have effect if the node is anchored on a baseline, like in the default
 case of \index{option>anchor}|=base|.
 
-For readability, you can use \indexdef{value=base>top} and \indexdef{value=base>bottom} instead
+For readability, you can use \indexdef{value of=base>top} and \indexdef{value of=base>bottom} instead
 of \keyname{t} and \keyname{b}.  (\keyname{top} and \keyname{bottom} are still stored as
 \keyname{t} and \keyname{b}.) 
 
@@ -2994,7 +3253,7 @@ given.
 \label{ref:ref-node-position}
 
 Most of the following options apply at stage \index{pack}. Changing them afterwards has no effect
-in the normal course of events.  (Options \index{option>l}, \index{option>s}, \index{x}, \index{y} and
+in the normal course of events.  (Options \index{option>l}, \index{option>s}, \index{option>x}, \index{y} and
 \index{option>anchor} are exceptions; see their documentation for details).
 
 \begin{syntax}
@@ -3033,19 +3292,19 @@ in the normal course of events.  (Options \index{option>l}, \index{option>s}, \i
 
   \let\outerleftmargin\leftmargin
   \begin{syntax}
-  \item\keyname{calign}|=|\indexdef{value=calign>child} s-aligns the node anchors of the parent and
+  \item\keyname{calign}|=|\indexdef{value of=calign>child} s-aligns the node anchors of the parent and
     the primary child.
-  \item\keyname{calign}|=|\indexdef{value=calign>child edge} s-aligns the parent anchor of the parent 
+  \item\keyname{calign}|=|\indexdef{value of=calign>child edge} s-aligns the parent anchor of the parent 
     and the child anchor of the primary child.
-  \item \keyname{calign}|=|\indexdef{value=calign>first} is an abbreviation for
+  \item \keyname{calign}|=|\indexdef{value of=calign>first} is an abbreviation for
     |calign=child,calign_child=1|.
-  \item \keyname{calign}|=|\indexdef{value=calign>last} is an abbreviation for
+  \item \keyname{calign}|=|\indexdef{value of=calign>last} is an abbreviation for
     |calign=child,calign_child=-1|.
-  \item\keyname{calign}|=|\indexdef{value=calign>midpoint} s-aligns the parent's node anchor and the
+  \item\keyname{calign}|=|\indexdef{value of=calign>midpoint} s-aligns the parent's node anchor and the
     midpoint between the primary and the secondary child's node anchor.
-  \item\keyname{calign}|=|\indexdef{value=calign>edge midpoint} s-aligns the parent's parent anchor
+  \item\keyname{calign}|=|\indexdef{value of=calign>edge midpoint} s-aligns the parent's parent anchor
     and the midpoint between the primary and the secondary child's child anchor.
-  \item \keyname{calign}|=|\indexdef{value=calign>center} is an abbreviation for\\
+  \item \keyname{calign}|=|\indexdef{value of=calign>center} is an abbreviation for\\
     |calign=midpoint,| |calign_primary_child=1,| |calign_secondary_child=-1|. 
 \begin{forestexample}
   \begin{forest}
@@ -3054,12 +3313,12 @@ in the normal course of events.  (Options \index{option>l}, \index{option>s}, \i
       [last,calign=last[A][B][C]][8]]
   \end{forest}
 \end{forestexample}
-  \item\keyname{calign}|=|\indexdef{value=calign>fixed angles}: The angle between the direction of
+  \item\keyname{calign}|=|\indexdef{value of=calign>fixed angles}: The angle between the direction of
   growth at the current node (specified by option \index{grow}) and the line through the node
   anchors of the parent and the primary/secondary child will equal the primary/secondary angle.
 
   To achieve this, the block of children might be spread or further distanced from the parent.
-  \item\keyname{calign}|=|\indexdef{value=calign>fixed edge angles}: The angle between the direction of
+  \item\keyname{calign}|=|\indexdef{value of=calign>fixed edge angles}: The angle between the direction of
   growth at the current node (specified by option \index{grow}) and the line through the
   parent's parent anchor and the primary/secondary child's child anchor will equal the
   primary/secondary angle.
@@ -3124,9 +3383,9 @@ a previously named path in tikz}.
 
 \box\codebox}
   \begin{itemize}
-  \item\keyname{fit}|=|\indexdef{value=fit>tight}: an exact boundary of the node's subtree is computed,
+  \item\keyname{fit}|=|\indexdef{value of=fit>tight}: an exact boundary of the node's subtree is computed,
     resulting in a compactly packed tree.  Below, the boundary of subtree L is drawn.
-\begin{forestexample}[point={fit,tight},index={fit,{value=fit>tight},delay,for step,tree,option>name,content,pgfmath}]
+\begin{forestexample}[point={fit,tight},index={fit,{value of=fit>tight},delay,for step,tree,option>name,content,pgfmath}]
   \begin{forest}
     delay={for tree={name/.pgfmath=content}}
     [root
@@ -3141,9 +3400,9 @@ a previously named path in tikz}.
   \tikz@addmode{\pgfsyssoftpath@setcurrentpath#1}%
   \appto\tikz@preactions{\let\tikz@actions@path#1}%
   }}\makeatother
-\item\keyname{fit}|=|\indexdef{value=fit>rectangle}: puts the node's subtree in a rectangle and effectively
+\item\keyname{fit}|=|\indexdef{value of=fit>rectangle}: puts the node's subtree in a rectangle and effectively
   packs this rectangle; the resulting tree will usually be wider.
-\begin{forestexample}[point={fit,rectangle},index={fit,{value=fit>rectangle},delay,for step,tree,option>name,content,pgfmath}]
+\begin{forestexample}[point={fit,rectangle},index={fit,{value of=fit>rectangle},delay,for step,tree,option>name,content,pgfmath}]
   \begin{forest}
     delay={for tree={name/.pgfmath=content}}
     [root
@@ -3154,9 +3413,9 @@ a previously named path in tikz}.
     ]
   \end{forest}
 \end{forestexample}
-\item\keyname{fit}|=|\indexdef{value=fit>band}: puts the node's subtree in a rectangle of ``infinite
+\item\keyname{fit}|=|\indexdef{value of=fit>band}: puts the node's subtree in a rectangle of ``infinite
   depth'': the space under the node and its descendants will be kept clear.
-\begin{forestexample}[point={fit,band},index={fit,{value=fit>band},delay,for step,tree,option>name,content,pgfmath}]
+\begin{forestexample}[point={fit,band},index={fit,{value of=fit>band},delay,for step,tree,option>name,content,pgfmath}]
   \begin{forest}
     delay={for tree={name/.pgfmath=content}}
     [root
@@ -3439,9 +3698,9 @@ used in any \TikZ; code.
   \begin{forest}
     for tree={~parent anchor~=south,~child anchor~=north}
     [VP[V][DP]]
-    \path[fill=red] (.parent anchor) circle[radius=2pt]
-                    (!1.child anchor) circle[radius=2pt]
-                    (!2.child anchor) circle[radius=2pt];
+    \path[fill=red] (.parent anchor) circle[radius=2pt];
+    \path[fill=blue] (!1.child anchor) circle[radius=2pt]
+                     (!2.child anchor) circle[radius=2pt];
   \end{forest}
 \end{forestexample}
 
@@ -3468,8 +3727,7 @@ The values of these options provide various information about the tree and its n
   value via a |pgfmath| expression.
 
   If the given alias clashes with an existing node name, |alias| will yield an error, while |alias'|
-  will silently rename the node with this name to its default (|node@|\meta{id}) value.  Use an
-  empty argument to reset the node's name to its default value.
+  will silently rename the node with this name to its default value (|node@|\meta{id}).
 
   Aliases can be used as the \meta{forest node name} part of a relative node name and as the
   argument to the \index{step>name} step of a node walk.  The latter includes the usage
@@ -3501,7 +3759,7 @@ The values of these options provide various information about the tree and its n
 
   In |pgfmath| expressions, this option is accessible as |n__|.
 
-\indexitem(node@\meta{id}){option>name}|=|\meta{toks} 
+\indexitem{option>name}|=|\meta{toks} \hfill \texttt{node@}\meta{id}
 \itemnosep
 \indexitem{node key>name'}|=|\meta{toks} Sets the name of the node.
 
@@ -3587,11 +3845,12 @@ example, see how the boundaries in the discussion of \index{fit} were drawn.
   
   \indexitem({{{{{}}}}}){option>tikz}|=|\meta{toks: \TikZ; code}  ``Decorations.''
 
-  The code given as the value of this option will be included in the |tikzpicture| environment
-  used to draw the tree.  The code given to various nodes is appended in a depth-first,
-  parent-first fashion.  The code is included after all nodes of the tree have been drawn, so it
-  can refer to any node of the tree.  Furthermore, relative node names can be used to refer to
-  nodes of the tree, see \S\ref{ref:relative-node-names}.
+  The code given as the value of this option will be included in the |tikzpicture| environment used
+  to draw the tree.  By default, the code is included after all nodes of the tree have been drawn,
+  so it can refer to any node of the tree (furthermore, relative node names can be used to refer to
+  nodes of the tree, see \S\ref{ref:relative-node-names}) and the code given to various nodes is
+  appended in a depth-first, parent-first fashion.  See \S\ref{sec:draw-tree} for details and
+  customization.
 
   By default, bracket parser's afterthoughts feed the value of this option.  See
   \index{afterthought}. 
@@ -3610,10 +3869,11 @@ step'' means to change the current node.  Thus, nodewalk |parent,_parent,_n=2| d
 which first steps to the parent of the \emph{origin} node, then to its grandparent and finally to
 the second child of the origin's grandparent.
 
-The origin of the nodewalk depends on how the nodewalk is invoked.  When used after the \index>{!} in a
-relative node name (\S\ref{ref:relative-node-names}), the origin is the node with the name given
-before \index>{!}; when invoked by a spatial propagator such as \index{for step=\index{nodewalk}}
-(\S\ref{ref:spatial-propagators}), the origin is the current node.
+The origin of the nodewalk depends on how the nodewalk is invoked.  When used after the \index>{!}
+in a relative node name (\S\ref{ref:relative-node-names}), the origin is the node with the name
+given before \index>{!}; when invoked by a spatial propagator such as \index{for
+  step=\index{nodewalk}} (\S\ref{ref:spatial-propagators}), the origin is the current node; when
+invoked within another (outer) nodewalk, the origin is the current node of the outer nodewalk.
 
 Formally, a \meta{nodewalk} is a list of |pgfkeys| key--value pairs.  Steps in a nodewalk are thus
 separated by commas.  However, \foRest; also recognizes \emph{short-form} steps, whose names consist
@@ -3662,21 +3922,21 @@ Each nodewalk has an associated \emph{every-step keylist}: a keylist of node key
   from \index{path>forest} path, \foRest; would spend way too much time checking if a given node
   option is actually a short-form nodewalk.
 
-  If you need to execute nodewalk keys within the every-step keylist, use node key
-  \index{node key>Nodewalk}.} which get executed after each step of the nodewalk.  The every-step
-keylist of the current nodewalk is contained in register \index{register>every step} and can be
-changed at any point during the nodewalk.  Its value at the start of the nodewalk depends on how the
-nodewalk was invoked.  In most cases (e.g.\ \index{step>nodewalk} or prefix
-\index{for step}-based spatial propagators), it is given explicitely as an argument to the key
-that executes the nodewalk.  However, see \index{step>Nodewalk} for information on how the
-every-step keylist of an embedded nodewalk can interact with the every-step keylist of its parent
-nodewalk.
+  If you need to execute nodewalk keys within the every-step keylist, use node key \index{node
+    key>Nodewalk}.} which get executed after each step of the nodewalk.  The every-step keylist of
+the current nodewalk is contained in register \index{register>every step} and can be changed at any
+point during the nodewalk.  Its value at the start of the nodewalk depends on how the nodewalk was
+invoked.  In most cases (e.g.\ \index{step>nodewalk} or prefix \index{for step}-based spatial
+propagators), it is given explicitely as an argument to the key that executes the nodewalk.
+However, see \index{step>Nodewalk} option \index{option of=Nodewalk>every step} for information on
+how the every-step keylist of an embedded nodewalk can interact with the every-step keylist of its
+parent nodewalk.
 
 Each nodewalk step can be either \emph{real} or \emph{fake}.  Fake steps only change the current
 node.  Real steps also trigger execution of the every-step keylist and update of history.  Fake
 steps are sometimes useful as a ``computational tool''.  They can be introduced explicitely using
-\index{nodewalk key>fake}; some other keys (like some history nodewalk keys, \S\ref{ref:nodewalk-history})
-introduce fake steps implicitely.
+\index{nodewalk key>fake}; some other keys (like several history nodewalk keys,
+\S\ref{ref:nodewalk-history}) introduce fake steps implicitely.
 
 In some cases, the nodewalk might step ``out of the tree''.  (Imagine using \index{step>parent} at the
 root of the tree, or \index{readonly option>n}|=42| at a node with less that 42 children.)  Our official term will
@@ -3686,20 +3946,204 @@ error.  However, the full story is told by \index{nodewalk key>on invalid}.
 
 Nodewalks can be hard to follow, especially when designing styles. \FoRest; does its best to
 help. First, it logs the nodewalk stack in case of error.  Second, if package option
-\index{debug} is given, it logs every step made.
+\index{debug}|=|\index{option of=debug>nodewalks} is given, it logs every step made.
+
+
+\subsubsection{Invoking (embedded) nodewalks}
+\label{ref:embedded-walks}
+
+There are many ways to invoke a nodewalk. For example, several keys, like \index{fit to}, and
+aggregate functions (\S\ref{ref:aggregate-functions}) expect a \meta{nodewalk} argument.  This
+section lists keys which can be used to explicitely invoke a nodewalk.
+
+The keys in this section can be used not only as node keys (in fact, not all of them can be used
+so), but also as nodewalk keys. The latter fact means that they can be used to introduce embedded
+nodewalks, which (can) have its own every-step keylist, history and on-invalid mode; for details on
+how these properties of outer and embedded nodewalk can interact, see \index{step>Nodewalk}. There
+is no limit to the depth of nodewalks embedding (nodewalk within nodewalk within nodewalk \dots).
+
+An embedded nodewalk functions as a single, fake step of the outer nodewalk.  Specifically, this
+means that, while stepping through the embedded nodewalk, the every-step keylist of the outer
+nodewalk is not executed.  Furthermore, by default, modifying the every-step keylist of the inner
+walk (by manipulating register \index{register>every step}) does not influence the outer nodewalk
+(but see option \index{option of=Nodewalk>every step}).
+
+An embedded nodewalk does not count as a (real, every-step keyslist invoking) step of the outer
+nodewalk.  After it is finished, there are two options with respect to the new current node of the
+outer nodewalk,\footnote{Even the outermost explicitly invoked nodewalks actually have the outer
+  nodewalk. It is ``static'' in the sense that no real step is ever made in it, but it has all the
+  nodewalk properties --- the current node, \index{register>every step} keylist register, \index{option
+    of=Nodewalk>history} and \index{option of=Nodewalk>on invalid} mode (error) --- which can
+  interact with the embedded nodewalk.} depending on whether the embedded nodewalk was invoked using
+a variant of the key with or without the \index{for step} prefix (all keys in this section have the
+\index{for step} variant).
+\begin{itemize}
+\item For keys \emph{without} the \index{for step} prefix, the current node of the outer nodewalk
+  changes, \emph{via a fake step}, to the final node visited by the embedded nodewalk.  This holds
+  even if the final node was reached as a fake step and even if it is invalid
+  (\index{option>id}|=0|).  The fake step in the outer nodewalk cannot be made real, not even by
+  \index{nodewalk key>real}: if you want to execute the every-step keylist of the outer nodewalk at
+  the finishing node of the embedded nodewalk, follow the latter by step \index{current}.
+\item For keys \emph{with} the \index{for step} prefix, the current node of the outer nodewalk
+  remains unchanged. For this reason, the \index{for step}-prefixed keys are available as node keys
+  (we call them spatial propagators, \S\ref{ref:spatial-propagators}), while the steps without this
+  prefix are generally not, with the sole exception of \index{step>Nodewalk}, which I advise to use
+  carefully.
+\end{itemize}
+
+All steps described in this section can be prefixed by \index{for step}.  All of them, with or
+without this prefix, are available as nodewalk keys. The list of keys from this section which are
+available as node keys: \index{step>Nodewalk}, \index{for step=\index{step>Nodewalk}}, \index{for
+  step=\index{nodewalk}}; you will most often want to use the latter.
+
+
+\begin{syntax}
+\indexitem{step>Nodewalk}|=|\meta{keylist: config}\meta{nodewalk}\meta{keylist: every-step}
+
+  Walks an \meta{nodewalk} starting at the current node.
+
+  This is the most generic form of embedding a nodewalk. Unlike other keys described in this
+  subsection, it can also be used as a node key even without the \index{for step} prefix, but take
+  care as it will, in general, change the current node.
+
+  The \meta{config} argument serves to specify the interaction between the outer and embedded
+  nodewalk.  It can contain the following keys:
+
+  \let\outerleftmargin\leftmargin
+  \begin{syntax}
+    \indexitem(independent){option of=Nodewalk>every step}|={|\alternative{independent,inherited,shared}|}|
+    \indexitem(shared){option of=Nodewalk>history}|={|\alternative{independent,inherited,shared}|}|
+
+    The following table shows what happens to the every-step keylist and history depending on the
+    value of \keyname{every step} and \keyname{history}, respectively.  State B is \meta{every-step}
+    for every step and empty for history.
+      
+      \begin{tabular}{l|ccc}
+        &\keyname{independent}&\keyname{inherited}&\keyname{shared}\\\hline
+        state of the outer nodewalk&A&A&A\\
+        initial state of the inner nodewalk&B&A&A\\
+        \dots\\
+        final state of the inner nodewalk&C&C&C\\
+        state of the outer nodewalk&A&A&C
+      \end{tabular}      
+  \end{syntax}
+
+  As shown in the table above, argument \meta{every-step} is used to initialize the
+  embedded nodewalk's every-step keylist when it is independent of the outer nodewalk.  In other
+  cases, this argument is ignored (use |{}|).
+
+  \begin{syntax}
+    \indexitem(inherited){option of=Nodewalk>on invalid}|={|\alternative{error,fake,error in real,last valid,inherited}|}|
+
+    Like \index{nodewalk key>on invalid}, but local to this nodewalk.  The additional alternative
+    \indexdef{value of=on invalid>inherited} (which is the default) means to retain the current
+    value, regardless of how it was set (by an outer nodewalk, explicit \index{nodewalk key>on
+      invalid}, or the package default, \index{value of=on invalid>error}).
+  \end{syntax}
+  
+  \begin{advise}
+  \item Use \index{node key>Nodewalk} if you need to execute nodewalk keys within the every-step
+    keylist.
+  \end{advise}
+  
+\begin{forestexample}[index={register>every step}]
+  \begin{forest}
+    for 2=calign with current, for children={for descendants={circle,draw}}
+    [every step,
+      [independent,for nodewalk={
+          1,Nodewalk={~every step=independent~}{1,every step=fill,1}{},1
+        }{draw=red},
+        [[[[]]]]]
+      [inherited,for nodewalk={
+          1,Nodewalk={~every step=inherited~}{1,every step=fill,1}{},1
+        }{draw=red},
+        [[[[]]]]]
+      [shared,for nodewalk={
+          1,Nodewalk={~every step=shared~}{1,every step=fill,1}{},1
+        }{draw=red},
+        [[[[]]]]]]
+  \end{forest}
+\end{forestexample}
+
+
+\begin{forestexample}[index={history,walk back}]
+  \begin{forest}
+    mark/.style={tempcounta+=1,content+/.register=tempcounta,content+={,}},
+    [history:\\effect on the,align=center
+      [inner nodewalk
+        % uncommenting this would result in an error:
+        % [independent, delay={for nodewalk={
+        %     tempcounta=0,111,
+        %     Nodewalk={history=independent}{walk back=2}{mark,fill=yellow}
+        %   }{mark,draw=red}},
+        %   [[[]]]]
+        [inherited\\or\\shared, align=center,delay={for nodewalk={
+              tempcounta=0,111,
+              Nodewalk={~history=inherited~}{walk back=2}{mark,fill=yellow}
+            }{mark,draw=red}},
+          [[[]]]]]
+      [outer nodewalk
+        [inherited,delay={for nodewalk={
+            tempcounta=0,111,
+            Nodewalk={~history=inherited~}{11}{mark,fill=yellow},
+            walk back=2
+          }{mark,draw=red}},
+          [[[[[]]]]]]
+        [shared,delay={for nodewalk={
+            tempcounta=0,111,
+            Nodewalk={~history=shared~}{11}{mark,fill=yellow},
+            walk back=2
+          }{mark,draw=red}},
+          [[[[[]]]]]]]]
+  \end{forest}
+\end{forestexample}
+  
+\indexitem{step>nodewalk}|=|\meta{nodewalk}\meta{keylist: every-step}
+
+  This key is a shorthand for
+
+  \begin{center}
+    \index{step>Nodewalk}|={|\index{option of=Nodewalk>every step}|=independent,|\index{option
+        of=Nodewalk>history}|=independent,|\index{option of=Nodewalk>on
+        invalid}|=inherited}|\meta{nodewalk}\meta{keylist: every-step}
+  \end{center}
+
+  \begin{advise}
+  \item \index{for step=\index{nodewalk}} is the most common way to explicitely invoke a nodewalk from a
+    node keylist (the keylist immediately following the content of the node).
+  \end{advise}
+  
+\indexitem{step>nodewalk'}|=|\meta{nodewalk}
+
+  This key is a shorthand for
+
+  \begin{center}
+    \index{step>Nodewalk}|={|\index{option of=Nodewalk>every step}|=inherited,|\index{option
+        of=Nodewalk>history}|=independent,|\index{option of=Nodewalk>on
+        invalid}|=inherited}|\meta{nodewalk}|{}|
+  \end{center}
+  
+  \begin{advise}
+  \item Using this key, it is easy to ``\emph{temporarily} change'' the \index{register>every step}
+    keylist of a nodewalk.
+  \item Using \index{for step=\index{nodewalk'}} is probably the easiest way to make a ``trip''
+    within a nodewalk, i.e.\ walk some steps but return to their origin afterwards.
+  \item This key (with or without the \index{for step} prefix) is not available as a node key --- it
+    would make little sense there, as it has no every-step keylist argument.
+  \end{advise}
+  
+\end{syntax}
 
 
 \subsubsection{Single-step keys}
 \label{ref:single-step-keys}
 
-Single-step nodewalk keys visit a single node.  If the node a single-step is trying to visit does
-not exist, the current node is set to the invalid node (i.e.\ node with \index{readonly option>id}|=0|).  This
-can be useful for looping, see \S\ref{ref:loops}.  Use \index{last valid} or \index{last valid'}
-to return to the node that was current before the ``unsuccessful'' single-step.
+Single-step nodewalk keys visit a single node.  The behaviour in the situation when the target node
+does not exist is determined by \index{nodewalk key>on invalid}.
 
-For each single-step key, propagator \index{for step=\meta{step}} is also defined.
+For each single-step key, spatial propagator \index{for step=\meta{step}} is also defined.
 \index{for step=\meta{step}}|=|\meta{keylist} is equivalent to
-\index{propagator>for}|={|\meta{step}|}{|\meta{keylist}|}|.  If the step takes an argument, then its
+\index{for step=\index{nodewalk}}|={|\meta{step}|}{|\meta{keylist}|}|.  If the step takes an argument, then its
 \index{for step=\meta{step}} propagator takes two and the argument of the step precedes the
 \meta{keylist}.  See also \S\ref{ref:spatial-propagators}.
 
@@ -3851,6 +4295,16 @@ parent-first first-child-first.
   the children within each level, but the levels are still traversed from the highest to the
   deepest.
 
+\indexitem{step>leaves}
+
+  Visits all the leaves in the current node's subtree.
+  
+\indexitem[index key={level-}]{step>-level}|=|\meta{count}
+\itemnosep
+\indexitem[index key={level-'}]{step>-level'}|=|\meta{count}
+
+Visits all the nodes \meta{count} levels above the leaves in the current node's subtree.
+  
 \indexitem[+print form=\spaces{12},print form+=\spaces{9}]{step>preceding siblings}\quad\quad
   \indexdef[+print form=\spaces{12}]{step>following siblings}%
   \itemnosep
@@ -3890,150 +4344,42 @@ Visit all preceding or following nodes of the entire tree, in the linear order; 
   
 \end{syntax}
 
-\subsubsection{Embedded nodewalks}
-\label{ref:embedded-walks}
 
-An embedded nodewalk is a nodewalk within a nodewalk.  The embedded nodewalk has its own every-step
-keylist.  While stepping through the inner nodewalk, the every-step keylist of the outer nodewalk is
-not executed.  Modifying the every-step keylist of the inner walk (by \index{register>every step}) does not
-influence the outer nodewalk.
+\subsubsection{Operations}
+\label{ref:nodewalk-operations}
 
-After the embedded nodewalk finished, its final current node becomes the current node of the outer
-nodewalk.  This is true even if the final node was reached by a fake step.
+Generally speaking, nodewalk operations take an \emph{input nodewalk} and transform it into
+an \emph{output nodewalk}, while possibly also having side effects.
 
-\begin{advise}
-\item As node keys can be used within nodewalks, one can use spatial propagators
-  (\S\ref{ref:spatial-propagators}) like \index{for step=\index{step>nodewalk}} to embed a nodewalk
-  which (silently) returns to the current node of the outer nodewalk.
-\end{advise}
+The most important categorization of operations is in terms of the input nodewalk:
+\begin{itemize}
+\item ``Normal'' keys execute the input nodewalk ``invisibly'', i.e.\ with a every-step keylist that
+  is initially empty. However, even such an ``invisible'' nodewalk might not always be completely
+  without effect.  For example, the effects of any node keys contained in the input nodewalk or
+  modifications of its (initially empty) every-step keylist will be felt.
+\item Most of the operation keys have the |walk_and_...| variant, where input given nodewalk is meant to
+  be ``visible'': it is walked directly in the context of the invoking nodewalk (specifically, with
+  its every-step keylist in effect).
+\item Some operation keys have the |..._in_nodewalk| variant, which operates on the portion of the
+  current nodewalk that was already walked.
+\item \index{load} has no input nodewalk.
+\end{itemize}
+All operation keys except |..._in_nodewalk| variants can be prefixed by \index{for step} to create a
+spatial propagator (\S\ref{ref:spatial-propagators}).
 
-An embedded nodewalk does not count as a step of the outer nodewalk (except if noted otherwise, see
-\index{group}).  This means that the every-step keylist of the outer nodewalk is not executed at
-the final node of the embedded nodewalk.  In other words, the step made by the embedded nodewalk as
-a unit is fake.
+The output nodewalk is always walked in the context of the invoking nodewalk.  However, note that,
+as mentioned above, in the case of |walk_and_...| variants, that context can be changed during the
+execution of the input nodewalk.
 
-Embedded nodewalks also have their own origin and history.  Nodewalks can be nested to an arbitrary
-level.
+Trivia: \index{save} is the only operation with no output nodewalk and also the only operation with
+a ``side effect'' (of saving the nodewalk, obviously).
 
+For some operations (\index{filter} and \index{branch}), the every-step keylist contains instructions
+on how collect the relevant information.  While you can safely append and prepend to
+\index{register>every step} keylist of their input nodewalk, you should not completely rewrite
+it. If you want the operations to actually work, of course.
+  
 \begin{syntax}
-\indexitem{step>Nodewalk}|=|\meta{keylist: config}\meta{nodewalk}\meta{keylist: every-step}
-
-  Walks an (embedded) \meta{nodewalk} starting at the current node.
-
-  From the perspective of the outer nodewalk, the embedded nodewalk is an (implicitely) fake step
-  (and cannot be made real by \index{real}): the last node visited by the embedded
-  \meta{nodewalk} becomes the new current node of the outer nodewalk, even if it is invalid.
-
-  The \meta{config} argument serves to specify the interaction between the outer and embedded
-  nodewalk.  It can contain the following keys:
-
-  \let\outerleftmargin\leftmargin
-  \begin{syntax}
-    \indexitem(independent){option of=Nodewalk>every step}|={|\alternative{independent,inherited,shared}|}|
-    \indexitem(shared){option of=Nodewalk>history}|={|\alternative{independent,inherited,shared}|}|
-
-    The following table shows what happens to the every-step keylist and history depending on the
-    value of \keyname{every step} and \keyname{history}, respectively.  State B is \meta{every-step}
-    for every step and empty for history.
-      
-      \begin{tabular}{l|ccc}
-        &\keyname{independent}&\keyname{inherited}&\keyname{shared}\\\hline
-        state of the outer nodewalk&A&A&A\\
-        initial state of the inner nodewalk&B&A&A\\
-        \dots\\
-        final state of the inner nodewalk&C&C&C\\
-        state of the outer nodewalk&A&A&C
-      \end{tabular}      
-  \end{syntax}
-
-  As shown in the table above, argument \meta{every-step} is used to initialize the
-  embedded nodewalk's every-step keylist when it is independent of the outer nodewalk.  In other
-  cases, this argument is ignored (use |{}|).
-
-  \begin{syntax}
-    \indexitem(inherited){option of=Nodewalk>on invalid}|={|\alternative{error,fake,step,inherited}|}|
-
-    Like \index{nodewalk key>on invalid}, but local to this nodewalk.  The additional alternative
-    \indexdef{value=on invalid>inherited} (which is the default) means to behave as specified by
-    \index{nodewalk key>on invalid} (or the package default, \index{value=on invalid>error}, if no
-    \index{nodewalk key>on invalid} was given).
-  \end{syntax}
-  
-
-\begin{forestexample}
-  \begin{forest}
-    for 2=calign with current, for children={for descendants={circle,draw}}
-    [every step,
-      [independent,for nodewalk={
-        1,Nodewalk={~every step=independent~}{1,every step=fill,1}{},1}{draw=red},
-        [[[[]]]]]
-      [inherited,for nodewalk={
-        1,Nodewalk={~every step=inherited~}{1,every step=fill,1}{},1}{draw=red},
-        [[[[]]]]]
-      [shared,for nodewalk={
-        1,Nodewalk={~every step=shared~}{1,every step=fill,1}{},1}{draw=red},
-        [[[[]]]]]]
-  \end{forest}
-\end{forestexample}
-
-
-\begin{forestexample}
-  \begin{forest}
-    mark/.style={tempcounta+=1,content+/.register=tempcounta,content+={,}},
-    [history:\\effect on the,align=center
-      [inner nodewalk
-        % uncommenting this would result in an error:
-        % [independent, delay={for nodewalk={
-        %     tempcounta=0,111,
-        %     Nodewalk={history=independent}{walk back=2}{mark,fill=yellow}
-        %   }{mark,draw=red}},
-        %   [[[]]]]
-        [inherited\\or\\shared, align=center,delay={for nodewalk={
-              tempcounta=0,111,
-              Nodewalk={~history=inherited~}{walk back=2}{mark,fill=yellow}
-            }{mark,draw=red}},
-          [[[]]]]]
-      [outer nodewalk
-        [inherited,delay={for nodewalk={
-            tempcounta=0,111,
-            Nodewalk={~history=inherited~}{11}{mark,fill=yellow},
-            walk back=2
-          }{mark,draw=red}},
-          [[[[[]]]]]]
-        [shared,delay={for nodewalk={
-            tempcounta=0,111,
-            Nodewalk={~history=shared~}{11}{mark,fill=yellow},
-            walk back=2
-          }{mark,draw=red}},
-          [[[[[]]]]]]]]
-  \end{forest}
-\end{forestexample}
-  
-  
-\indexitem{step>nodewalk}|=|\meta{nodewalk}\meta{keylist: every-step}
-
-  This key is a shorthand for
-
-  \begin{center}
-    \index{step>Nodewalk}|={|\index{option of=Nodewalk>every step}|=independent,|\index{option of=Nodewalk>history}|=independent}|\meta{nodewalk}\meta{keylist: every-step}
-  \end{center}
-
-  \begin{advise}
-  \item  \index{for step=\index{nodewalk}} is also defined.
-  \end{advise}
-  
-\indexitem{step>nodewalk'}|=|\meta{nodewalk}
-
-  This key is a shorthand for
-
-  \begin{center}
-    \index{step>Nodewalk}|={|\index{option of=Nodewalk>every step}|=inherited,|\index{option of=Nodewalk>history}|=independent}|\meta{nodewalk}\meta{keylist: every-step}
-  \end{center}
-  
-  \begin{advise}
-  \item  \index{for step=\index{nodewalk'}} is also defined.
-  \end{advise}
-  
 \indexitem{step>group}|=|\meta{nodewalk}
 
   Treat \meta{nodewalk} as a single step of the (outer) nodewalk, i.e.\ the outer every-step keylist
@@ -4044,45 +4390,65 @@ level.
         of=Nodewalk>history}|=inherited}|\meta{nodewalk}|{}, current|
   \end{center}
 
-  \begin{advise}
-  \item It is safe to modify the every-step keylist of \meta{nodewalk}.
-  \item \index{for step=\index{group}} is also defined.
-  \end{advise}
   
-  
-\end{syntax}
-
-\subsubsection{Operations}
-\label{ref:nodewalk-operations}
-
-Operations internally walk the given nodewalk (except |..._in_nodewalk| variants, which operate on
-the portion of the current nodewalk that was already walked) to gather some information about
-visited nodes.  Then, based on that information, they walk some steps in the context (most
-importantly, with \index{register>every step} keylist) of the current nodewalk.
-
-Most of the following keys have a |walk_and_...| variant, which first walks the given nodewalk and
-then performs the desired operation.  All operation keys except |..._in_nodewalk| variants can be
-prefixed by \index{for step}.
-
-\begin{advise}
-\item The every-step keylist of the internal nodewalk is empty; or, more precisely, it contains only
-  instructions to how collect the relevant information.  You can safely append and prepend to
-  \index{register>every step} keylist of the internal nodewalk, but you should not completely
-  rewrite it.
-\end{advise}
-  
-\begin{syntax}
   \indexitem{step>reverse}|=|\meta{nodewalk}
   \itemnosep
   \indexitem{step>walk and reverse}|=|\meta{nodewalk}
 
   Visits the nodes of the given \meta{nodewalk} in the reversed order. 
 
-  \indexitem{nodewalk key>save}|=|\meta{toks: name}\meta{nodewalk}
+  
+  \indexitem{step>unique}|=|\meta{nodewalk}
+
+  Walks the \meta{nodewalk}, but visits each node at most once. 
+
+  
+\indexitem{step>filter}|=|\meta{nodewalk}\index{forestmath=condition}
+
+Visit the nodes of the given \meta{nodewalk} for which the given \meta{condition} is true.
+
+  \begin{advise}
+  \item You can safely append and prepend to \index{register>every step} keylist during the input
+    \meta{nodewalk}, but you should not completely rewrite it.
+  \end{advise}
+
+
+\indexitem{step>branch}|={|\meta{nodewalk$_1$}|,...,|\meta{nodewalk$_n$}|}|
+  \itemnosep
+\indexitem{step>branch'}|={|\meta{nodewalk$_1$}|,...,|\meta{nodewalk$_n$}|}|
+
+Visit the nodes in a ``cartesian product'' of any number of nodewalks, where a cartesian product is
+defined as a nodewalk where at every step of \meta{nodewalk$_i$} ($1\leq i<n$),
+\meta{nodewalk$_{i+1}$} is executed.
+
+The |branch| variant visits only the nodes visited by the innermost nodewalk, \meta{nodewalk$_n$}.
+The |branch'| variant visits the nodes visited by all the nodewalks of the product,
+\meta{nodewalk$_1$} \dots\ \meta{nodewalk$_n$}.
+
+For an example of each, see \index{c-commanded} and \index{c-commanders} from the
+\reflibrary{linguistics} library.
+
+  \begin{advise}
+  \item You can safely append and prepend to \index{register>every step} keylists during the input
+    \meta{nodewalk}s, but you should not completely rewrite them.
+  \end{advise}
+
+
+  \indexitem{step>save}|=|\meta{toks: name}\meta{nodewalk}
   \itemnosep
   \indexitem{step>walk and save}|=|\meta{toks: name}\meta{nodewalk}
 
-  Saves the given \meta{nodewalk} under the given name. 
+  Saves the given \meta{nodewalk} under the given name.
+
+  \indexitem{step>save append}|=|\meta{toks: name}\meta{nodewalk}
+  \itemnosep
+  \indexitem{step>save prepend}|=|\meta{toks: name}\meta{nodewalk}
+  \itemnosep
+  \indexitem{step>walk and save append}|=|\meta{toks: name}\meta{nodewalk}
+  \itemnosep
+  \indexitem{step>walk and save prepend}|=|\meta{toks: name}\meta{nodewalk}
+
+  Appends/prepends the given \meta{nodewalk} to nodewalk \meta{name}.
   
   \indexitem{step>load}|=|\meta{toks: name} Walks the nodewalk saved under the given name.  
 
@@ -4090,6 +4456,7 @@ prefixed by \index{for step}.
   a different current node, or even with a tree whose geometry has changed (see \S\ref{ref:dynamic})
   will still visit exactly the nodes that were visited when the nodewalk was saved.
 
+  
   \indexitem{step>sort}|=|\meta{nodewalk}
   \itemnosep
   \indexitem{step>sort'}|=|\meta{nodewalk}
@@ -4103,7 +4470,7 @@ prefixed by \index{for step}.
     the descending order.  The \keyname{walk and sort} variants first visit the nodes in the order
     specified by the given \meta{nodewalk}.
 
-  \indexitem{node key>sort by}|={|\meta{pgfmath}|,|\dots|,|\meta{pgfmath}|}|
+  \indexitem{node key>sort by}|={|\index{forestmath}|,|\dots|,|\index{forestmath}|}|
 
     Sets the sorting order used by all keys comparing nodes: \index{step>sort}, \index{step>min}
     and \index{step>max} key families in the nodewalk namespace, and the \index{dynamic
@@ -4117,13 +4484,43 @@ prefixed by \index{for step}.
   Simply put, if you want to sort first by the number of children and then by content, say
   |sort_by={|\index[+print format=pgfmath]{n children}|,_|\index{content}|}|.
 
-  In the simplest case, the given \meta{pgfmath} expressions are simply node options.  However, as
+  In the simplest case, the given \index{forestmath} expressions are simply node options.  However, as
   any |pgfmath| expression is allowed in the sort key, you can easily sort by the product of the
   content of the current node and the content of its first child:
-  |sort_by={|\index{content}|()*|\index{content}|("|\index>{!}|1")|.  Note, however, that the value returned by these expression
-    must be numeric, i.e.\ alphabetic comparison of strings is not implemented.
+  |sort_by={|\index{content}|()*|\index{content}|("|\index>{!}|1")|.  
 
+    To sort alphabetically, one must use the argument processor (\S\ref{ref:argument-processor}) to
+    specify the sort order. In particular, the key must be marked as text using \index{processor>t}.
+    The first example below shows a simple alphabetical sort by content; the second sorts the
+    filenames by suffix first (in the ascending order) and then by the basename (in the descending
+    order, see \index{processor>-}).
 
+\begin{forestexample}
+  \begin{forest}
+    [,phantom,grow'=0,for children={anchor=west,child anchor=west},s sep=0,
+      delay={~sort by=>O+t{content},sort~}
+      [example.tex][example.pdf][example.log][example.aux]
+      [thesis.tex][thesis.pdf][thesis.log][thesis.aux][thesis.toc]
+    ]
+  \end{forest}
+\end{forestexample}
+
+\begin{forestexample}
+  \begin{forest}
+    declare toks={basename}{},
+    declare toks={extension}{},
+    [,phantom,grow'=0,for children={anchor=east},s sep=0,
+      delay={
+        for children={split option={content}{.}{basename,extension}},
+        ~sort by={>O+t{extension},>O+t-{basename}}~,
+        ~sort~,
+      }
+      [example.tex][example.pdf][example.log][example.aux]
+      [thesis.tex][thesis.pdf][thesis.log][thesis.aux][thesis.toc]
+    ]
+  \end{forest}
+\end{forestexample}
+    
 \indexitem{step>min}|=|\meta{nodewalk}, \indexdef{step>max}|=|\meta{nodewalk}
   \itemnosep
   \indexitem{step>walk and min}|=|\meta{nodewalk}, \indexdef{step>walk and max}|=|\meta{nodewalk}
@@ -4154,26 +4551,6 @@ prefixed by \index{for step}.
   node by moving back in the history, see \index{back}.
 
   
-\indexitem{step>filter}|=|\meta{nodewalk}\meta{pgfmath: condition}
-
-Visit the nodes of the given \meta{nodewalk} for which the given \meta{condition} is true.
-
-
-\indexitem{step>branch}|={|\meta{nodewalk$_1$}|,...,|\meta{nodewalk$_n$}|}|
-  \itemnosep
-\indexitem{step>branch'}|={|\meta{nodewalk$_1$}|,...,|\meta{nodewalk$_n$}|}|
-
-Visit the nodes in a ``cartesian product'' of any number of nodewalks, where a cartesian product is
-defined as a nodewalk where at every step of \meta{nodewalk$_i$} ($1\leq i<n$),
-\meta{nodewalk$_{i+1}$} is executed.
-
-The |branch| variant visits only the nodes visited by the innermost nodewalk, \meta{nodewalk$_n$}.
-The |branch'| variant visits the nodes visited by all the nodewalks of the product,
-\meta{nodewalk$_1$} \dots\ \meta{nodewalk$_n$}.
-
-For an example of each, see \index{c-commanded} and \index{c-commanders} from the
-\reflibrary{linguistics} library.
-
 \end{syntax}
 
 \subsubsection{History}
@@ -4254,7 +4631,7 @@ current nodewalk.
   The variant \emph{without} |'| makes a fake step. More precisely, it behaves as if both
   \index{nodewalk key>fake} and \index{nodewalk key>on invalid}|=fake| are in effect.
 
-\indexitem(error){nodewalk key>on invalid}|={|\alternative{error,fake,step}|}|\meta{nodewalk}
+\indexitem{nodewalk key>on invalid}|={|\alternative{error,fake,step}|}|\meta{nodewalk}
 
   This key determines what should happen if a nodewalk step landed on the invalid node, i.e.\ the node
   with \index{readonly option>id}|=0|.
@@ -4265,15 +4642,19 @@ current nodewalk.
 
   \let\outerleftmargin\leftmargin
   \begin{syntax}
-  \item |on invalid=|\indexdef{value=on invalid>error} produces an error;
-  \item |on invalid=|\indexdef{value=on invalid>fake} does nothing: history is not updated and the
-    every-step keylist is not executed, thus making the step essentialy fake;
-  \item |on invalid=|\indexdef{value=on invalid>step} makes a step, either real or fake, depending
-    on the environment.
+  \item |on invalid={|\indexdef{value of=on invalid>error}|}|\meta{nodewalk} produces an error;
+  \item |on invalid={|\indexdef{value of=on invalid>fake}|}|\meta{nodewalk} does nothing: history is
+    not updated and the every-step keylist is not executed, thus making the step essentialy fake;
+  \item |on invalid={|\indexdef{value of=on invalid>error if real}|}|\meta{nodewalk} produces an
+    error unless \index{nodewalk key>fake} is in effect.
+  \item |on invalid={|\indexdef{value of=on invalid>last valid}|}|\meta{nodewalk} returns to the
+    last valid node, by making a fake step, like \index{step>last valid}.
   \end{syntax}
 
   Loops with the implicit |id=0| condition (\S\ref{ref:loops}) automatically switch to
   |on_invalid=fake| mode.
+
+  See also \index{step>Nodewalk} option \index{option of=Nodewalk>on invalid}.
   
 \indexitem{nodewalk key>options}=\meta{keylist: node keys}
 
@@ -4317,7 +4698,7 @@ commas.  Here's the list of predefined short steps and their corresponding long-
 \indexitem{short step>R} the formal root node --- \index{root'}
 \indexitem{short step>b} back one fake step in history --- \index{back}|=1|
 \indexitem{short step>f} forward one fake step in history --- \index{forward}|=1|
-\indexitem{short step>v} last valid node in the current nodewalk, fake version --- \index{last valid}
+\indexitem{short step>v} last valid node in the current nodewalk, fake version --- \index{step>last valid}
 \indexitem{short step>*}\meta{count: n}\meta{keylist} repeat keylist $n$ times --- \index{repeat}|=|\meta{count: n}\meta{keylist}
 \item {\rstyle $\{$}\meta{keylist}{\rstyle $\}$} put keylist in a group --- \index{group}|=|\meta{keylist}
 \end{syntax}
@@ -4342,10 +4723,10 @@ redefining short steps is always ok, however, as they are never used in the code
     Should we make a \index{for step} prefix for the step? 
   \item\indexdef{option of=define long step>strip fake steps}|=|\meta{boolean}\hfill |true|
     
-    Imagine that \meta{nodewalk} ends with fake steps.  Now, fake steps are usually just a computational tool, so we normally wouldn't want the current node after the walk to be one of them. As far as the outer world is concerned, we want the node to end at the last real step. However, simply appending \index{last valid} to our style will not work.  Imagine that the nodewalk results in no steps.  In this case, we'd want to remain at the origin of our empty nodewalk.  However, imagine further that the (outer) step just before the empty nodewalk was fake.  Then \index{last valid} will not step to the correct node: instead of staying at the origin, it will go to the node that the last real step prior to our nodewalk stepped to.  In case there was no such real step, we'd even step to the invalid node (normally getting an error).
+    Imagine that \meta{nodewalk} ends with fake steps.  Now, fake steps are usually just a computational tool, so we normally wouldn't want the current node after the walk to be one of them. As far as the outer world is concerned, we want the node to end at the last real step. However, simply appending \index{step>last valid} to our style will not work.  Imagine that the nodewalk results in no steps.  In this case, we'd want to remain at the origin of our empty nodewalk.  However, imagine further that the (outer) step just before the empty nodewalk was fake.  Then \index{step>last valid} will not step to the correct node: instead of staying at the origin, it will go to the node that the last real step prior to our nodewalk stepped to.  In case there was no such real step, we'd even step to the invalid node (normally getting an error).
 
     Defining the step using |strip fake steps| ensures the correct behaviour described
-    above.  Set |strip fake steps=false| only when the fake steps at the end of the nodewalk at
+    above.  Set |strip fake steps=false| only when the fake steps at the end of the nodewalk are
     important to you.
 
     \begin{advise}
@@ -4375,45 +4756,64 @@ To (re)define braces, |{}|, write |define short step={group}{1}{...}|.
 
 \indexitem{handler>nodewalk style}|=|\meta{nodewalk}
 
-A shorthand for |for nodewalk={|\meta{nodewalk}|}{}|.
+\meta{nodewalk key}|/.nodewalk style=|\meta{nodewalk} is a shorthand for\\
+|for_nodewalk={|\meta{nodewalk key}|/.style=|\meta{nodewalk}|}{}|.
 
 \end{syntax}
 
 
-\subsection{Conditionals and loops}
+\subsection{Conditionals}
 \label{ref:conditionals}
-\label{ref:loops}
 
-All conditionals take arguments \meta{true keylist} and \meta{false keylist}, and all loops take an
-argument \meta{keylist}.  The interpretation of the keys in these keylists depends on the
-environment the conditional/loop appears in.  If it is a part of a nodewalk
-specification, the keys are taken to be nodewalk keys (\S\ref{ref:nodewalks}), otherwise node keys
-(\S\ref{ref:node-keys}).
+All conditionals take arguments \meta{true keylist} and \meta{false keylist}.  The interpretation of
+the keys in these keylists depends on the environment the conditional appears in.  If it is a part
+of a nodewalk specification, the keys are taken to be nodewalk keys (\S\ref{ref:nodewalks}),
+otherwise node keys (\S\ref{ref:node-keys}).
 
-All the loops and conditionals can be nested safely.
-
-\begin{advise}
-\item Except in special circumstances, you probably don't want to embed keys from the \index{where
-    option} family within a \index{for step=\index{tree}}, as this results in two nested loops. It
-  is more usual to use an \index{conditional>if} family key there.  For an example where using
-  \index{where option} actually does the wrong thing, see question
-  \href{http://tex.stackexchange.com/questions/167978/smaller-roofs-for-forest}{Smaller roofs for
-    forest} on \TeX\ Stackexchange.
-\end{advise}
+All the conditionals can be nested safely.
 
 \begin{syntax}
-\indexitem{conditional>if}|=|\meta{pgfmath condition}\meta{true keylist}\meta{false keylist}
+\indexitem{conditional>if}|=|\index{forestmath=condition}\meta{true keylist}\meta{false keylist}
 
-  If \meta{pgfmath condition} evaluates to |true| (non-zero), \meta{true keylist} is processed (in
+  If \index{forestmath=condition} evaluates to |true| (non-zero), \meta{true keylist} is processed (in
   the context of the current node); otherwise, \meta{false keylist} is processed.
 
   For a detailed description of |pgfmath| expressions, see \cite[part VI]{tikzpgf2.10}.  (In short:
   write the usual mathematical expressions.)
 
+  In the following example, \index{conditional>if} is used to orient the arrows from the smaller
+  number to the greater, and to color the odd and even numbers differently. (Style |random_tree| is
+  defined in the front page example.)
+
+\forestset{random tree/.style n args={3}{% #1=max levels, #2=max children, #3=max content
+      content/.pgfmath={random(0,#3)},
+      if={#1>0}{repeat={random(0,#2)}{append={[,random tree={#1-1}{#2}{#3}]}}}{}}}
+\begin{forestexample}[index={before typesetting nodes,for step,descendants,conditional>if,content,edge,edge label,tree},index>={!},point=if]
+  \pgfmathsetseed{314159}
+  \begin{forest}
+    before typesetting nodes={
+      for descendants={
+        if={content()>content("!u")}{edge=->}{
+          if={content()<content("!u")}{edge=<-}{}},
+        edge label/.wrap pgfmath arg=
+          {node[midway,above,sloped,font=\scriptsize]{+#1}}
+          {int(abs(content()-content("!u")))}
+      },
+      for tree={circle,if={mod(content(),2)==0}
+                          {fill=yellow}{fill=green}}
+    }
+    [,random tree={3}{3}{100}]
+  \end{forest}
+\end{forestexample}
+
+
+
+  
 \indexitem{word prefix=option>conditional>if=\meta{option}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
 
-  A simple conditional is defined for every \meta{option}: if \meta{value} equals the value of the
-  option at the current node, \meta{true keylist} is executed; otherwise, \meta{false keylist}.
+This simple conditional is defined for every \meta{option} (except boolean options, see below): if
+\meta{value} equals the value of the option at the current node, \meta{true keylist} is executed;
+otherwise, \meta{false keylist}.
 
 \indexitem{word prefix=boolean option>conditional>if=\meta{boolean option}}|=|\meta{true keylist}\meta{false keylist}
 
@@ -4427,7 +4827,33 @@ All the loops and conditionals can be nested safely.
   otherwise \meta{false keylist}.
 
   This conditional is defined only for \meta{toks} options, see \S\ref{sec:option-setting}.
+
+
   
+\indexitem[set={
+  index format={result=if \protect\meta{dimen option}\protect\greaterthan,pgfkey},
+  print format={result/.option=argument,+result={if\ },result+={>}, pgfkey},
+}]{conditional>if dimen GT=\protect\meta{dimen option}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
+\itemnosep
+\indexitem[set={
+  index format={result=if \protect\meta{dimen option}<,pgfkey},
+  print format={result/.option=argument,+result={if\ },result+={<}, pgfkey},
+}]{conditional>if dimen LT=\protect\meta{dimen option}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
+\itemnosep
+\indexitem[set={
+  index format={result=if \protect\meta{count option}\protect\greaterthan,pgfkey},
+  print format={result/.option=argument,+result={if\ },result+={>}, pgfkey},
+}]{conditional>if count GT=\protect\meta{count option}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
+\itemnosep
+\indexitem[set={
+  index format={result=if \protect\meta{count option}<,pgfkey},
+  print format={result/.option=argument,+result={if\ },result+={<}, pgfkey},
+}]{conditional>if count LT=\protect\meta{count option}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
+
+If the current value of the dimen/count option is greater/less than or equal to \meta{value},
+execute \meta{true keylist}; else, execute \meta{false keylist}.
+
+
 \indexitem{conditional>if nodewalk valid}|=|\meta{keylist: test nodewalk}\meta{true keylist}\meta{false keylist}
 
   If the test nodewalk finished on a valid node, \meta{true keylist} is processed (in the context of
@@ -4438,7 +4864,12 @@ All the loops and conditionals can be nested safely.
   If the test nodewalk contains no (real) steps, \meta{true keylist} is processed (in the context of
   the current node); otherwise, \meta{false keylist} is processed.
 
-\indexitem{conditional>if in saved nodewalk}|=|\meta{nodewalk}\meta{toks: nodewalk name}\meta{true keylist}\meta{false keylist}
+\indexitem{conditional>if current nodewalk empty}|=|\meta{true keylist}\meta{false keylist}
+
+  If the current nodewalk contains no (real) steps, \meta{true keylist} is processed (in the context of
+  the current node); otherwise, \meta{false keylist} is processed.
+
+  \indexitem{conditional>if in saved nodewalk}|=|\meta{nodewalk}\meta{toks: nodewalk name}\meta{true keylist}\meta{false keylist}
 
 If the node at the end of \meta{nodewalk} occurs in the saved nodewalk, \meta{true keylist} is
 processed (in the context of the current node); otherwise, \meta{false keylist} is processed.
@@ -4455,37 +4886,89 @@ processed (in the context of the current node); otherwise, \meta{false keylist} 
 \indexitem{propagator>if have delayed'}|=|\meta{nodewalk}\meta{true keylist}\meta{false keylist}
   Like \index{if have delayed}, but assume the processing order given by \meta{nodewalk}.
 
+\end{syntax}
+
+
+
+The following keys are shortcuts: they execute their corresponding |if ...| conditional for every
+node in the subtree of the current node (including the node itself).  In other words:
+
+\begin{center}
+  |where ...|\meta{arg$_1$}\dots\meta{arg$_n$}|/.style={for tree={if ...=|\meta{arg$_1$}\dots\meta{arg$_n$}|}}|
+\end{center}
+
+\begin{advise}
+\item Except in special circumstances, you probably don't want to embed keys from the \index{where
+    option} family within a \index{for step=\index{tree}}, as this results in two nested loops. It
+  is more usual to use an \index{conditional>if} family key there.  For an example where using
+  \index{where option} actually does the wrong thing, see question
+  \href{http://tex.stackexchange.com/questions/167978/smaller-roofs-for-forest}{Smaller roofs for
+    forest} on \TeX\ Stackexchange.
+\end{advise}
+
+\begin{syntax}
 \indexitem{propagator>where}|=|\meta{value}\meta{true keylist}\meta{false keylist}
 \itemnosep
 \indexitem{word prefix=option>conditional>where=\meta{option}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
 \itemnosep
+\indexitem{word prefix=boolean option>conditional>where=\meta{boolean option}}|=|\meta{true keylist}\meta{false keylist}
+\itemnosep
 \indexitem{word prefix=toks option>conditional>where in=\meta{toks option}}|=|\meta{toks}\meta{true keylist}\meta{false keylist}
+\itemnosep
+\indexitem[set={
+  index format={result=where \protect\meta{dimen option}\protect\greaterthan,pgfkey},
+  print format={result/.option=argument,+result={where\ },result+={>}, pgfkey},
+}]{conditional>where dimen GT=\protect\meta{dimen option}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
+\itemnosep
+\indexitem[set={
+  index format={result=where \protect\meta{dimen option}<,pgfkey},
+  print format={result/.option=argument,+result={where\ },result+={>}, pgfkey},
+}]{conditional>where dimen LT=\protect\meta{dimen option}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
+\itemnosep
+\indexitem[set={
+  index format={result=where \protect\meta{count option}\protect\greaterthan,pgfkey},
+  print format={result/.option=argument,+result={where\ },result+={>}, pgfkey},
+}]{conditional>where count GT=\protect\meta{count option}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
+\itemnosep
+\indexitem[set={
+  index format={result=where \protect\meta{count option}<,pgfkey},
+  print format={result/.option=argument,+result={where\ },result+={>}, pgfkey},
+}]{conditional>where count LT=\protect\meta{count option}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
 \itemnosep
 \indexitem{step>where nodewalk valid}|=|\meta{toks: nodewalk name}\meta{true keylist}\meta{false keylist}
 \itemnosep  
 \indexitem{step>where nodewalk empty}|=|\meta{toks: nodewalk name}\meta{true keylist}\meta{false keylist}
 \itemnosep
 \indexitem{step>where in saved nodewalk}|=|\meta{nodewalk}\meta{toks: nodewalk name}\meta{true keylist}\meta{false keylist}
+\end{syntax}
 
-These keys execute their corresponding |if ...| conditional for every node in the subtree of the current node (including the node itself).  In other words:
 
-\begin{center}
-  |where ...|\meta{arg$_1$}\dots\meta{arg$_1$}|/.style={for tree={if ...=|\meta{arg$_1$}\dots\meta{arg$_1$}|}}|
-\end{center}
+\subsection{Loops}
+\label{ref:loops}
 
+All loops take a \meta{keylist} argument.  The interpretation of the keys in these keylists depends
+on the environment the loop appears in.  If it is a part of a nodewalk specification,
+the keys are taken to be nodewalk keys (\S\ref{ref:nodewalks}), otherwise node keys
+(\S\ref{ref:node-keys}).
+
+All loops can be nested safely.
+
+
+\begin{syntax}
+  
 \indexitem{loop>repeat}|=|\meta{number}\meta{keylist}
 
   The \meta{keylist} is processed \meta{number} times.
 
   The \meta{number} expression is evaluated using |pgfmath|.  
 
-\indexitem{loop>while}|=|\meta{pgfmath condition}\meta{keylist}
+\indexitem{loop>while}|=|\index{forestmath=condition}\meta{keylist}
   \itemnosep
-\indexitem{loop>do while}|=|\meta{pgfmath condition}\meta{keylist}
+\indexitem{loop>do while}|=|\index{forestmath=condition}\meta{keylist}
   \itemnosep
-\indexitem{loop>until}|=|\meta{pgfmath condition}\meta{keylist}
+\indexitem{loop>until}|=|\index{forestmath=condition}\meta{keylist}
   \itemnosep
-\indexitem{loop>do until}|=|\meta{pgfmath condition}\meta{keylist}
+\indexitem{loop>do until}|=|\index{forestmath=condition}\meta{keylist}
 
   \keyname{while} loops cycle while the condition is true, \keyname{until} loops terminate when the
   condition becomes true.
@@ -4494,13 +4977,13 @@ These keys execute their corresponding |if ...| conditional for every node in th
   keylist is executed at least once.  The variants without the \keyname{do} prefix check the
   condition before processing the \meta{keylist}, which might therefore not be processed at all.
 
-  When \meta{pgfmath condition} is an empty string, condition \index{valid} is implicitely used,
+  When \index{forestmath=condition} is an empty string, condition \index{valid} is implicitely used,
   and \meta{keylist} is implicitely embedded in \index{nodewalk key>on invalid}|=fake|.  Thus, the |while|
   loops will cycle until they ``walk out of the tree'', and |until| loops will cycle until they
   ``walk into the tree.''
 
   \begin{advise}
-  \item If a loop ``walks out of the tree'', you can get it back in using \index{last valid} or
+  \item If a loop ``walks out of the tree'', you can get it back in using \index{step>last valid} or
     \index{nodewalk key>strip fake steps}.
   \end{advise}
 
@@ -4535,12 +5018,19 @@ These keys execute their corresponding |if ...| conditional for every node in th
   \meta{nodewalk} is embedded within \index{nodewalk key>on invalid}|=fake|.
 
 
-\indexitem(0){loop>break}|=|$n$  Break out of the loop.
+\indexitem(0){node key>break}|=|$n$  Break out of the loop.
 
   The loop is only exited after all the keys in the current cycle have been processed.
 
   The optional argument $n$ ($n\geq0$) specifies which level of embedding to break from; the default
   is to break out of the innermost loop.
+
+\indexitem(0){pgfmath>forestloopcount}([$n$])
+
+  How many times has the loop repeated until now?
+
+  The optional argument $n$ ($n\geq0$) specifies the level of embedding to provide information for;
+  the default is to count the repetitions of the current, most deeply embedded loop.
   
 \end{syntax}
 
@@ -4586,9 +5076,10 @@ A dynamic tree operation is made in two steps:
 \item Such a two-stage approach is employed because changing the tree structure during the dynamic
   tree key processing would lead to an unmanageable order of keylist processing.
 \item A consequence of this approach is that nested dynamic tree keys take several cycles to
-  complete.  Therefore, be careful when using \index{delay} and dynamic tree keys
-  simultaneously: in such a case, it is often safer to use \index{before typesetting nodes}
-  instead of \index{delay}, see example (\ref{ex:append}).
+  complete.  Therefore, be careful when using \index{delay} and dynamic tree keys simultaneously: in
+  such a case, it is often safer to use \index{before typesetting nodes} instead of \index{delay},
+  see example (\ref{ex:append}), and it is also possible to define additional stages, see
+  \S\ref{sec:workflow}.
 \item Examples: title page (in style |random tree|) and (\ref{ex:niceemptynodes}) (in style
   |xlist|).
 \end{advise}
@@ -4712,6 +5203,12 @@ real, geometric root of the current node.  To access the formal root, use nodewa
 \subsection{Handlers}
 \label{ref:handlers}
 
+Handlers are a powerful mechanism of |pgfkeys|, documented in \citep[\S82.3.5]{tikzpgf3.0.0}.
+Handlers defined by \foRest; perform a computation and invoke the handled key with its result. The
+simple handlers are documented in this section: for \index{handler>process}, see
+\S\ref{ref:argument-processor}; for aggregate function handlers, see
+\S\ref{ref:aggregate-functions}.
+
 \begin{syntax}
 \indexitem{handler>option}|=|\meta{option}
 
@@ -4747,88 +5244,518 @@ The result is the (single) expansion of the given
 
   Like  \index{wrap $n$ pgfmath args} would work for $n=1$.
 
-\indexitem{handler>process args}|=|\meta{argument types}\meta{arg $1$}\dots\meta{arg $n$}
-
-  The result is a list of processed arguments.  Arguments 
-  are processed individually according to their given type.  The types are given sequentially in
-  \meta{argument types}, one character (no spaces) for each argument.  The meanings of the characters are given in the table below.  The exception to the one character -- one argument rule are characters
-  connected by |+|, which apply iteratively (in the given order) to a single argument.  If the
-  argument type list is shorter than the number of argument, the remaining arguments are assumed to
-  require no processing.  
-  
-  \begin{tabular}{ll}
-    |__|&no processing\\
-    |o|&expand once\\
-    |x|&fully expand\\
-    |O|&argument is an option name\\
-    |R|&argument is a register name\\
-    |P|&argument is a pgfmath expression\\
-    |r|&the argument should be a comma-separated list: reverse it\\
-    |+|&chain processors)\\
-  \end{tabular}
-
-  Example: \index{split option} is defined by preprocessing the first argument of \index{split}
-  as an option.
-\lstinputregion{forest.dtx}{split_option}
-
-\begin{forestexample}[index={delay,append,strequal,split,process args}]
-  \begin{forest}
-    [
-      {1,2,3,4,5},
-      delay={
-        my append/.style={if={strequal("#1","")}{}{append={[#1]}}},
-        split/.~process args~={O+r}{content}{,}{my append},
-      }    
-      ]
-  \end{forest}
-\end{forestexample}
 
 \end{syntax}
 
-\subsubsection{Aggregate functions}
-\label{ref:aggregate-functions}
+\subsection{Argument processor}
+\label{ref:argument-processor}
 
-Aggregate functions are defined as handlers over options.  They walk a nodewalk, use the values of visited options to calculate something, and store the result in the handled option.
+For a gentle(r) introduction to the argument processor, see \S\ref{tut:wrapping}.
 
-Aggregate functions cannot be nested.
+The argument processor takes a sequence of instructions and an arbitrary number of arguments and
+transforms the given arguments according to the instructions.  There are two ways to invoke the
+argument processor:
 
 \begin{syntax}
-  \indexitem{aggregate>count}|=|\meta{nodewalk}
+  
+\indexitem{handler>process}|=|\meta{instructions}\meta{arg $1$}\dots\meta{arg $n$}
+
+The result of the computation is passed on to the handled key as a sequence of arguments.  Any
+number of arguments can be returned.\footnote{For backward compatibility, \index{handler>process} is also
+  available as \indexdef{handler>process args}.}
+
+\item \indexdef{meta>forestmath} = \meta{pgfmath}\OR|>|\meta{instructions}\meta{arg
+    $1$}\dots\meta{arg $n$}
+
+  In words, a \index{forestmath} expression is either a \meta{pgfmath} expression or an argument
+  processor expression prefixed by |>|.
+  
+  In other words, \FoRest; accepts an argument processor expression anywhere\footnote{The only
+    exceptions to the above rule are handler \index{pgfmath} and argument processor instruction
+    \index{processor>P}.}  it accepts a \meta{pgfmath} expression.  To indicate that we're providing
+  an argument processor expression, we prefix it with |>|.
+
+  The result of argument processor's computation should be a single item.
+  
+\end{syntax}
+
+
+The syntax of argument processor is a cross between |expl3|'s function argument specification and a
+Turing machine, spiced with a bit of reversed Polish notation. ;-)
+
+Think of \meta{instructions} as a program and \meta{arg $1$}\dots\meta{arg $n$} as the data that
+this program operates on.
+
+If you're familiar with Turing machines: like a Turing machine, the argument processor has a notion
+of a head; unlike a Turing machine, the argument processor head is positioned not over some
+argument, but between two arguments.  If you're not familiar with Turing machines: imagine the
+arguments as items on a tape and the argument processor as a head that is always located between
+some two items.  As the head is between two arguments, we can talk about the arguments on the left
+and the arguments on the right.
+
+In general, an instruction will take some items from the left and some from the right (deleting them
+from the tape), perform some computation and insert the result on the tape, some result items to the
+left and some to the right.  However, most instructions simply take an item from the right, do
+something with it, and put the (single-item) result to the left; in effect, the head is moved one
+item to the right.  At the beggining, all the arguments are always on the right, so the general idea
+is that the program will walk through the given arguments, processing them in order.
+
+Descriptions of individual instructions, given below, contain (at the right edge of the page) the
+argument specification, which tells us about the number of input and output items and the movement
+of the head.  The input and output are separated by an arrow ($\longrightarrow$), and the green eye
+(\textcolor{darkgreen}{\eye}) signifies the position of the head with respect to the (input or
+output) items.
+
+For example, instruction \index{processor>O}, which converts an option name into the option value,
+exemplifies the most common scenario: it takes one argument from the right and puts the result to
+the left (in other words, the head moves one item to the right).  Wrapping instrucion
+\index{processor>w} is more complicated. Given instruction \index{processor>w}$n$, the argument
+processor takes one argument from the right (the wrapping macro body) and $n$ items from the left
+(which become the arguments of the wrapping macro), and puts the resulting item to the left.
+Comparisons and boolean operations are the instructions resembling the reverse Polish notation: they
+take the arguments from the left and put the result to the left, as well.  Finally, it is worth
+mentioning instructions \index{processor>noop} and \index{processor>+}, which simply move the head
+to the right and left, respectively; given that the usual movement of the head is to the right,
+\index{processor>+} can be thought of as a process-the-argument-again instruction.
+
+
+Before we finally list the available instructions, some notes:
+\begin{itemize}
+\item \meta{Instructions} may be given in braces or not.  If not, everything until the first opening
+  brace is considered to be an instruction.
+\item An argument item (\meta{arg$_k$}) is a standard \TeX\ macro argument: either a token or a
+  braced token list.  (The obvious exception: \meta{arg$_1$} needs to be braced if it follows
+  braceless instructions.)
+\item Spaces in \meta{instructions} and between arguments are ignored. Format your \index{handler>process}
+  as you wish!
+\item Instructions followed by [$n$] below take an optional numeric modifier.
+  \begin{itemize}
+  \item The modifier should be given within the instruction string itself, immediately following the
+    instruction.  In particular, no spaces are allowed there.  (Sorry for the little white lie
+    above.)  The number should not be enclosed in braces, even if it is more than one digit long.
+  \item This modifier is always optional: its default value varies from instruction to instruction.
+    (Providing $0$ means to use the default.)
+  \item Unless noted otherwise, the optional numerical argument $n$ instruct the argument processor
+    to repeat the previous instruction $n$ times (by default, 1). For example,
+    \index{processor>O}|3| is equivalent to
+    \index{processor>O}\index{processor>O}\index{processor>O}.
+  \end{itemize}
+\end{itemize}
+
+
+\NewDocumentEnvironment{indexitemprocessinstruction}{
+  D(){} % default
+  O{} % \index []
+  m % instruction char
+  D(){} % instruction modifiers
+  m % first line
+  >{\ReverseBoolean} s % typeset processor signature?
+  >{\SplitArgument {3} {&} } m % processor signature
+  o % instruction in signature
+}{%
+  \indexitem(#1)[set={#2}]{processor>#3}#4 #5%
+  \edef\ins{\noexpand\texttt{\IfNoValueTF{#8}{\detokenize{#3}}{#8}}}%
+  \IfBooleanT{#6}{\hfill\processorsignature#7}%
+
+}{}
+
+\newcommand\processorsignature[4]{%
+  #1 \textcolor{darkgreen}{\eye} #2
+  $\longrightarrow$
+  #3 \textcolor{darkgreen}{\eye} #4%
+}
+
+
+\begin{syntax}
+  
+\begin{indexitemprocessinstruction}[form=\_,index key=_]{noop}([$n$]){no-op}
+  {&\meta{arg}&\meta{arg}&}[\_]
+  
+  The argument is not processed, but simply skipped over.  In other words, this instruction only
+  moves the head one item to the right. (This is like |expl3|'s argument specifier |n|.)
+
+  $n$ means repetition.
+  
+  When the end of the instructions is reached, any remaining arguments on the right are processed
+  using this no-op instruction.
+  
+\end{indexitemprocessinstruction}
+
+\begin{indexitemprocessinstruction}{o}([$n$]){expand \emph{o}nce}
+    {&\meta{arg}&\meta{result}&}
+
+    \meta{arg} is expanded once.  (This is like |expl3|'s argument specifier |o|).
+
+    The operation is repeated $n$ times (default, one) without moving the head between the
+    repetition.  For example, |o3| expands the argument three times (and then moves the head right).
+\end{indexitemprocessinstruction}
+  
+\begin{indexitemprocessinstruction}{x}{fully e\emph{x}pand}
+  {&\meta{arg}&\meta{result}&}
+
+  \meta{arg} is fully expanded using |\edef|.   (This is like |expl3|'s argument specifier |x|.)
+\end{indexitemprocessinstruction}
+  
+\begin{indexitemprocessinstruction}{O}([$n$]){\emph{o}ption}
+  {&\meta{option}&\meta{result}&}
+
+  \meta{option}=\alternative{\meta{option name},\meta{relative node name}\texttt{.}\meta{option name}}
+
+  In the former case, \meta{result} is the value of option at the current node, in the latter, the
+  value of option at the node referred to by \meta{relative node name}.
+
+  $n$ means repetition.
+  
+\end{indexitemprocessinstruction}
+
+\begin{indexitemprocessinstruction}{R}([$n$]){\emph{r}egister}
+  {&\meta{register}&\meta{result}&}
+  
+  \meta{result} is the value of register \meta{register}.
+
+  $n$ means repetition.
+  
+\end{indexitemprocessinstruction}
+
+\begin{indexitemprocessinstruction}{P}([$n$]){\emph{p}gfmath}
+  {&\meta{pgfmath expr}&\meta{result}&}
+
+  \meta{result} is the result of evaluating \meta{pgfmath expr} using |\pgfmathparse|.
+
+  $n$ means repetition.
+
+  Combining \index{processor>P} and \index{processor>w}, \index{handler>process} is capable of anything
+  \index{wrap $n$ pgfmath args} can do.  Even better, as we can combine pgfmath and non-pgfmath
+  methods, computations that use \index{handler>process} can be (much!) faster.  Study the following
+  examples to see how less and less pgfmath is used to achieve the same result --- but note that
+  such extreme antipgfmathism probably only makes sense for style/package developers in computations
+  that get performed many times.
+
+\begin{forestexample}[index={handler>process,processor>w,processor>O,processor>W,processor>P,processor>+}]
+  \begin{forest} 
+    [,grow'=east, where level=1{}{phantom,ignore,ignore edge}
+      [(a),delay={content/.wrap 4 pgfmath args={#1 $#2*#3=#4$}
+           {content}{content("!1")}{content("!2")}{int(content("!1")*content("!2"))}}
+        [6][7]]
+      [(b),delay={content/.process={O OO~P~ w4}
+        {content}
+        {!1.content}{!2.content}{int(content("!1")*content("!2"))}
+        {#1 $#2*#3=#4$}}
+        [6][7]]
+      [(c),delay={content/.process={O OO ~W2+P~ w4}
+        {content}
+        {!1.content}{!2.content}{int(#1*#2)}
+        {#1 $#2*#3=#4$}}
+        [6][7]]
+      [(d),delay={content/.process={O OO ~W2+n~ w4}
+        {content}
+        {!1.content}{!2.content}{#1*#2}
+        {#1 $#2*#3=#4$}}
+        [6][7]]
+    ]
+  \end{forest}
+\end{forestexample}
+
+  
+\end{indexitemprocessinstruction}
+
+\begin{indexitemprocessinstruction}{n}([$n$]){\emph{n}umexpr}
+  {&\meta{numexpr}&\meta{result}&}
+
+  \meta{result} is the result of evaluating \meta{dimexpr} using e\TeX's |\number\numexpr|.
+
+  $n$ means repetition.
+  
+\end{indexitemprocessinstruction}
+    
+\begin{indexitemprocessinstruction}{d}([$n$]){\emph{d}imexpr}
+  {&\meta{dimexpr}&\meta{result}&}
+
+  \meta{result} is the result of evaluating \meta{dimexpr} using e\TeX's |\the\dimexpr|.
+
+  $n$ means repetition.
+  
+\end{indexitemprocessinstruction}
+
+\begin{indexitemprocessinstruction}{+}([$n$]){chain instructions}
+  {\meta{arg}&&&\meta{arg}}
+
+  This action allows one to ``process the same argument more than once''.  It does not process the
+  current argument (in fact, there need not be any current argument), but rather moves the last
+  result back in the argument queue.  In other words, our machine's head moves one step left. You
+  can also imagine it as an inverse of \index{processor>noop}.
+
+  $n$ means repetition.
+  
+\end{indexitemprocessinstruction}
+
+\begin{forestexample}[index={handler>process,processor>O,processor>noop}]
+  \begin{forest}
+    test/.style n args={3}{align=center,
+      content={The value of my option \texttt{#1} is \texttt{#2}.\\#3}}
+    [~fit~,delay={test/.process={O ~O+O~}{content}~{content}~{Yes it is!}}]
+  \end{forest}
+\end{forestexample}
+
+
+\begin{indexitemprocessinstruction}{w}([$n$]){(consuming) \emph{w}rap}
+  {\meta{arg$_{1}$}\dots\meta{arg$_{n}$}&\meta{macro body}&\meta{result}&}
+\end{indexitemprocessinstruction}
+\itemnosep[2pt]
+\begin{indexitemprocessinstruction}{W}([$n$]){(non-consuming) \emph{w}rap}
+  {\meta{arg$_{1}$}\dots\meta{arg$_{n}$}&\meta{macro body}&
+    \meta{arg$_{1}$}\dots\meta{arg$_{n}$}\meta{result}&}
+
+  Defines a temporary macro with $n$ undelimited arguments using the \meta{macro body} given on the
+  right and expands it (once).  The arguments given to the temporary macro are taken from the left:
+  \meta{arg$_{1}$}\dots\meta{arg$_{n}$}.  The result of the expansion is stored as \meta{result} to
+  the right.
+
+  With |w|, \meta{arg$_{1}$}\dots\meta{arg$_{n}$} are ``consumed'', i.e.\ they are removed from the
+  result list on the left.  |W| keeps \meta{arg$_{1}$}\dots\meta{arg$_{n}$} in the result list.
+
+  Default $n$ is 1. (Specifying $n>9$ raises an error.)
+\end{indexitemprocessinstruction}
+
+\begin{indexitemprocessinstruction}[form={\&},index key=\&]{and}([$n$]){boolean ``and''}*{}
+\end{indexitemprocessinstruction}  
+\itemnosep[2pt]
+\begin{indexitemprocessinstruction}[form={\protect\indexpipe},index key=\&or]{or}([$n$]){boolean ``or''}
+  {\meta{arg$_{1}$}\meta{arg$_{2}$}&&\meta{result}&}
+  
+  \meta{result} is a boolean conjunction/disjunction of $n$ arguments. The arguments are taken from
+  the left.  They should be numbers (positive integers): |0| means false, any other number means
+  true.  The \meta{result} is always |0| or |1|.
+
+  Default $n$ is 2.
+\end{indexitemprocessinstruction}
+
+\begin{indexitemprocessinstruction}[form={!},index key=!]{not}{boolean ``not''}
+  {\meta{arg}&&\meta{result}&}
+
+  \meta{result} is a boolean negation of the argument.  The argument is taken from the left.  It
+  should be a number (positive integer): |0| means false, any other number means true.  The
+  \meta{result} is always |0| or |1|.
+\end{indexitemprocessinstruction}
+
+\begin{indexitemprocessinstruction}{?}{conditional (if \dots\ then\dots\ else)}
+  {\meta{condition}&\meta{true arg}\meta{false arg}&&\meta{result}}
+
+  \meta{result} is \meta{true arg} is \meta{condition} is true (non-zero), otherwise \meta{false
+    arg}.
+
+  The condition is taken from the left.  The true and false arguments are expected on the right,
+  where the winner is left as well.
+\end{indexitemprocessinstruction}
+
+\begin{indexitemprocessinstruction}[form={=},index key={=}]{equal}{comparison: $\meta{arg$_{1}$}=\meta{arg$_{2}$}$?}*{}
+\end{indexitemprocessinstruction}
+\itemnosep[1pt]
+\begin{indexitemprocessinstruction}[form={<},index key={<}]{lt}{comparison: $\meta{arg$_{1}$}<\meta{arg$_{2}$}$?}*{}
+\end{indexitemprocessinstruction}
+\itemnosep[1pt]
+\begin{indexitemprocessinstruction}[form={\protect\greaterthan},index key={<<}]{gt}{comparison: $\meta{arg$_{1}$}>\meta{arg$_{2}$}$?}
+  {\meta{arg$_{1}$}\meta{arg$_{2}$}&&\meta{result}&}
+
+  Compare \meta{arg$_{1}$} and \meta{arg$_{2}$}, returning |1| (true) if \meta{arg$_{1}$} is equal
+  to / less than / greater than \meta{arg$_{2}$}, |0| (false) otherwise.
+
+  The arguments are taken from the left.  They can be either numbers, dimensions, text or token
+  lists.  Both arguments are expected to be of the same type.  The type of comparison is determined
+  by the type of the result returned by the last instruction.
+  \index{processor>O}/\index{processor>R} look up the type of option/register to determine the type
+  (booleans are numbers and keylists are toks).  Text type must be marked explicitely using
+  \index{processor>t}.
+
+  Comparison is carried out using |\ifnum| for numbers, |\ifdim| for dimensions (this includes
+  unitless decimals returned by pgfmath) and |\pdfstrcmp|\footnote{\texttt{\string\pdfstrcmp}
+    expands its arguments.} for text --- for these three types, all three comparison operators are
+  supported.  For generic token lists, only |=| makes sense and is carried out using |\ifx|.
+
+  In the following example, (a) performs lexicographical comparison because we have marked |21| as
+  text; (b) and (c) perform numeric comparison: in (b), the type is automatically determined from
+  the type of register \indexex{tempcounta}, in (c) |21| is marked manually using \index{processor>n}.
+
+\begin{forestexample}[index={if,processor>gt,processor>lt}]
+  \forestset{
+    tempcounta=100,
+    TeX/.process={Rw1}{tempcounta}{$#1>21$?\ },
+    TeX={(a)\ }, if={>{Rt>}{tempcounta}{21}}{TeX=yes}{TeX=no},TeX={,\ },
+    TeX={(b)\ }, if={>{_R<}{21}{tempcounta}}{TeX=yes}{TeX=no},TeX={,\ },
+    TeX={(c)\ }, if={>{Rn>}{tempcounta}{21}}{TeX=yes}{TeX=no},
+  }
+\end{forestexample}
+
+\end{indexitemprocessinstruction}
+
+\begin{indexitemprocessinstruction}{t}{mark as \emph{t}ext}
+  {&\meta{arg}&\meta{arg}&}
+
+  The result is not changed, only its type is changed to text.  This is relevant only for
+  comparisons --- both argument processor's comparisons \index{processor>equal}, \index{processor>gt}
+  and \index{processor>lt} and sort keys (see \index{sort by}).
+\end{indexitemprocessinstruction}
+
+\begin{indexitemprocessinstruction}{c}{to lowercase}  
+  {&\meta{arg}&\meta{result}&}
+\end{indexitemprocessinstruction}
+
+\begin{indexitemprocessinstruction}{C}{to uppercase}  
+  {&\meta{arg}&\meta{result}&}
+\end{indexitemprocessinstruction}
+
+\begin{indexitemprocessinstruction}{-}{toggle ascending/descending order (negate)}
+  {\meta{arg}&&\meta{result}&}
+
+  If the argument is of the text type, its sorting order is changed from ascending to descending or
+  vice versa.
+
+  For any numerical argument type (number, dimension, unitless dimension), the argument is actually
+  negated, which obviously has the same effect on sorting.
+
+  For generic type arguments, this operation is a no-op.
+\end{indexitemprocessinstruction}
+
+\begin{indexitemprocessinstruction}{u}{\emph{u}ngroup}
+  {&\meta{arg}&&\meta{item$_1$}\dots\meta{item$_n$}}
+
+  As every \TeX\ undelimited macro argument, \meta{arg} is a list of tokens or braced token lists.
+  This instruction puts those items back to the right as ``separate arguments''.
+\end{indexitemprocessinstruction}
+
+\begin{indexitemprocessinstruction}{s}([$n$]){(consuming) \emph{s}ave}
+  {\meta{arg$_{1}$}\dots\meta{arg$_{n}$}&&&}
+\end{indexitemprocessinstruction}
+\itemnosep[2pt]
+\begin{indexitemprocessinstruction}{S}([$n$]){(non-consuming) \emph{s}ave}
+  {\meta{arg$_{1}$}\dots\meta{arg$_{n}$}&&\meta{arg$_{1}$}\dots\meta{arg$_{n}$}&}
+
+  Saves the last $n$ arguments from the left into a ``special place''.  
+
+  With |s|, \meta{arg$_{1}$}\dots\meta{arg$_{n}$} are ``consumed'', i.e.\ they are removed from the
+  result list on the left.  |S| keeps \meta{arg$_{1}$}\dots\meta{arg$_{n}$} in the result list.
+
+  Default $n$ is 1.
+\end{indexitemprocessinstruction}
+
+\begin{indexitemprocessinstruction}{l}([$n$]){(consuming) \emph{l}oad}
+  {&&\meta{arg$_{1}$}\dots\meta{arg$_{n}$}&}
+\end{indexitemprocessinstruction}
+\itemnosep[2pt]
+\begin{indexitemprocessinstruction}{L}([$n$]){(non-consuming) \emph{l}oad}
+  {&&\meta{arg$_{1}$}\dots\meta{arg$_{n}$}&}
+
+  Loads $n$ arguments from the ``special place'' to the left.
+
+  With |l|, \meta{arg$_{1}$}\dots\meta{arg$_{n}$} are ``consumed'', i.e.\ they are removed from the
+  special place.  |S| keeps \meta{arg$_{1}$}\dots\meta{arg$_{n}$} in the special place.
+
+  The default $n$ is 0 and indicates that the entire special place should be loaded.
+\end{indexitemprocessinstruction}
+
+\begin{indexitemprocessinstruction}{r}{\emph{r}everse (key)list}
+  {&\meta{list}&\meta{result}&}
+
+  \meta{list} should be a comma-separated list (\emph{not} a name of a keylist option or register).
+  \meta{result} contains the same elements in the reverse order.
+\end{indexitemprocessinstruction}
+
+\end{syntax}
+
+
+
+  
+
+\subsection{Aggregate functions}
+\label{ref:aggregate-functions}
+
+Aggregate functions walk a nodewalk and use the information found in the visited nodes to calculate
+something.
+
+All aggregate functions are available both as key handlers and |pgfmath| functions.
+
+
+
+\begin{syntax}
+  \indexitem{aggregate>count}|=|\meta{nodewalk},
+  \indexdef[form={aggregate_count}]{pgfmath>aggregate count}|("|\meta{nodewalk}|")|
 
   Store the number of nodes visited in the nodewalk into the handled option.
   
-\indexitem{aggregate>sum}|=|\meta{pgfmath}\meta{nodewalk}\itemnosep
-\indexitem{aggregate>average}|=|\meta{pgfmath}\meta{nodewalk}\itemnosep
-\indexitem{aggregate>product}|=|\meta{pgfmath}\meta{nodewalk}\itemnosep
-\indexitem{aggregate>min}|=|\meta{pgfmath}\meta{nodewalk}\itemnosep
-\indexitem{aggregate>max}|=|\meta{pgfmath}\meta{nodewalk}
+\indexitem{aggregate>sum}|=|\index{forestmath}\meta{nodewalk},
+\indexdef[form={aggregate_sum}]{pgfmath>aggregate sum}|("|\index{forestmath}|","|\meta{nodewalk}|")|
+\itemnosep
 
-  Calculate the value of \meta{pgfmath} expression at each visited node. Store the sum / average / product / minimum / maximum of these values into the handled option.
+\indexitem{aggregate>average}|=|\index{forestmath}\meta{nodewalk},
+\indexdef[form={aggregate_average}]{pgfmath>aggregate average}|("|\index{forestmath}|","|\meta{nodewalk}|")|
+\itemnosep
 
-\indexitem{aggregate>aggregate}|=|\meta{pgfmath: start value}\meta{pgfmath: every step}\meta{pgfmath: after walk}\meta{nodewalk}
+\indexitem{aggregate>product}|=|\index{forestmath}\meta{nodewalk},
+\indexdef[form={aggregate_product}]{pgfmath>aggregate product}|("|\index{forestmath}|","|\meta{nodewalk}|")|
+\itemnosep
 
-  The generic aggregate function.  First, the result is set to \meta{pgfmath: start value}.  Then,
-  the given nodewalk is walked.  After each step of the \meta{nodewalk}, \meta{pgfmath: every step} expression is evaluated in the context of the new current node and stored as the result.  After the walk, the current node is reset to the origin.  \meta{pgfmath: after walk} expression is then evaluated in its context and stored as the result.
+\indexitem{aggregate>min}|=|\index{forestmath}\meta{nodewalk},
+\indexdef[form={aggregate_min}]{pgfmath>aggregate min}|("|\index{forestmath}|","|\meta{nodewalk}|")|
+\itemnosep
 
-  Use (appropriately escaped) |#1| to refer to the current value of the result in \meta{pgfmath:
-    every step} and \meta{pgfmath: after walk}.  Use count register \index{aggregate n} to refer
-  to the current step number (in \meta{pgfmath: every step}) or the total number of steps (in \meta{pgfmath: after walk})
+\indexitem{aggregate>max}|=|\index{forestmath}\meta{nodewalk},
+\indexdef[form={aggregate_max}]{pgfmath>aggregate max}|("|\index{forestmath}|","|\meta{nodewalk}|")|
 
-  Example 1: see \index{option>s}.
+Calculate the value of the given \index{forestmath} expression at each visited node. Store the sum /
+average / product / minimum / maximum of these values into the handled option (handlers) or return
+it (pgfmath functions).
 
-  Example 2: the definition of \index{aggregate>average} below.  Note that as we are using
-  |.aggregate| inside a style definition, |##1| must be used to refer to the current value of the
-  result.
-\begin{lstlisting}[]
-  /handlers/~.average~/.style 2 args={
-    /handlers/~.aggregate~=
-      {0}
-      {(##1)+(#1)}
-      {##1/\forestregister{aggregate n}}
-      {#2}
-  }
-\end{lstlisting}
-  Example 3: randomly generate the content of leaves; the content of a parent is the sum of it's children's content.
+\indexitem{aggregate>aggregate}|=|\index{forestmath=start value}\index{forestmath=every
+  step}\index{forestmath=after walk}\meta{nodewalk}
+\itemnosep
+\indexitem{pgfmath>aggregate}|("|\index{forestmath=start value}|","|\index{forestmath=every step}|","|\index{forestmath=after walk}|","|\meta{nodewalk}|")|
+
+The generic aggregate function.  First, register \index{aggregate result} is set to
+\index{forestmath=start value}.  Then, the given nodewalk is walked.  After each step of the
+\meta{nodewalk}, \index{forestmath=every step} expression is evaluated in the context of the new
+current node and stored into \index{aggregate result}.  After the walk, the current node is reset to
+the origin.  \index{forestmath=after walk} expression is then evaluated in its context and stored
+into \index{aggregate result} as the final result.
+
+Use \index{aggregate result} and \index{aggregate n} in the \index{forestmath} expressions to refer to
+the current result value and step number.
+
+\indexitem{register>aggregate n}|=|\meta{count} the current step number
+
+In the every-step expression of an aggregate function, refers to the (real) step number in the
+aggregate's \meta{nodewalk}.  In the after-walk expression, refers to the total number of (real)
+steps made.
+
+\indexitem{register>aggregate result}|=|\meta{toks} the current value of the result
+
+  This register is where the intermediate results are stored.
+
+\indexitem{register>aggregate value}|=|\meta{toks} the value of the expression at the current node
+
+This only applies to special aggregates like \index{aggregate>sum}, not to the generic
+\index{aggregate>aggregate}.
+  
+\indexitem{node key>aggregate postparse}|=|\alternative{none,int,print,macro}
+
+Roughly speaking, how should the result be formatted? For details, see \citep[\S89]{tikzpgf3.0.0}.
+Applies only to |pgfmath| versions of aggregate functions, i.e.\ not to the |'| variants.
+
+  \begin{syntax}
+  \item\indexdef{value of=aggregate postparse>none}
+    No formatting.
+  \item\indexdef{value of=aggregate postparse>int}
+    The result is an integer.
+  \item\indexdef{value of=aggregate postparse>print}
+    Use |pgf|'s number printing extension, see \citep[\S93]{tikzpgf3.0.0}.
+  \item\indexdef{value of=aggregate postparse>macro}
+    Use a custom macro.  Specify the macro using \indexdef{node key>aggregate postparse macro}|=|\meta{cs}.
+  \end{syntax}
+  
+\end{syntax}
+
+Example 1.  Randomly generate the content of leaves.  The content of a parent is the sum of its
+children's content.  Note how we use \indexex{tree children-first} to proceed in a bottom-up
+fashion.
   
 \begin{forestexample}[index={delay,aggregate postparse,for step,tree children-first,if option,n children,content,pgfmath,sum,step>children}]
   \begin{forest}
@@ -4843,27 +5770,35 @@ Aggregate functions cannot be nested.
     [[[[][]][]][[][][[][][]]][[][[][]]]]
   \end{forest}
 \end{forestexample}
-  
-\indexitem{register>aggregate n}|=|\meta{count}
-  In the every-step expression of an aggregate function, refers to the (real) step number in the aggregate's \meta{nodewalk}.  In the after-walk expression, refers to the total number of (real) steps made.
 
-\indexitem{node key>aggregate postparse}|=|\alternative{none,int,print,macro}
+  Example 2: nested aggregate functions.  We are given the black numbers.  The inner aggregate, the
+  sum of children, is applied at every blue node. (See how we actually display the blue numbers by
+  storing \index{aggregate value} to \index{content}.)  The outer aggregate stores the maximum blue
+  number into the red root.
 
-  Roughly speaking, how should the result be formatted? For details, see \citep[\S89]{tikzpgf3.0.0}.
+\begin{forestexample}
+  \begin{forest}
+    delay={
+      aggregate postparse=int,
+      content/~.max~=%
+        {~aggregate_sum~("content","children")}%
+        {every step={content/.register=~aggregate value~},children}%
+    } [ [[1][2][3]] [[3][4][5]] [[2][3][4]] ]
+  \end{forest}
+\end{forestexample}
 
-  \begin{syntax}
-  \item\indexdef{value=aggregate postparse>none}
-    No formatting.
-  \item\indexdef{value=aggregate postparse>int}
-    The result is an integer.
-  \item\indexdef{value=aggregate postparse>print}
-    Use |pgf|'s number printing extension, see \citep[\S93]{tikzpgf3.0.0}.
-  \item\indexdef{value=aggregate postparse>macro}
-    Use a custom macro.  Specify the macro using \indexdef{node key>aggregate postparse macro}|=|\meta{cs}.
-  \end{syntax}
-  
-\end{syntax}
+Example 3: calculate root mean square of children using the generic \index{aggregate>aggregate} handler.
 
+\begin{forestexample}
+  \begin{forest}
+    delay={
+      content/~.aggregate~=
+        {0}{~aggregate_result~()+content()^2}{sqrt(~aggregate_result~/~aggregate_n~)}
+        {children}
+    }
+    [[0][1][2][3][4]]
+  \end{forest}
+\end{forestexample}
 
 \subsection{Relative node names}
 \label{ref:relative-node-names}
@@ -4902,9 +5837,9 @@ The explicit \texttt{forest} coordinate system is called simply |forest| and use
 is a keylist; the following keys are accepted.
 
 \begin{syntax}
-\indexitem{forest cs>name}|=|\meta{node name}  The node with the given name becomed the current node.  The
+\indexitem{forest cs>name}|=|\meta{node name}  The node with the given name becomes the current node.  The
 resulting point is its (node) anchor.
-\indexitem{forest cs>id}|=|\meta{node id}  The node with the given name becomed the current node. The
+\indexitem{forest cs>id}|=|\meta{node id}  The node with the given name becomes the current node. The
 resulting point is its (node) anchor.
 \indexitem{forest cs>go}|=|\meta{nodewalk} Walk the given nodewalk, starting at the current node.  The
   node at the end of the walk becomes the current node.  The resulting point is its (node) anchor.
@@ -4930,6 +5865,7 @@ The resulting point is computed only after both \index{option>l} and \index{opti
 \FoRest; defines several anchors which can be used with any \TikZ; node belonging to a \FoRest;
 tree (manually added \TikZ; nodes are thus excluded).
 
+\newcommand\indexdefneganchor[1]{\indexdef[index key=#1]{anchor>-#1}}
 \begin{syntax}
 \indexitem{anchor>parent anchor}\itemnosep
 \indexitem{anchor>child anchor}\itemnosep
@@ -4938,38 +5874,82 @@ tree (manually added \TikZ; nodes are thus excluded).
   These anchors point to coordinates determined by node options \index{option>parent anchor},
   \index{option>child anchor} and \index{option>anchor}.
 
-\indexitem{anchor>parent}, \indexdef{anchor>parent'}\itemnosep
-\indexitem{anchor>parent first}, \indexdef{anchor>parent first'}\itemnosep
+\indexitem{anchor>parent}, \indexdef{anchor>parent'}, \indexdefneganchor{parent}, \indexdefneganchor{parent'}\itemnosep
+\indexitem{anchor>parent first}, \indexdef{anchor>parent first'}, \indexdefneganchor{parent first}, \indexdefneganchor{parent first'}\itemnosep
 \indexitem{anchor>first}, \indexdef{anchor>first'}\itemnosep
-\indexitem{anchor>children first}, \indexdef{anchor>children first'}\itemnosep
-\indexitem{anchor>children}, \indexdef{anchor>children}\itemnosep
-\indexitem{anchor>children last}, \indexdef{anchor>children last}\itemnosep
-\indexitem{anchor>last}, \indexdef{anchor>last}\itemnosep
-\indexitem{anchor>parent last}, \indexdef{anchor>parent last}
+\indexitem{anchor>children first}, \indexdef{anchor>children first'}, \indexdefneganchor{children first}, \indexdefneganchor{children first'}\itemnosep
+\indexitem{anchor>children}, \indexdef{anchor>children'}, \indexdefneganchor{children}, \indexdefneganchor{children'}\itemnosep
+\indexitem{anchor>children last}, \indexdef{anchor>children last'}, \indexdefneganchor{children last}, \indexdefneganchor{children last'}\itemnosep
+\indexitem{anchor>last}, \indexdef{anchor>last'}\itemnosep
+\indexitem{anchor>parent last}, \indexdef{anchor>parent}, \indexdefneganchor{parent last},\indexdefneganchor{parent last'}
+
 Growth direction based anchors.
 
   \TikZ;'s ``compass anchors'' |east|, |north| etc.\ resolve to coordinates on the border of the
   node facing east, north etc.\ (for the shapes that define these anchors).  The above \FoRest;'s
   anchors are similar in that they also resolve to coordinates on the border of the node.  However,
-  the ``cardinal directions'' are determined by the \index{grow}th direction of the tree in the node, so
-  that
+  the ``cardinal directions'' are determined by the \index{grow}th direction of the tree in the node
+  and its parent:
+  
   \begin{itemize}
   \item anchor |parent| faces the parent node (or, in case of the root, where the parent would be);
   \item anchor |children| faces the children (or, in case of a node without children, where the children would be);
   \item anchor |first| faces the first child (or \dots\ you get it, right?);
   \item anchor |last| faces the last child (or \dots\ you know!).
   \end{itemize}
-  Combinations like |parent_children| work like combinations of compass directions, e.g.\
-  |north_west|.  These anchors work as expected even if the node is \index{rotate}d, or if the
-  children are \index{reversed}.
+  Combinations like |children_first| work like combinations of compass directions, e.g.\
+  |north_west|, but note that
+  \begin{itemize}
+  \item when |first| and |last| are combined with |parent| into |parent_first| and |parent_last|,
+    they refer to the first and last child of the parent node, i.e.\ siblings of the current node.
+  \end{itemize}
+
+  While |first| and |last| always point in opposite directions, |parent| and |children| do not do so
+  if the \index{grow}th direction of the tree changes in the node, i.e.\ if the node's \index{grow}
+  differs from it's parent's \index{grow}.  Thus in general, it is useful to have anchors |-parent|
+  and |-children|, which point in the opposite directions as |parent| and |children|, respectively,
+  and their combinations with |first| and |last|.
 
   The |'| variants refer precisely to
   the point where the cardinal growth direction intersects the border.  Variants without |'| snap to
   the closest compass anchor of the node.
-
+  
+  These anchors work as expected even if the node is \index{rotate}d, or if the
+  children are \index{reversed}.
+  
   For simple examples, see definitions of \index{sn edges} and \index{roof}; for more involved
   examples, see the \reflibrary{edges} library.
 \end{syntax}
+
+\begin{forestexample}[layout=tree on top]
+  \def\redorblue#1{\expandafter\redorbluei#1\END}%
+  \def\redorbluei#1#2\END{\expandafter\ifx#1-red\else blue\fi}%
+  \forestset{
+    draw anchors/.style n args=3{% #1=above, #2=below, #3='-variant of anchor?
+      tikz={
+        \foreach \a in {first,last,parent first,parent last,children,children last,#1}
+          {\fill[](.\a#3)circle[radius=1pt] node[above,font=\tiny,color=\redorblue\a]{\a#3};}
+        \foreach \a in {-parent first,-parent,-parent last,-children,-children first,#2}
+          {\fill[](.\a#3)circle[radius=1pt] node[below,font=\tiny,color=\redorblue\a]{\a#3};}
+      }
+    },
+    draw anchors/.default={parent,children first}{-children last}{},
+  }
+  \begin{forest}
+    for tree={
+      minimum width=10em, minimum height=13ex, s sep+=5em,
+      draw, draw anchors,
+      font=\tt, delay={content/.process=OOw2{grow}{reversed}{grow\ifnum#2=1'\fi=#1}}
+    }
+    [
+      [,rotate=20,draw anchors={parent,children first}{-children last}{'}]
+      [,for tree={grow'=0}, l sep+=5em, draw anchors={-children last}{parent,children first}{}
+        [,rotate=-60]
+        []
+      ]
+    ]
+  \end{forest}
+\end{forestexample}
 
 \subsection{Additional \texttt{pgfmath} functions}
 \label{ref:pgfmath}
@@ -5016,10 +5996,10 @@ there is one), so strange but useful constructions like the following are possib
 Boolean function \indexdef{pgfmath>valid} returns true if the node's \index{readonly option>id}$\neq0$, i.e.\ if the node is a real, valid node; see \S\ref{ref:spatial-propagators} and \S\ref{ref:nodewalks}.  Boolean function \indexdef{pgfmath>invalid} is a negation of |valid|.
 
 \begin{syntax}
-\indexitem[set={+format={detokenize}}]{pgfmath>min_l}|=(|\meta{nodewalk: node}|,|\meta{nodewalk: context node}|)| \itemnosep
-\indexitem[set={+format={detokenize}}]{pgfmath>min_s}|=(|\meta{nodewalk: node}|,|\meta{nodewalk: context node}|)| \itemnosep
-\indexitem[set={+format={detokenize}}]{pgfmath>max_l}|=(|\meta{nodewalk: node}|,|\meta{nodewalk: context node}|)| \itemnosep
-\indexitem[set={+format={detokenize}}]{pgfmath>max_s}|=(|\meta{nodewalk: node}|,|\meta{nodewalk: context node}|)|
+\indexitem{pgfmath>min_l}|=(|\meta{nodewalk: node}|,|\meta{nodewalk: context node}|)| \itemnosep
+\indexitem{pgfmath>min_s}|=(|\meta{nodewalk: node}|,|\meta{nodewalk: context node}|)| \itemnosep
+\indexitem{pgfmath>max_l}|=(|\meta{nodewalk: node}|,|\meta{nodewalk: context node}|)| \itemnosep
+\indexitem{pgfmath>max_s}|=(|\meta{nodewalk: node}|,|\meta{nodewalk: context node}|)|
 
   These functions return the minimum/maximum value of \index{option>l}/\index{option>s} of node at the end of \meta{nodewalk:
     node} in the context (i.e.\ growth direction) of node at the end of \meta{nodewalk: context
@@ -5070,18 +6050,18 @@ anchor,option>anchor,fit,tier,readonly option>level,delay,before typesetting nod
   \end{forest}
 \end{forestexample}
 
+{\def\useforestlibrary#1{}%
 \begin{forestexample}[point=instr,index={where option,n children,tier,content,no edge,tikz},index>={!}]
   % roof terminal phrases
+  \useforestlibrary{linguistics}
+  % ...
   \begin{forest}
-    where n children=0{tier=word,
-      if={~instr~("P",~content~("!u"))}{no edge,
-        tikz={\draw (!.north west)--
-        (!.north east)--(!u.south)--cycle;
-      }}{}
-    }{},
+    delay={where n children=0{tier=word,
+      if={~instr~("P",~content~("!u"))}{roof}{}
+    }{}},
     [VP[DP[Mary]][V'[V[loves]][DP[her cat]]]]
   \end{forest}
-\end{forestexample}
+\end{forestexample}}
 
 
 \subsection{Standard node}
@@ -5262,13 +6242,89 @@ anchor,option>anchor,anchor>anchor,calign,for step,tree,s sep,option>l,n childre
 \subsection{Changelog}
 \label{sec:changelog}
 
-First of all, the list of all \index{compat} keys for backward compatibility, and their groupings.
+First of all, the list of all \index{compat} key values for backward compatibility, and their
+groupings. Remember, compat values that reside in styles with suffix |-most| are harmless: they will
+not disrupt the new functionality of the package. But take care when using stuff which only resides
+in |-all| styles.
 
 \lstinputregion{forest-compat.sty}{compat_keys}
 
+\newcommand\compatitem[2]{\item[,,in \texttt{-#1}]\texttt{compat=}\indexdef{value of=compat>#2}}
+
+\subsubsection{v2.1}
+
+\begin{description}
+\item[v2.1 (2016/12/05)] \mbox{}
+
+  Backward incompatible changes (with a \index{compat} key):
+  \begin{syntax}
+  \compatitem{all}{2.0-edges}
+  This compat key groups the three changes listed below: the final two depend on the first, so you
+  will probably want to revert them all or none.
+  \begin{syntax}
+    \compatitem{all}{2.0-anchors}
+      This is really a bugfix. Growth direction based anchors \index{anchor>parent},
+      \index{anchor>parent first} and \index{anchor>parent last} were not facing to the direction of the
+      parent if the growth direction of the tree changed at the node.
+    \compatitem{all}{2.0-forkededge}
+    \compatitem{all}{2.0-folder}
+      Update the code of keys \index{forked edge} (and friends) and \index{folder} from the
+      \reflibrary{edges} library to reflect the above bugfix.
+    \end{syntax}
+    \compatitem{all}{2.0-delayn} Fixing yet another bug in \index{delay n}! The number of cycles was
+      reevaluated at each cycle. Now it is computed immediately, and fixed. Use this key to revert to
+      the old behaviour.
+  \end{syntax}
+  
+  Performance:
+  \begin{itemize}
+  \item Substantially enhance the argument processor (\S\ref{ref:argument-processor}), including the
+    ability to use it as a drop-in replacement for |pgfmath|.
+  \item Internally, avoid using |\pgfmathparse| and friends whereever possible.
+  \item Implement a fast set of macros to determine if a |pgfmath| expression is just a \meta{count}
+    or \meta{dimen} expression.
+  \item Optimize \index{split option} and \index{split register}.
+  \end{itemize}
+  Minor improvements:
+  \begin{itemize}
+  \item Allow \index{relative node name}s in \index{handler>option}.
+  \item Make aggregate functions (\S\ref{ref:aggregate-functions}) nestable and implement their
+    |pgfmath| versions.
+  \item Implement
+    \index{if dimen GT=\meta{dimen option}}, \index{if dimen LT=\meta{dimen option}},
+    \index{if count GT=\meta{count option}}, \index{if count LT=\meta{count option}},
+    \index{where dimen GT=\meta{dimen option}}, \index{where dimen LT=\meta{dimen option}},
+    \index{where count GT=\meta{count option}} and \index{where count LT=\meta{count option}},
+  \item Implement \index{if current nodewalk empty}.
+  \item Implement nodewalk steps \index{leaves}, \index{-level} and \index{-level'}.
+  \item Implement nodewalk operation \index{unique}.
+  \item Implement \index{nodewalk key>on invalid} values \index{value of=on invalid>error if real} and \index{value of=on invalid>last valid}, remove value |step| (no \index{compat} key, as it was broken and useless).
+  \item Implement `-` anchors (\index{anchor>-parent} etc.).
+  \item Implement \index{save and restore register}.
+  \item Implement \index{handler>nodewalk style}.
+  \item Implement \index{forestloopcount}.
+  \item Allow multiple occurrences of package option \index{compat}.
+  %\item Implement \index{foresttypeouttrees}.
+  %\item Implement \index{show register}.
+  \end{itemize}
+
+  Bugfixes:
+  \begin{itemize}
+  \item Fix a bug in externalization (|\forest@file@copy| set |\endlinechar| to |-1|, which caused
+    problems for several packages, e.g. |biblatex|).
+  \item Fix a bug in \index{delay n}: the number of cycles was reevaluated at each cycle.
+  \item Fix a bug in \index{fixed edge angles}.
+  \item Fix \index{compat} key values \index{value of=compat>silent}, \index{value of=compat>1.0-forstep} and \index{value of=compat>1.0-stages}.
+  \item Fix invocations of spatial propagators \index{for step=\index{step>nodewalk}} and \index{for step=\index{step>Nodewalk}} and \index{node key>Nodewalk}.
+  \item Fix invocations of \index{for step=group}, \index{for step=next on tier} and \index{for step=previous on tier}.
+  \item Fix behaviour of \index{for step=next on tier}, \index{for step=previous on tier} and \index{for step=to tier} on arrival to the invalid node.
+  \item Fix problems with interaction between \index{folder} and \index{forked edges}.
+  \end{itemize}
+
+\end{description}
+
 \subsubsection{v2.0}
 
-\newcommand\compatitem[2]{\item[,,in \texttt{-#1}]\texttt{compat=}\indexdef{option of=compat>#2}}
 
 \begin{description}
 \item[v2.0.3 (2016/04/03)] \mbox{}
@@ -5276,7 +6332,6 @@ First of all, the list of all \index{compat} keys for backward compatibility, an
   Backward incompatible changes (with a \index{compat} key):
   \begin{syntax}
   \compatitem{all}{2.0.2-delayn}
-  \itemnosep
   \compatitem{all}{2.0.2-wrapnpgfmathargs}
 
   This is really a bugfix: keys \index{delay n} and \index{wrap $n$ pgfmath args} (for $n\geq 2$)
@@ -5411,15 +6466,15 @@ First of all, the list of all \index{compat} keys for backward compatibility, an
     
     \begin{tabularx}{\linewidth}{lll}
       old&new&\index{compat} key {\small (all but the last are in \texttt{-most})}\\\hline
-      \keyname{node walk}&\index{for step=nodewalk}\footnote{Nodewalks are much improved in v2.0, so some syntax and keys are different than in v1.0!}&\indexdef{option of=compat>1.0-nodewalk}\\
-      \keyname{for}&\index{for step=\index{group}}&\indexdef{option of=compat>1.0-for}\\
-      \keyname{for all next}&\index{for step=\index{following siblings}}&\indexdef{option of=compat>1.0-forall}\\
-      \keyname{for all previous}&\index{for step=\index{preceding siblings}}&\indexdef{option of=compat>1.0-forall}\\
-      \keyname{for ancestors'}&\index{for step=\index{current and ancestors}}&\indexdef{option of=compat>1.0-ancestors}\\
-      (\keyname{for}) \keyname{linear next}&(\index{for step}) \index{next node}&\indexdef{option of=compat>1.0-linear}\\
-      (\keyname{for}) \keyname{linear previous}&(\index{for step}) \index{previous node}&\indexdef{option of=compat>1.0-linear}\\
-      \keyname{triangle}&\index{roof} (library \reflibrary{linguistics})&\indexdef{option of=compat>1.0-triangle}\\
-      \keyname{/tikz/fit to tree}&\index{fit to}\keyname{=}\index{tree}\footnote{The v1.0 key \keyname{/tikz/fit to tree} also set \keyname{inner sep=0}; the v2.0 key \index{fit to} does not do that.}&\indexdef{option of=compat>1.0-fittotree}\\
+      \keyname{node walk}&\index{for step=nodewalk}\footnote{Nodewalks are much improved in v2.0, so some syntax and keys are different than in v1.0!}&\indexdef{value of=compat>1.0-nodewalk}\\
+      \keyname{for}&\index{for step=\index{group}}&\indexdef{value of=compat>1.0-for}\\
+      \keyname{for all next}&\index{for step=\index{following siblings}}&\indexdef{value of=compat>1.0-forall}\\
+      \keyname{for all previous}&\index{for step=\index{preceding siblings}}&\indexdef{value of=compat>1.0-forall}\\
+      \keyname{for ancestors'}&\index{for step=\index{current and ancestors}}&\indexdef{value of=compat>1.0-ancestors}\\
+      (\keyname{for}) \keyname{linear next}&(\index{for step}) \index{next node}&\indexdef{value of=compat>1.0-linear}\\
+      (\keyname{for}) \keyname{linear previous}&(\index{for step}) \index{previous node}&\indexdef{value of=compat>1.0-linear}\\
+      \keyname{triangle}&\index{roof} (library \reflibrary{linguistics})&\indexdef{value of=compat>1.0-triangle}\\
+      \keyname{/tikz/fit to tree}&\index{fit to}\keyname{=}\index{tree}\footnote{The v1.0 key \keyname{/tikz/fit to tree} also set \keyname{inner sep=0}; the v2.0 key \index{fit to} does not do that.}&\indexdef{value of=compat>1.0-fittotree}\\
       \keyname{begin forest}, \keyname{end forest}&none (use \index{style>stages})&\index{1.0-stages}\\
       \keyname{end forest}, \keyname{end forest}&none (use \index{style>stages})&\index{1.0-stages}\\
     \end{tabularx}
@@ -5543,17 +6598,6 @@ First of all, the list of all \index{compat} keys for backward compatibility, an
 \end{description}
 
 
-\paragraph{Acknowledgements}
-This package has turned out to be much more successful and widespread than I could have ever
-imagined and I want to thank all the users for the trust.  Many of you have also contributed to the
-package in some way: by providing comments and ideas, sending patches, reporting bugs and so on.  To
-you, I'm doubly grateful!  I will not even try to list you all here, as the list is getting too long
-for me to maintain, but I do want to mention one person, a member of the friendly community at the
-excellent and indispensable \href{http://tex.stackexchange.com}{\TeX\ -- \LaTeX\ Stack Exchange} and
-the author of the very first \foRest;-based package,
-\href{http://ctan.org/pkg/prooftrees}{Prooftrees}: without |cfr|'s uncountable questions, answers,
-bug reports and ideas, \foRest; would be a much poorer package indeed.
-
 
 \subsection{Known bugs}
 \label{sec:bugs}
@@ -5585,7 +6629,7 @@ If you notice one, please let me know.
 
 In the following example, the R--B edge crosses the AAA node, although \index{ignore edge} is
 set to the default |false|.
-\begin{forestexample}[index={calign,{value=calign>first},align,{value=align>center},base,{value=base>bottom}}]
+\begin{forestexample}[index={calign,{value of=calign>first},align,{value of=align>center},base,{value of=base>bottom}}]
   \begin{forest}
     calign=first
     [R[AAAAAAAAAA\\AAAAAAAAAA\\AAAAAAAAAA,align=center,base=bottom][B]]
@@ -5595,7 +6639,7 @@ This happens because s-distances between the adjacent children are
 computed before child alignment  (which is obviously the correct order in the general case), but
 child alignment non-linearly influences the edges.  Observe that the with a different value of
 \index{calign}, the problem does not arise. 
-\begin{forestexample}[index={calign,{value=calign>last},align,{value=align>center},base,{value=base>bottom}}]
+\begin{forestexample}[index={calign,{value of=calign>last},align,{value of=align>center},base,{value of=base>bottom}}]
   \begin{forest}
     calign=last
     [R[AAAAAAAAAA\\AAAAAAAAAA\\AAAAAAAAAA,align=center,base=bottom][B]]
@@ -5636,6 +6680,20 @@ Obviously, both examples also create the situation of an edge crossing some sibl
 Again, I don't think anything sensible can be done about this, in general.
 
 
+\subsection{Acknowledgements}
+
+This package has turned out to be much more successful and widespread than I could have ever
+imagined and I want to thank all the users for the trust.  Many of you have also contributed to the
+package in some way: by providing comments and ideas, sending patches, reporting bugs and so on.  To
+you, I'm doubly grateful!  I will not even try to list you all here, as the list is getting too long
+for me to maintain, but I do want to mention one person, a member of the friendly community at the
+excellent and indispensable \href{http://tex.stackexchange.com}{\TeX\ -- \LaTeX\ Stack Exchange} and
+the author of the very first \foRest;-based package,
+\href{http://ctan.org/pkg/prooftrees}{Prooftrees}: without |cfr|'s uncountable questions, answers,
+bug reports and ideas, \foRest; would be a much poorer package indeed.
+
+
+
 \addcontentsline{toc}{section}{References}
 \bibliography{tex}
 \bibliographystyle{plain}
@@ -5645,7 +6703,13 @@ Again, I don't think anything sensible can be done about this, in general.
 \addcontentsline{toc}{section}{\indexname}
 \addtocontents{toc}{\protect\setbox0=\protect\vbox{\protect\iffalse}\protect\fi}
 \PrintIndex
-\addtocontents{toc}{\protect\iffalse{\protect\fi}}
+%\addtocontents{toc}{\protect\iffalse{\protect\fi}}
+%http://tex.stackexchange.com/questions/10291/addtocontents-at-end-of-document-not-getting-written-to-toc-file
+\makeatletter
+\write\@auxout{\noexpand\@writefile{toc}{\noexpand\iffalse{\noexpand\fi}}}
+\makeatother
+
+
 
 \end{document}
 

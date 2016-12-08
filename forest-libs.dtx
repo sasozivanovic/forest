@@ -1,9 +1,9 @@
-% \CheckSum{235}
+% \CheckSum{236}
 % \iffalse meta-comment
 % forest-libs.dtx
 %% `forest-libs' is a collection of libraries for package `forest'.
 %%
-%% Copyright (c) 2015 Saso Zivanovic
+%% Copyright (c) 2016 Saso Zivanovic
 %%                    (Sa\v{s}o \v{Z}ivanovi\'{c})
 %% saso.zivanovic@guest.arnes.si
 %%
@@ -70,13 +70,12 @@
 }
 %    \end{macrocode}
 %    
-% There's no linguistics without c-command\footnote{The definition of c-command is as follows: a node c-commands its siblings and their subtrees.} \dots
+% There's no linguistics without c-command\footnote{The definition of c-command is as follows: a node c-commands its siblings and their descendants.} \dots
 % \begin{syntax}
 % \indexitem{step>c-commanded} Visit all the nodes c-commanded by the current node.
 % \indexitem{step>c-commanders} Visit all the c-commanders of the current node, starting from the closest.
 %
 % \begin{forestexample}[tree bin=minipage,index={branch',c-commanded}]
-%   ``manual'' c-command:\\[1ex]
 %   \begin{forest} 
 %     [VP
 %       [DP[John]]
@@ -190,7 +189,7 @@
 %     xlist/.style={
 %       phantom,
 %       for children={no edge,replace by={[,append,
-%           delay={content/.wrap pgfmath arg={\@alph{##1}.}{n()+#1}}
+%           delay={content/.wrap pgfmath arg={\csname @alph\endcsname{##1}.}{n()+#1}}
 %           ]}}
 %     },
 %     xlist/.default=0
@@ -239,7 +238,7 @@
     for tree'={
       TeX={[%
 %    \end{macrocode}
-% Complication: \index{content format} must be expanded in advance, to correctly process tabular environments implicitely loaded by \index{align}|=|\index{value=align>center}, which is the default in this library.  (Not that one would want a multiline output in the bracket representation, but it's better than crashing.)
+% Complication: \index{content format} must be expanded in advance, to correctly process tabular environments implicitely loaded by \index{align}|=|\index{value of=align>center}, which is the default in this library.  (Not that one would want a multiline output in the bracket representation, but it's better than crashing.)
 %    \begin{macrocode}
         \edef\forestdrawbracketscontentformat{\foresteoption{content format}}%
       },
@@ -374,29 +373,28 @@
 %\fi
 % \librarysection{edges}
 %    \begin{macrocode}
-\ProvidesForestLibrary{edges}[2015/11/14 v0.1]
+\ProvidesForestLibrary{edges}[2016/12/05 v0.1.1]
 %    \end{macrocode}
 % 
 % \begin{syntax}
 % 
-% \indexitem{node key>forked edge}
+% \indexitem{node key>forked edge'}
 %
 %   Sets a forked edge to the current node.  Arbitrary growth direction and node rotation are
 %   supported.
 %
-%   Using this key does \emph{not} change the current values of \index{option>parent anchor} and
-%   \index{option>child anchor}.
-%   
-% \indexitem{node key>forked edges}
+% \indexitem{node key>forked edge}
 %
-%   Sets forked edges to the entire (sub)tree rooted in the current node.  Arbitrary growth
-%   direction and node rotation are supported.
+% Like \index{forked edge'}, but it also sets \index{option>parent anchor} and \index{option>child
+% anchor} to the likely values of \index{anchor>children} and \index{anchor>parent}, respectively.
 %
-%   \index{option>parent anchor} and \index{option>child anchor} are set to \index{anchor>children} and
-%   \index{anchor>parent}, repectively.
+% \indexitem(tree){node key>forked edges}|=|\meta{nodewalk}
 %
-%   \indexitem{option>fork sep} The \index{forest cs>l}-distance between the parent anchor and the
-%   fork.
+% Invokes \index{forked edge} for all nodes in the \meta{nodewalk}, by default the entire (sub)tree
+% rooted in the current node.
+%
+% \indexitem{option>fork sep} The \index{forest cs>l}-distance between the parent anchor and the
+% fork.
 %   
 % \end{syntax}
 % 
@@ -421,19 +419,23 @@
 %   \end{forest}  
 % \end{forestexample}
 %
-% See how \indexex{anchor>parent anchor} and \indexex{anchor>parent anchor} are used in the
-% definition of |forked_edge| to easily take care of arbitrary \index{grow} and \index{rotate}.
+% See how growth direction based anchors \indexex{anchor>children} and \indexex{anchor>parent} are
+% used in the definition below to easily take care of arbitrary \index{grow} and
+% \index{rotate}.
 %    \begin{macrocode}
 \forestset{
   declare dimen={fork sep}{0.5em},
-  forked edge/.style={
-    edge={rotate/.pgfmath=grow()},
+  forked edge'/.style={
+    edge={rotate/.option=!parent.grow},
     edge path'={(!u.parent anchor) -- ++(\forestoption{fork sep},0) |- (.child anchor)},
   },
-  forked edges/.style={
-    for tree={parent anchor=children},
-    for descendants={child anchor=parent,forked edge}
+  forked edge/.style={
+    on invalid={fake}{!parent.parent anchor=children},
+    child anchor=parent,
+    forked edge',
   },
+  forked edges/.style={for nodewalk={#1}{forked edge}},
+  forked edges/.default=tree,
 }
 %    \end{macrocode}
 %
@@ -481,14 +483,14 @@
   declare dimen register=folder indent,
   folder indent=.45em,
   folder/.style={
-    parent anchor=parent last,
+    parent anchor=-children last,
     anchor=parent first,
     calign=child,
     calign primary child=1,
     for children={
       child anchor=parent,
       anchor=parent first,
-      edge={rotate/.pgfmath=grow()},
+      edge={rotate/.option=!parent.grow},
       edge path'/.expanded={
         ([xshift=\forestregister{folder indent}]!u.parent anchor) |- (.child anchor)
       },

@@ -1,0 +1,134 @@
+\documentclass{article}
+\usepackage[margin=1cm,landscape,twocolumn]{geometry}
+\usepackage{forest}
+
+\makeatletter
+
+\begin{document}
+
+\section{Is it a number or dimension?}
+\label{sec:test-num-dim}
+
+\def\testnumdim#1#2#3{%
+ % #1 = test for a number or dimension (num/dim)
+ % #2 = expression to be tested
+ % #3 = correct result (true/false)
+  is \texttt{\detokenize{"#2"}} a #1?
+  \begingroup
+  %\tracingall
+  \csname forest@is#1\endcsname{#2}{\forest@temptrue}{\forest@tempfalse}% test
+  \csname testnumdim@collect@\ifforest@temp true\else false\fi @#1\endcsname
+  \ifforest@temp\endgroup\forest@temptrue\else\endgroup\forest@tempfalse\fi
+  \csname if#3\endcsname
+    % "true" is the correct result
+    \csname testnumdim@texeval@#1\endcsname{#2}% store correct num/dim result into \forest@temp
+    expecting yes (\forest@temp),
+    \ifforest@temp
+      \ifx\forest@temp\forest@global@temp
+        got it!
+      \else
+        but got yes (\textcolor{red}{\forest@global@temp}).
+      \fi
+    \else
+      but got \textcolor{red}{no} (\forest@global@temp).
+    \fi
+  \else
+    % "false" is the correct result
+    expecting no,
+    \ifforest@temp
+      but got \textcolor{red}{yes} (\forest@global@temp).
+    \else
+      got it!
+    \fi
+  \fi
+}
+\def\testnumdim@collect@true@num{\xdef\forest@global@temp{\the\forest@isnum@count}}%
+\def\testnumdim@collect@false@num{\xdef\forest@global@temp{\the\forest@isnum@count}}%
+\def\testnumdim@texeval@num#1{\count0 #1\relax\edef\forest@temp{\the\count0}}%
+
+\def\testnumdim@collect@true@dim{\xdef\forest@global@temp{\the\forest@isdim@dimen}}%
+\def\testnumdim@collect@false@dim{\xdef\forest@global@temp{\the\forest@isnum@count.\forest@isdim@leadingzeros\the\forest@isdim@nonintpart\forest@isdim@unit}}%
+\def\testnumdim@texeval@dim#1{\dimen0 #1\relax\edef\forest@temp{\the\dimen0}}%
+
+\let\testnumdim@collect@true@baredim\testnumdim@collect@true@dim
+\let\testnumdim@collect@false@baredim\testnumdim@collect@false@dim
+\def\testnumdim@texeval@baredim#1{\dimen0 #1pt\relax\edef\forest@temp{\the\dimen0}}%
+\let\forest@isbaredim\forest@isdim
+
+
+\newcount\mynum
+\mbox{}\\\testnumdim{num}{42}{true}
+\\\testnumdim{num}{\the\mynum}{true}
+\\\testnumdim{num}{42 }{true}
+\\\testnumdim{num}{ 42}{true}
+\\\testnumdim{num}{ 42  }{true}
+\\\testnumdim{num}{0}{true}
+\\\testnumdim{num}{00}{true}
+\\\testnumdim{num}{01}{true}
+\\\testnumdim{num}{-0}{true}
+\\\testnumdim{num}{a}{false}
+\\\testnumdim{num}{a42}{false}
+\\\testnumdim{num}{42a}{false}
+\\\testnumdim{num}{-a}{false}
+\\\testnumdim{num}{a42a}{false}
+\\\testnumdim{num}{+42a}{false}
+\\\testnumdim{num}{+42}{true}
+\\\testnumdim{num}{-42}{true}
+\\\testnumdim{num}{--42}{true}
+\\\testnumdim{num}{- -42}{true}
+\\\testnumdim{num}{- -+ +42}{true}
+\\\testnumdim{num}{42!}{false}
+\\\testnumdim{num}{!42!}{false}
+\\\testnumdim{num}{!42}{false}
+\\\testnumdim{num}{42!a}{false}
+\\\testnumdim{num}{42a!}{false}
+\\\testnumdim{num}{042}{true}
+\\\testnumdim{num}{-042}{true}
+\\\testnumdim{num}{- 0a}{false}
+\\\testnumdim{num}{+ 0}{true}
+\\\testnumdim{num}{- 0}{true}
+\\\testnumdim{num}{0}{true}
+\\\testnumdim{num}{2147483647}{true}
+\\\testnumdim{num}{-2147483647}{true}
+\\\testnumdim{num}{-- - + 002147483647}{true}
+%\\\testnumdim{num}{2147483648}{} % number yes, but too big
+%\\\testnumdim{num}{-2147483648}{} % number yes, but too big
+\\\testnumdim{num}{0\space}{true}
+\\\testnumdim{num}{\space0}{true}
+\\\testnumdim{num}{\space0}{true}
+\\\testnumdim{num}{0\space\space\space}{false}
+\\\testnumdim{num}{0 }{true}
+\\\testnumdim{num}{0 \space}{false}
+\\\testnumdim{num}{\space0}{true}
+\\\testnumdim{num}{\space\space0}{true}
+\\\testnumdim{num}{\space\space\space0}{true}
+\\\testnumdim{num}{\the\count0}{true}
+\\\testnumdim{num}{\space0\the\count0}{true}
+\\\testnumdim{dim}{4.2pt}{true}
+\\\testnumdim{dim}{4.2p}{false}
+\\\testnumdim{dim}{4.cm}{true}
+\\\testnumdim{dim}{.42mm}{true}
+\\\testnumdim{dim}{.42mm  }{true}
+\\\testnumdim{dim}{.42mm \space}{false}
+\\\testnumdim{dim}{.42mm a}{false}
+\\\testnumdim{baredim}{.42}{true}
+\\\testnumdim{dim}{cm}{false}
+\\\testnumdim{dim}{.cm}{true}
+\\\testnumdim{dim}{.}{true}% pgfmath is inconsistent here: accepts this as a dimension but not as a count
+\\\testnumdim{dim}{ 1.  pt}{true}
+\\\testnumdim{baredim}{42}{true}
+\\\testnumdim{baredim}{42.0}{true}
+\\\testnumdim{dim}{42cm}{true}
+\\\testnumdim{dim}{42 cm}{true}
+\\\testnumdim{dim}{16383.99998pt}{true}
+\\\testnumdim{dim}{16383.99998pt}{true}
+\\\testnumdim{dim}{-16383.99998pt}{true}
+\\\testnumdim{dim}{11PT}{true}
+\\\testnumdim{dim}{11PT }{true}
+\\\testnumdim{dim}{11ptt}{false}
+\\\testnumdim{dim}{11pt }{true}
+\\\testnumdim{dim}{21cm+21cm}{false}
+\\\testnumdim{dim}{4. 2cm}{false}
+\\\testnumdim{dim}{  4.2  cm }{true}
+
+\end{document}

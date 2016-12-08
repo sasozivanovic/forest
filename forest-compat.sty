@@ -3,7 +3,7 @@
 % forest-index.dtx
 %% `forest-compat' defines a compatibility layer of package `forest'.
 %%
-%% Copyright (c) 2015 Saso Zivanovic
+%% Copyright (c) 2016 Saso Zivanovic
 %%                    (Sa\v{s}o \v{Z}ivanovi\'{c})
 %% saso.zivanovic@guest.arnes.si
 %%
@@ -23,7 +23,7 @@
 %% constituting the package see main source file of the package,
 %% `forest.dtx', or the derived `forest.sty'.
 
-\ProvidesPackage{forest-compat}
+\ProvidesPackage{forest-compat}[2016/12/05]
 
 \def\forest@deprecated#1{%
   \PackageWarning{forest}{Compatibility mode for #1}%
@@ -31,23 +31,35 @@
 \forestset{@@deprecated/.code={\forest@deprecated{#1}}}
 \def\forestcompat#1{\pgfqkeys{/forest/@compat}{#1}}
 \forestcompat{
-  silent/.style={\def\forest@deprecated##1{}},
+  silent/.code={\def\forest@deprecated##1{}},
   %%% begin listing region: compat_keys
   most/.style={1.0-most},
   all/.style={1.0-all},
   none/.style={},
   1.0-most/.style={
     1.0-triangle,1.0-linear,1.0-nodewalk,1.0-ancestors,
-    1.0-fittotree,1.0-for,1.0-forall
+    1.0-fittotree,1.0-for,1.0-forall,
+    2.0.2-most,
   },
   1.0-all/.style={
     1.0-most,
     1.0-forstep,1.0-rotate,1.0-stages,1.0-name,
     2.0.2-all,
   },
+  2.0.2-most/.style={
+    2.0-most,
+  },
   2.0.2-all/.style={
     2.0.2-delayn,2.0.2-wrapnpgfmathargs,
+    2.0-all,
   },
+  2.0-most/.style={},
+  2.0-all/.style={
+    2.0-most,
+    2.0-delayn,
+    2.0-edges,
+  },
+  2.0-edges/.style={2.0-anchors,2.0-forkededge,2.0-folder},
   %%% end listing region: compat_keys
   1.0-triangle/.style={
     /forest/triangle/.style={
@@ -106,14 +118,9 @@
   },
   1.0-forstep/.code={%
     \def\forest@forstepwrapper##1##2{%
-      \def\forest@nodewalk@config@everystep@method{independent}%
-      \def\forest@nodewalk@config@history@method{independent}%
-      \edef\forest@marshal{%
-        \def\noexpand\forest@nodewalk@config@oninvalid{compatfake}%
-        \unexpanded{\forest@Nodewalk{##1}{##2}}%
-        \def\noexpand\forest@cn{\forest@cn}%
-        \def\noexpand\forest@nodewalk@config@oninvalid{\forest@nodewalk@config@oninvalid}%
-      }\forest@marshal
+      \forest@forthis{%
+        \forest@configured@nodewalk{independent}{independent}{compatfake}{##1}{##2}%
+      }%
     }%
     \def\forest@relatednode@option@compat@ignoreinvalidsteps##1{%
       \forest@saveandrestoremacro\forest@nodewalk@oninvalid{%
@@ -172,11 +179,12 @@
   },
   2.0.2-delayn/.style={
     /forest/delay@n/.style 2 args={
-      @@deprecated={propagator "delay n" (it introduces two levels of hash doubling)},
+      @@deprecated={propagator "delay n" (it introduces two levels of hash doubling reevaluates the first argument (the desired number of cycles) at every cycle)},
       if={##1==1}{delay={##2}}{delay={delay@n/.wrap pgfmath arg={{####1}{##2}}{##1-1}}}
     },
+    2.0-delayn/.style={}, % this key would patch the same thing!
   },
-  2.0.2-wrapnpgfmathargs/.code={
+  2.0.2-wrapnpgfmathargs/.code={%
     \def\forest@wrap@pgfmath@args@@@wrapandpasson{%
       \forest@deprecated{handler "wrap n pgfmath args" (it introduces two levels of hash doubling)}%
       \expandafter\expandafter\expandafter\def
@@ -184,6 +192,59 @@
           \expandafter\expandafter\expandafter{%
             \expandafter\forest@wrap@code\forest@wrap@args}%
       \expandafter\pgfkeysalso\expandafter{\expandafter\pgfkeyscurrentpath\expandafter=\expandafter{\forest@wrapped}}%
+    }%
+  },
+  2.0-delayn/.style={
+    /forest/delay n/.style 2 args={
+      @@deprecated={propagator "delay n" (it reevaluates the first argument (the desired number of cycles) at every cycle)},
+      if={##1==0}{##2}{delay@n={##1}{##2}}
+    },
+    /forest/delay@n/.style 2 args={
+      if={##1==1}{delay={##2}}{delay={delay@n/.process={P}{##1-1}{##2}}}
+    },    
+  },
+  2.0-anchors/.code={%
+    \csdef{forest@anchor@@parent'}{%
+      \forest@anchor@isbordertrue
+      \edef\forest@temp@anchor{\number\numexpr\forestove{grow}-\forestove{rotate}+180}%
+    }
+    \csdef{forest@anchor@@parent first'}{%
+      \forest@anchor@isbordertrue
+      \edef\forest@temp@anchor@parent{\number\numexpr\forestove{grow}-\forestove{rotate}+180}%
+      \edef\forest@temp@anchor@first{\number\numexpr\forestove{grow}-\forestove{rotate}\ifnum\forestove{reversed}=0 -\else+\fi90}%
+      \forest@getaverageangle{\forest@temp@anchor@parent}{\forest@temp@anchor@first}\forest@temp@anchor
+    }
+    \csdef{forest@anchor@@parent last'}{%
+      \forest@anchor@isbordertrue
+      \edef\forest@temp@anchor@parent{\number\numexpr\forestove{grow}-\forestove{rotate}+180}%
+      \edef\forest@temp@anchor@last{\number\numexpr\forestove{grow}-\forestove{rotate}\ifnum\forestove{reversed}=0 +\else-\fi90}%
+      \forest@getaverageangle{\forest@temp@anchor@parent}{\forest@temp@anchor@last}\forest@temp@anchor
+    }
+  },
+  2.0-forkededge/.code={%
+    \forest@iflibraryloaded{edges}{%
+      \forestset{
+        forked edge/.style={
+          edge={rotate/.pgfmath=grow()},
+          edge path'={(!u.parent anchor) -- ++(\forestoption{fork sep},0) |- (.child anchor)},
+        },
+        forked edges/.style={
+          for tree={parent anchor=children},
+          for descendants={child anchor=parent,forked edge}
+        },
+      }%
+    }{%
+      \appto\forest@compat@libraries@edges{\forestcompat{2.0-forkededge}}%
+    }%
+  },
+  2.0-folder/.code={%
+    \forest@iflibraryloaded{edges}{%
+      \expandafter\patchcmd\csname @pgfk@/forest/folder/.@cmd\endcsname
+        {parent anchor=-children last}{parent anchor=parent last}{}{}%
+      \expandafter\patchcmd\csname @pgfk@/forest/folder/.@cmd\endcsname
+        {edge={rotate/.option=!parent.grow},}{edge={rotate/.pgfmath=grow()}}{}{}%
+    }{%
+      \appto\forest@compat@libraries@edges{\forestcompat{2.0-folder}}%
     }%
   },
 }
