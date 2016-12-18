@@ -1,4 +1,4 @@
-% \CheckSum{756}
+% \CheckSum{755}
 % \iffalse meta-comment
 % forest-index.dtx
 %% `forest-index' is an indexing system for the documentation of package `forest', using the package itself.
@@ -222,7 +222,7 @@
 %    \begin{macrocode}
   declare boolean register=print,
   declare boolean register=index,
-  declare boolean register=short, short,
+  declare boolean register=short,
 %    \end{macrocode}
 % Options |name|, |content|, |key| and |argument| hold info about the
 % current entry. We need to declare only the latter two, the former
@@ -295,7 +295,7 @@
 %    \end{macrocode}
 % Set the defaults.
 %    \begin{macrocode}
-    print, index, index entry type=normal, set'={},
+    print, index, index entry type=normal, set'={}, short,
 %    \end{macrocode}
 % Create the tree structure:
 % |[entry[subentry[subsubentry...]]]|. Three options of every node
@@ -402,10 +402,17 @@
 % \end{enumerate*}
 %    \begin{macrocode}
       if index={
-        index@hypertarget/.expanded={.\forestoption{index key}},
+        index@hypertarget/.process={OS_= ? l_ w2}
+         {index key}
+         {}
+         {}{.}
+         {##2##1},
         for descendants={
-          index@hypertarget/.process= {OOw2}
-              {!parent.index@hypertarget} {index key} {##1.##2},
+          index@hypertarget/.process={OO S _l1= ? w2 }
+            {!parent.index@hypertarget}{index key}
+            {}
+            {##1}      % empty index key
+            {##1.##2}  % otherwise
         },
       }{},
 %    \end{macrocode}
@@ -590,8 +597,8 @@
           \noexpand\immediate\noexpand\write\noexpand\forestindex@out{%
             \noexpand\string\noexpand\indexdefineshortkey\noexpand\unexpanded{{\forestoption{key}}{\forestoption{content}}}%
           }%
-        }{}%
-      }
+        }%
+      }{}
     }
   }
 }

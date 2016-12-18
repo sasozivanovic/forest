@@ -1,4 +1,4 @@
-% \CheckSum{16573}
+% \CheckSum{16606}
 % \iffalse meta-comment
 % forest.dtx
 %% `forest' is a `pgf/tikz'-based package for drawing (linguistic) trees.
@@ -83,7 +83,7 @@
 %
 % \section{Identification}
 %    \begin{macrocode}
-\ProvidesPackage{forest}[2016/12/05 v2.1 Drawing (linguistic) trees]
+\ProvidesPackage{forest}[2016/12/18 v2.1.1 Drawing (linguistic) trees]
 
 \RequirePackage{tikz}[2013/12/13]
 \usetikzlibrary{shapes}
@@ -860,7 +860,7 @@
     \noexpand\fi
   }%
 %    \end{macrocode}
-% Puts all items until |\forest@eov| into the array. After that is done, execute |\forest@topextend@next|.  This code is difficult and not run often, so it doesn't need specialized control sequences.
+% Puts all items until |\forest@eov| into the array. After that is done, execute |\forest@topextend@next| (Why this macro? So that we can extend the array by tokens never seen before.). This code is difficult and not run often, so it doesn't need specialized control sequences.
 %    \begin{macrocode}
   \csdef{#1topextend}{\def\forest@array@currentarray{#1}\forest@array@topextend}%
 }
@@ -1151,17 +1151,18 @@
 \def\forestmathtype@unitless{P} % <decimal> (a unitless dimension) (P because pgfmath returns such numbers)
 \def\forestmathtype@textasc{t} % text (ascending)
 \def\forestmathtype@textdesc{T} % text (descending)
-\def\forestmathtype@array{a} % array - internal 
 \def\forestmathtype@none{} % internal (for requests - means whatever)
 \def\forestmathresult{}
 \let\forestmathresulttype\forestmathtype@generic
 %    \end{macrocode}
-% |\forest@tryprocess| takes three ``arguments''.  The first is a forestmath expression, delimited
-% by |\forest@spacegen|: if it starts with a |>|, we take it to be a |.process| expression, evaluate
-% it using |\forest@process|, and execute the second argument; it it doesn't, we execute the third
-% argument.
+% |\forest@tryprocess| takes four ``arguments''.  The first is a true/false switch telling whether
+% to return the full result array in case we have a |.process| expression.  The second is a
+% forestmath expression, delimited by |\forest@spacegen|: if it starts with a |>|, we take it to be
+% a |.process| expression, evaluate it using |\forest@process|, and execute the third argument; it
+% it doesn't, we execute the fourth argument.
 %    \begin{macrocode}
-\def\forest@tryprocess{%
+\def\forest@tryprocess#1{%
+  \def\forest@tryprocess@returnarray{#1}%
   \expandafter\forest@tryprocess@a\romannumeral-`0}
 \def\forest@tryprocess@a{\futurelet\forest@temp@token\forest@tryprocess@b}
 \def\forest@tryprocess@b{%
@@ -1173,7 +1174,7 @@
 }
 \def\forest@spacegen{ \forest@spacegen}
 \def\forest@tryprocess@yes#1#2\forest@spacegen{%
-  \forest@process{false}#2\forest@eov
+  \expandafter\forest@process\expandafter{\forest@tryprocess@returnarray}#2\forest@eov
   \@firstoftwo
 }
 \def\forest@tryprocess@no#1\forest@spacegen{\@secondoftwo}
@@ -1184,7 +1185,7 @@
 % track.)
 %    \begin{macrocode}
 \def\forestmathsetcount#1#2{%
-  \forest@tryprocess#2\forest@spacegen{%
+  \forest@tryprocess{false}#2\forest@spacegen{%
     #1=\forest@process@result\relax
   }{%
     \forestmathsetcount@#1{#2}%
@@ -1198,7 +1199,7 @@
   }%
 }
 \def\forestmathsetlength#1#2{%
-  \forest@tryprocess#2\forest@spacegen{%
+  \forest@tryprocess{false}#2\forest@spacegen{%
     #1=\forest@process@result\relax
   }{%
     \forestmathsetlength@#1{#2}%
@@ -1212,7 +1213,7 @@
   }%
 }
 \def\forestmathtruncatemacro#1#2{%
-  \forest@tryprocess#2\forest@spacegen{%
+  \forest@tryprocess{false}#2\forest@spacegen{%
     \forest@temp@count=\forest@process@result\relax
     \edef#1{\the\forest@temp@count}%
   }{%
@@ -1227,7 +1228,7 @@
   }%
 }
 \def\forestmathsetlengthmacro#1#2{%
-  \forest@tryprocess#2\forest@spacegen{%
+  \forest@tryprocess{false}#2\forest@spacegen{%
     \forest@temp@dimen=\forest@process@result\relax
     \edef#1{\the\forest@temp@dimen}%
   }{%
@@ -1242,12 +1243,12 @@
   }%
 }
 \def\forestmathsetmacro#1#2{%
-  \forest@tryprocess#2\forest@spacegen{%
+  \forest@tryprocess{false}#2\forest@spacegen{%
     \let#1\forest@process@result
     \let\forestmathresulttype\forest@process@result@type
   }{%
     \forestmathsetmacro@#1{#2}%
-    \def\forestmathresulttype{P}%
+    \let\forestmathresulttype\forestmathtype@unitless
   }%
 }
 \def\forestmathsetmacro@#1#2{%
@@ -1258,12 +1259,12 @@
   }%
 }
 \def\forestmathparse#1{%
-  \forest@tryprocess#1\forest@spacegen{%
+  \forest@tryprocess{false}#1\forest@spacegen{%
     \let\forestmathresult\forest@process@result
     \let\forestmathresulttype\forest@process@result@type
   }{%
     \forestmathparse@{#1}%
-    \def\forestmathresulttype{P}%
+    \let\forestmathresulttype\forestmathtype@unitless
   }%
 }
 \def\forestmathparse@#1{%
@@ -1273,6 +1274,20 @@
     \pgfmathsetmacro\forestmathresult{#1}%
   }%
 }
+%    \end{macrocode}
+% The following macro, which is the only place that sets |\forest@tryprocess|'s |#1| to |true|, is
+% actually not used anywhere. It was meant for an argument processor instruction accepting
+% \meta{forestmath}, but that got separated into P and p. Not much harm is done by keeping it,
+% however, so we do, just in case.
+%    \begin{macrocode}
+  %\def\forestmathparse@returnarray#1{% same as above, but returns the result as an array (used only internally)
+  %  \forest@tryprocess{true}#1\forest@spacegen{}{%
+  %    \forestmathparse@{#1}%
+  %    \let\forest@process@result@type\forestmathtype@unitless
+  %    \forest@process@result@clear
+  %    \forest@process@result@letappend\forestmathresult
+  %  }%
+  %}
 %    \end{macrocode}
 % Evaluates |#1| to a boolean: if true execute |#2|, otherwise |#3|. |#2| and |#3| are \TeX\ code.
 % Includes a shortcut for some common values.
@@ -1328,11 +1343,11 @@
 %    \begin{macrocode}
 \def\forestmathsettypefrom#1{%
   \forest@isnumdim{%
-    \let\forestmathresulttype\forest@result@type@numexpr
+    \let\forestmathresulttype\forestmathtype@count
   }{%
-    \let\forestmathresulttype\forest@result@type@dimexpr
+    \let\forestmathresulttype\forestmathtype@dimen
   }{%
-    \let\forestmathresulttype\forest@result@type@pgfmath
+    \let\forestmathresulttype\forestmathtype@unitless
   }%
 }
 %    \end{macrocode}
@@ -1819,7 +1834,7 @@
 %    \end{macrocode}
 %
 % |\bracketParse| is the macro that should be called to parse a
-% balanced bracket representation.  It takes five parameters: |#1| is the code that will be run
+% balanced bracket representation.  It takes two parameters: |#1| is the code that will be run
 % after parsing the bracket; |#2| is a control sequence that will receive the id of the root of the
 % created tree structure. (The bracket representation should follow (after optional spaces), but is
 % is not a formal parameter of the macro.)
@@ -3515,12 +3530,12 @@
   \forest@process@right@clear
   \forest@process@saved@clear
   \let\forest@process@savedtype\forestmathtype@generic
-  \ExpandIfT{forestdebug}{%
-    \edef\forest@process@debug@args{\unexpanded{#2}}%
-    \typeout{[forest .process] Start "\unexpanded{#2}"}%
-  }%
   \csname forest@process@returnarray@#1\endcsname
   \def\forest@topextend@next{%
+    \ExpandIfT{forestdebug}{%
+      \edef\forest@process@debug@args{\unexpanded{#2}}%
+      \forest@processor@debuginfo@template{Start "\unexpanded{#2}}%
+    }%
     \forest@process@catregime
     \endlinechar=-1
     \scantokens{#2}%
@@ -3540,10 +3555,10 @@
 \def\forest@process@finish{%
   \ifforest@process@returnarray@
     \forest@process@finish@array
-    \global\let\forest@process@result@type\forest@result@type@array
   \else
     \forest@process@finish@single
   \fi
+  \global\let\forest@process@result@type\forestmathresulttype
   \ifforestdebugprocess\forest@process@debug@end\fi
   \endgroup
 }
@@ -3558,7 +3573,6 @@
   \else
     \forest@process@lengtherror
   \fi
-  \global\let\forest@process@result@type\forestmathresulttype
 }
 \csdef{forest@process@finish@single@10}{\forest@process@left@toppop\forest@temp}
 \csdef{forest@process@finish@single@01}{\forest@process@right@toppop\forest@temp}
@@ -3591,7 +3605,7 @@
   }
 \fi
 \def\forest@process@debug@end{%
-  \typeout{[forest .process] \space\space\space End "\expandonce{\forest@process@debug@args}" -> "\forest@process@left@values\forest@process@right@values"}%
+  \typeout{[forest .process] End "\expandonce{\forest@process@debug@args}" -> "\forest@process@left@values\forest@process@right@values"}%
 }
 \def\forest@process@lengtherror{%
   \PackageError{forest}{%
@@ -3687,7 +3701,7 @@
 }
 \def\forest@def@processor@debuginfo#1{% #1 = instruction call
   \ifforestdebug
-    \expandonce{\forest@processor@debuginfo@template{#1}}%
+    \expandonce{\forest@processor@debuginfo@template{\space\space After #1}}%
   \fi
 }
 \def\forest@processor@debuginfo@template#1{%
@@ -3695,7 +3709,7 @@
     \edef\forest@temp@left{\forest@process@left@values}%
     \edef\forest@temp@right{\forest@process@right@values}%
     \edef\forest@temp@saved{\forest@process@saved@values}%
-    \typeout{[forest .process]\space\space\space\space After #1: left="\expandonce{\forest@temp@left}", right="\expandonce{\forest@temp@right}", saved="\expandonce{\forest@temp@saved}", type=\forestmathresulttype}%
+    \typeout{[forest .process] #1: left="\expandonce{\forest@temp@left}", right="\expandonce{\forest@temp@right}", saved="\expandonce{\forest@temp@saved}", type=\forestmathresulttype}%
   \fi
 }
 %    \end{macrocode}
@@ -3736,6 +3750,15 @@
   \pgfmathparse{\forest@temp}%
   \forest@process@left@letappend\pgfmathresult
   \let\forestmathresulttype\forestmathtype@unitless
+}
+\forest@def@processor{p}{1}*{}{% process expression
+  \forest@process@right@bottompop\forest@temp@a
+  \def\forest@temp{\forest@process{true}}%
+  \expandafter\forest@temp\forest@temp@a\forest@eov
+  \let\forest@topextend@next\relax
+  \edef\forest@temp{\forest@process@result@values}%
+  \expandafter\forest@process@left@topextend\forest@temp\forest@eov
+  \let\forestmathresulttype\forest@process@result@type
 }
 \forest@def@processor{t}{1}*{}{% text
   \forest@process@right@bottompop\forest@temp
@@ -3821,7 +3844,7 @@
   \forest@loop
   \ifnum\forest@temparray@N>0
     \forest@temparray@toppop\forest@temp
-    \expandafter\forest@process@right@setprepend\expandafter{\expandafter{\forest@temp}}%
+    \expandafter\forest@process@right@setprepend\expandafter{\forest@temp}%
   \forest@repeat
 }
 \def\forest@process@check@mn#1#2#3#4{%
@@ -3923,7 +3946,7 @@
     \forest@process@n\forest@process@saved@N\relax
   \fi
   \expandafter\forest@processor@U@@@\expandafter{%
-      \the\numexpr\forest@process@saved@N-\forest@temp@count}%
+      \the\numexpr\forest@process@saved@N-\forest@process@n}%
 }
 \def\forest@processor@U@@@#1{%
   \forest@temp@count#1
@@ -3935,7 +3958,7 @@
   \forest@repeat
   \let\forestmathresulttype\forest@process@savedtype
   \ifforest@temp
-    \let\forest@process@savedtype\forest@result@type@any
+    \let\forest@process@savedtype\forestmathtype@none
     \forest@process@saved@N#1
   \fi
 }
@@ -3945,7 +3968,7 @@
 \forest@def@processor{&}{2}{}{% and
   \def\forest@tempa{1}%
   \forest@repeat@n@times{\forest@process@n}{%
-    \forest@process@left@bottompop\forest@tempb
+    \forest@process@left@toppop\forest@tempb
     \edef\forest@tempa{\ifnum10<\forest@tempa\forest@tempb\space 1\else0\fi}%
   }%
   \forest@process@left@esetappend{\forest@tempa}%
@@ -3954,7 +3977,7 @@
 \forest@def@processor{|}{2}{}{% or
   \def\forest@tempa{0}%
   \forest@repeat@n@times{\forest@process@n}{%
-    \forest@process@left@bottompop\forest@tempb
+    \forest@process@left@toppop\forest@tempb
     \edef\forest@tempa{\ifnum0=\forest@tempa\forest@tempb\space 0\else1\fi}%
   }%
   \forest@process@left@esetappend{\forest@tempa}%
@@ -5501,11 +5524,10 @@
             {\noexpand\forest@forstepwrapper{#1\ifnum\forest@nodewalkstephandler@nargs>0=\fi\forest@util@nargs{####}{\number\numexpr\forest@nodewalkstephandler@nargs}{0}}{####\number\numexpr\forest@nodewalkstephandler@nargs+1}},
         }%
       \fi\fi
-      % Uncomment this to collect a list of for-based spatial propagators
-      %\appto\bigbadforlist{[#1]}%
     \fi
   },
 }
+{\csname forest@@doc@@hook@bigbadforlist\endcsname}%
 \pgfqkeys{/handlers}{
   .nodewalk style/.code={\forest@handlers@savecurrentpath\pgfkeysalso{%
       \forest@currentpath/nodewalk/\forest@currentname/.style={#1}%
@@ -7852,15 +7874,15 @@
 %    \end{macrocode}
 % Add the edges of the children.
 %    \begin{macrocode}
-    \get@edges@merge{negative}{#1}%
-    \get@edges@merge{positive}{#1}%
+    \forest@get@edges@merge{negative}{#1}%
+    \forest@get@edges@merge{positive}{#1}%
   %}%
 }
 %    \end{macrocode}
 % Merge the |#1| (=|negative| or |positive|) edge of the node with
 % |#1| edges of the children. |#2| = grow angle.
 %    \begin{macrocode}
-\def\get@edges@merge#1#2{%
+\def\forest@get@edges@merge#1#2{%
   \ifnum\forestove{n children}>0
     \forestoget{#1@edge@#2}\forest@node@edge
 %    \end{macrocode}
@@ -10853,7 +10875,7 @@
     }%
   }{}%
   \setbox0\hbox{%
-    \begin{pgfpicture}% this is expensive: so that's why caching
+    \begin{pgfpicture}%
       \if\relax\forestOve{#1}{#2}\relax
         \pgfpointanchor{\forestOve{#1}{\forest@pa@temp@name}}{center}%
       \else

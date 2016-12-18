@@ -39,6 +39,19 @@
 \IndexPrologue{Color legend: \textcolor{red}{definition}, \textcolor{darkgreen}{example}, \textcolor{blue}{other}. If an entry belongs to a library, the library name is given in parenthesis. All page numbers are hyperlinks, and definitions in text are hyperlinked to this index.}
 \makeindex
 
+\makeatletter
+\def\bigbadforlist{}
+\def\forest@@doc@@hook@bigbadforlist{\aftergroup\forest@@doc@@hook@bigbadforlist@}
+\def\forest@@doc@@hook@bigbadforlist@{%
+  \forestset{define long step/.append code={%
+      \ifforest@nodewalkstephandler@makefor
+        \appto\bigbadforlist{[##1]}%
+      \fi
+    }%
+  }%
+}
+\def\bigbadprocesslist{}
+\makeatother
 \usepackage[external]{forest}
 \useforestlibrary{edges}
 \useforestlibrary{linguistics}
@@ -212,6 +225,7 @@
 
 \indexset[
     form={},
+    index key={},
     for first={
       for first={
         key+/.option=!parent.argument,
@@ -232,6 +246,7 @@
 
 \indexset[
     form={},
+    index key={},
     for first={
       for first={
         +key/.option=!parent.argument,
@@ -252,6 +267,7 @@
   
 \indexset[
     form={},
+    index key={},
     for first={
       for first={
         key/.process={OOw2} {key} {!parent,parent.argument} {##1 ##2},
@@ -273,6 +289,7 @@
 
 \indexset[
     form={},
+    index key={},
     for first={
       for first={
         key/.process={OOw2} {key} {!parent,parent.argument} {##2 ##1},
@@ -4849,9 +4866,29 @@ otherwise, \meta{false keylist}.
   index format={result=if \protect\meta{count option}<,pgfkey},
   print format={result/.option=argument,+result={if\ },result+={<}, pgfkey},
 }]{conditional>if count LT=\protect\meta{count option}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
+\itemnosep
+\indexitem[set={
+  index format={result=if \protect\meta{dimen register}\protect\greaterthan,pgfkey},
+  print format={result/.option=argument,+result={if\ },result+={>}, pgfkey},
+}]{conditional>if dimen register GT=\protect\meta{dimen register}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
+\itemnosep
+\indexitem[set={
+  index format={result=if \protect\meta{dimen register}<,pgfkey},
+  print format={result/.option=argument,+result={if\ },result+={<}, pgfkey},
+}]{conditional>if dimen register LT=\protect\meta{dimen register}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
+\itemnosep
+\indexitem[set={
+  index format={result=if \protect\meta{count register}\protect\greaterthan,pgfkey},
+  print format={result/.option=argument,+result={if\ },result+={>}, pgfkey},
+}]{conditional>if count register GT=\protect\meta{count register}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
+\itemnosep
+\indexitem[set={
+  index format={result=if \protect\meta{count register}<,pgfkey},
+  print format={result/.option=argument,+result={if\ },result+={<}, pgfkey},
+}]{conditional>if count register LT=\protect\meta{count register}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
 
-If the current value of the dimen/count option is greater/less than or equal to \meta{value},
-execute \meta{true keylist}; else, execute \meta{false keylist}.
+If the current value of the dimen/count option/register is greater/less than or equal to
+\meta{value}, execute \meta{true keylist}; else, execute \meta{false keylist}.
 
 
 \indexitem{conditional>if nodewalk valid}|=|\meta{keylist: test nodewalk}\meta{true keylist}\meta{false keylist}
@@ -4907,7 +4944,7 @@ node in the subtree of the current node (including the node itself).  In other w
 \end{advise}
 
 \begin{syntax}
-\indexitem{propagator>where}|=|\meta{value}\meta{true keylist}\meta{false keylist}
+\indexitem{conditional>where}|=|\meta{value}\meta{true keylist}\meta{false keylist}
 \itemnosep
 \indexitem{word prefix=option>conditional>where=\meta{option}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
 \itemnosep
@@ -4922,7 +4959,7 @@ node in the subtree of the current node (including the node itself).  In other w
 \itemnosep
 \indexitem[set={
   index format={result=where \protect\meta{dimen option}<,pgfkey},
-  print format={result/.option=argument,+result={where\ },result+={>}, pgfkey},
+  print format={result/.option=argument,+result={where\ },result+={<}, pgfkey},
 }]{conditional>where dimen LT=\protect\meta{dimen option}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
 \itemnosep
 \indexitem[set={
@@ -4932,14 +4969,34 @@ node in the subtree of the current node (including the node itself).  In other w
 \itemnosep
 \indexitem[set={
   index format={result=where \protect\meta{count option}<,pgfkey},
-  print format={result/.option=argument,+result={where\ },result+={>}, pgfkey},
+  print format={result/.option=argument,+result={where\ },result+={<}, pgfkey},
 }]{conditional>where count LT=\protect\meta{count option}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
 \itemnosep
-\indexitem{step>where nodewalk valid}|=|\meta{toks: nodewalk name}\meta{true keylist}\meta{false keylist}
-\itemnosep  
-\indexitem{step>where nodewalk empty}|=|\meta{toks: nodewalk name}\meta{true keylist}\meta{false keylist}
+\indexitem[set={
+  index format={result=where \protect\meta{dimen register}\protect\greaterthan,pgfkey},
+  print format={result/.option=argument,+result={where\ },result+={>}, pgfkey},
+}]{conditional>where dimen register GT=\protect\meta{dimen register}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
 \itemnosep
-\indexitem{step>where in saved nodewalk}|=|\meta{nodewalk}\meta{toks: nodewalk name}\meta{true keylist}\meta{false keylist}
+\indexitem[set={
+  index format={result=where \protect\meta{dimen register}<,pgfkey},
+  print format={result/.option=argument,+result={where\ },result+={<}, pgfkey},
+}]{conditional>where dimen register LT=\protect\meta{dimen register}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
+\itemnosep
+\indexitem[set={
+  index format={result=where \protect\meta{count register}\protect\greaterthan,pgfkey},
+  print format={result/.option=argument,+result={where\ },result+={>}, pgfkey},
+}]{conditional>where count register GT=\protect\meta{count register}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
+\itemnosep
+\indexitem[set={
+  index format={result=where \protect\meta{count register}<,pgfkey},
+  print format={result/.option=argument,+result={where\ },result+={<}, pgfkey},
+}]{conditional>where count register LT=\protect\meta{count register}}|=|\meta{value}\meta{true keylist}\meta{false keylist}
+\itemnosep
+\indexitem{conditional>where nodewalk valid}|=|\meta{toks: nodewalk name}\meta{true keylist}\meta{false keylist}
+\itemnosep  
+\indexitem{conditional>where nodewalk empty}|=|\meta{toks: nodewalk name}\meta{true keylist}\meta{false keylist}
+\itemnosep
+\indexitem{conditional>where in saved nodewalk}|=|\meta{nodewalk}\meta{toks: nodewalk name}\meta{true keylist}\meta{false keylist}
 \end{syntax}
 
 
@@ -5253,31 +5310,76 @@ The result is the (single) expansion of the given
 For a gentle(r) introduction to the argument processor, see \S\ref{tut:wrapping}.
 
 The argument processor takes a sequence of instructions and an arbitrary number of arguments and
-transforms the given arguments according to the instructions.  There are two ways to invoke the
-argument processor:
+transforms the given arguments according to the instructions. This is the generic form of a process
+expression:
+
+\begin{syntax}
+  \item \indexdef{meta>process} = \meta{instructions}\meta{arg $1$}\dots\meta{arg $n$}
+\end{syntax}
+
+There are three ways to invoke the argument processor: via handler \index{handler>process}, as one
+of the two alternatives of a \index{forestmath} expression and recursively, by its instruction
+\index{processor>P}.
 
 \begin{syntax}
   
-\indexitem{handler>process}|=|\meta{instructions}\meta{arg $1$}\dots\meta{arg $n$}
+\indexitem{handler>process}|=|\index{meta>process}
 
-The result of the computation is passed on to the handled key as a sequence of arguments.  Any
-number of arguments can be returned.\footnote{For backward compatibility, \index{handler>process} is also
-  available as \indexdef{handler>process args}.}
+The result of the computation is passed on to the handled key as a sequence of arguments.  When the
+argument processor is invoked this way, any number of items can be returned.\footnote{For backward
+  compatibility, \index{handler>process} is also available as \indexdef{handler>process args}.}
 
-\item \indexdef{meta>forestmath} = \meta{pgfmath}\OR|>|\meta{instructions}\meta{arg
-    $1$}\dots\meta{arg $n$}
+\item \indexdef{meta>forestmath} = \meta{pgfmath}\OR|>|\index{meta>process}
 
   In words, a \index{forestmath} expression is either a \meta{pgfmath} expression or an argument
-  processor expression prefixed by |>|.
+  processor expression (\index{meta>process}) prefixed by |>|.
   
-  In other words, \FoRest; accepts an argument processor expression anywhere\footnote{The only
-    exceptions to the above rule are handler \index{pgfmath} and argument processor instruction
-    \index{processor>P}.}  it accepts a \meta{pgfmath} expression.  To indicate that we're providing
-  an argument processor expression, we prefix it with |>|.
+  In other words, \FoRest; accepts an argument processor expression anywhere it accepts a
+  \meta{pgfmath} expression.\footnote{The only exceptions to the above rule are handler
+    \index{pgfmath} and argument processor instruction \index{processor>P}.}  To indicate that we're
+  providing an argument processor expression, we prefix it with |>|.
 
-  The result of argument processor's computation should be a single item.
+  When the argument processor is invoked this way, it should return a single item.
   
 \end{syntax}
+
+
+\begin{table}
+  \centering
+  \tikzexternaldisable
+  \bracketset{action character=!}%
+  \begin{forest}
+    phantom,
+    for tree={
+      grow'=0, no edge, inner sep=0, outer sep=0,
+    },
+    delay={
+      sort by={>O+t+c{content}},
+      sort,
+    },
+    before typesetting nodes={
+      for children={
+        content={\index{processor>#1}},
+        for children={
+          content+={\phantom{(%)
+            }}}}},
+    define long step={from to}{n args=2}{
+      tempcounta=#2,
+      n=#1,
+      while/.process=Rw{tempcounta}{n()<##1}{next}
+    },
+    draw tree stage/.style={
+      for root'={
+        draw tree processing order/.nodewalk style={branch={{from to={1}{round(n_children()/3)}},tree}}, draw tree, TeX={~~},
+        draw tree processing order/.nodewalk style={branch={{from to={1+round(n_children()/3)}{2*round(n_children()/3)}},tree}}, draw tree, TeX={~~},
+        draw tree processing order/.nodewalk style={branch={{from to={1+2*round(n_children()/3)}{n_children()}},tree}}, draw tree,
+      }
+    }
+    [!\bigbadprocesslist]
+  \end{forest}%
+  \caption{Argument processor instructions}
+  \label{tab:allargprocins}
+\end{table}
 
 
 The syntax of argument processor is a cross between |expl3|'s function argument specification and a
@@ -5342,22 +5444,27 @@ Before we finally list the available instructions, some notes:
   \end{itemize}
 \end{itemize}
 
-
+\makeatletter
 \NewDocumentEnvironment{indexitemprocessinstruction}{
   D(){} % default
   O{} % \index []
   m % instruction char
+  o % form of instruction char, if different from #3
   D(){} % instruction modifiers
   m % first line
   >{\ReverseBoolean} s % typeset processor signature?
   >{\SplitArgument {3} {&} } m % processor signature
-  o % instruction in signature
 }{%
-  \indexitem(#1)[set={#2}]{processor>#3}#4 #5%
-  \edef\ins{\noexpand\texttt{\IfNoValueTF{#8}{\detokenize{#3}}{#8}}}%
-  \IfBooleanT{#6}{\hfill\processorsignature#7}%
+  \write\@auxout{\unexpanded{\gappto\bigbadprocesslist{[{#3}[{#6}]]}}}%
+  \IfValueTF{#4}{%
+    \indexitem(#1)[set={form={#4},index form={#4{\protect\ \protect\rm\protect\scriptsize (#6)}},#2}]{processor>#3}#5 #6%
+  }{%
+    \indexitem(#1)[set={index form={#3{\protect\ \protect\rm\protect\scriptsize (#6)}},#2}]{processor>#3}#5 #6%
+  }%
+  \IfBooleanT{#7}{\hfill\processorsignature#8}%
 
 }{}
+\makeatother
 
 \newcommand\processorsignature[4]{%
   #1 \textcolor{darkgreen}{\eye} #2
@@ -5368,8 +5475,8 @@ Before we finally list the available instructions, some notes:
 
 \begin{syntax}
   
-\begin{indexitemprocessinstruction}[form=\_,index key=_]{noop}([$n$]){no-op}
-  {&\meta{arg}&\meta{arg}&}[\_]
+\begin{indexitemprocessinstruction}[index key=_]{noop}[\_]([$n$]){no-op}
+  {&\meta{arg}&\meta{arg}&}
   
   The argument is not processed, but simply skipped over.  In other words, this instruction only
   moves the head one item to the right. (This is like |expl3|'s argument specifier |n|.)
@@ -5381,7 +5488,7 @@ Before we finally list the available instructions, some notes:
   
 \end{indexitemprocessinstruction}
 
-\begin{indexitemprocessinstruction}{o}([$n$]){expand \emph{o}nce}
+\begin{indexitemprocessinstruction}{o}([$n$]){expand \protect\emph{o}nce}
     {&\meta{arg}&\meta{result}&}
 
     \meta{arg} is expanded once.  (This is like |expl3|'s argument specifier |o|).
@@ -5390,13 +5497,13 @@ Before we finally list the available instructions, some notes:
     repetition.  For example, |o3| expands the argument three times (and then moves the head right).
 \end{indexitemprocessinstruction}
   
-\begin{indexitemprocessinstruction}{x}{fully e\emph{x}pand}
+\begin{indexitemprocessinstruction}{x}{fully e\protect\emph{x}pand}
   {&\meta{arg}&\meta{result}&}
 
   \meta{arg} is fully expanded using |\edef|.   (This is like |expl3|'s argument specifier |x|.)
 \end{indexitemprocessinstruction}
   
-\begin{indexitemprocessinstruction}{O}([$n$]){\emph{o}ption}
+\begin{indexitemprocessinstruction}{O}([$n$]){\protect\emph{o}ption}
   {&\meta{option}&\meta{result}&}
 
   \meta{option}=\alternative{\meta{option name},\meta{relative node name}\texttt{.}\meta{option name}}
@@ -5408,7 +5515,7 @@ Before we finally list the available instructions, some notes:
   
 \end{indexitemprocessinstruction}
 
-\begin{indexitemprocessinstruction}{R}([$n$]){\emph{r}egister}
+\begin{indexitemprocessinstruction}{R}([$n$]){\protect\emph{r}egister}
   {&\meta{register}&\meta{result}&}
   
   \meta{result} is the value of register \meta{register}.
@@ -5417,9 +5524,34 @@ Before we finally list the available instructions, some notes:
   
 \end{indexitemprocessinstruction}
 
-\begin{indexitemprocessinstruction}{P}([$n$]){\emph{p}gfmath}
-  {&\meta{pgfmath expr}&\meta{result}&}
+\begin{indexitemprocessinstruction}{p}([$n$]){\protect\emph{p}process}
+  {&\index{meta>process}&\meta{result}&}
 
+  Execute an embedded call of the argument processor.
+  The embedded argument processor may return any number of items.
+
+  $n$ means repetition.
+
+\begin{forestexample}[index={processor>p,processor>O,processor>w,processor>noop,grow',forked edges,content,handler>process}]
+  \begin{forest}
+    grow'=0, phantom, 
+    delay={for children={
+      content/.process={_O= ? ~p~}
+        {}{content}
+        {_{No content was given, so there's nothing to do.}}
+        {Ow1{content}{We have content (##1), so we compute:
+                      $##1+42=\the\numexpr ##1+42$}}
+      }}
+    [[][3][][5]]
+  \end{forest}
+\end{forestexample}
+  
+  
+\end{indexitemprocessinstruction}
+
+\begin{indexitemprocessinstruction}{P}([$n$]){\protect\emph{p}gfmath}
+  {&\meta{pgfmath}&\meta{result}&}
+ 
   \meta{result} is the result of evaluating \meta{pgfmath expr} using |\pgfmathparse|.
 
   $n$ means repetition.
@@ -5459,7 +5591,7 @@ Before we finally list the available instructions, some notes:
   
 \end{indexitemprocessinstruction}
 
-\begin{indexitemprocessinstruction}{n}([$n$]){\emph{n}umexpr}
+\begin{indexitemprocessinstruction}{n}([$n$]){\protect\emph{n}umexpr}
   {&\meta{numexpr}&\meta{result}&}
 
   \meta{result} is the result of evaluating \meta{dimexpr} using e\TeX's |\number\numexpr|.
@@ -5468,7 +5600,7 @@ Before we finally list the available instructions, some notes:
   
 \end{indexitemprocessinstruction}
     
-\begin{indexitemprocessinstruction}{d}([$n$]){\emph{d}imexpr}
+\begin{indexitemprocessinstruction}{d}([$n$]){\protect\emph{d}imexpr}
   {&\meta{dimexpr}&\meta{result}&}
 
   \meta{result} is the result of evaluating \meta{dimexpr} using e\TeX's |\the\dimexpr|.
@@ -5498,11 +5630,11 @@ Before we finally list the available instructions, some notes:
 \end{forestexample}
 
 
-\begin{indexitemprocessinstruction}{w}([$n$]){(consuming) \emph{w}rap}
+\begin{indexitemprocessinstruction}{w}([$n$]){(consuming) \protect\emph{w}rap}
   {\meta{arg$_{1}$}\dots\meta{arg$_{n}$}&\meta{macro body}&\meta{result}&}
 \end{indexitemprocessinstruction}
 \itemnosep[2pt]
-\begin{indexitemprocessinstruction}{W}([$n$]){(non-consuming) \emph{w}rap}
+\begin{indexitemprocessinstruction}{W}([$n$]){(non-consuming) \protect\emph{w}rap}
   {\meta{arg$_{1}$}\dots\meta{arg$_{n}$}&\meta{macro body}&
     \meta{arg$_{1}$}\dots\meta{arg$_{n}$}\meta{result}&}
 
@@ -5517,11 +5649,11 @@ Before we finally list the available instructions, some notes:
   Default $n$ is 1. (Specifying $n>9$ raises an error.)
 \end{indexitemprocessinstruction}
 
-\begin{indexitemprocessinstruction}[form={\&},index key=\&]{and}([$n$]){boolean ``and''}*{}
+\begin{indexitemprocessinstruction}[index key=\&]{and}[\&]([$n$]){boolean ``and''}*{}
 \end{indexitemprocessinstruction}  
 \itemnosep[2pt]
-\begin{indexitemprocessinstruction}[form={\protect\indexpipe},index key=\&or]{or}([$n$]){boolean ``or''}
-  {\meta{arg$_{1}$}\meta{arg$_{2}$}&&\meta{result}&}
+\begin{indexitemprocessinstruction}[index key=\&or]{or}[\protect\indexpipe]([$n$]){boolean ``or''}
+  {\protect\meta{arg$_{1}$}\protect\meta{arg$_{2}$}&&\meta{result}&}
   
   \meta{result} is a boolean conjunction/disjunction of $n$ arguments. The arguments are taken from
   the left.  They should be numbers (positive integers): |0| means false, any other number means
@@ -5530,7 +5662,7 @@ Before we finally list the available instructions, some notes:
   Default $n$ is 2.
 \end{indexitemprocessinstruction}
 
-\begin{indexitemprocessinstruction}[form={!},index key=!]{not}{boolean ``not''}
+\begin{indexitemprocessinstruction}[index key=!]{not}[!]{boolean ``not''}
   {\meta{arg}&&\meta{result}&}
 
   \meta{result} is a boolean negation of the argument.  The argument is taken from the left.  It
@@ -5538,7 +5670,7 @@ Before we finally list the available instructions, some notes:
   \meta{result} is always |0| or |1|.
 \end{indexitemprocessinstruction}
 
-\begin{indexitemprocessinstruction}{?}{conditional (if \dots\ then\dots\ else)}
+\begin{indexitemprocessinstruction}{?}{conditional (if \protect\dots\ then \protect\dots\ else)}
   {\meta{condition}&\meta{true arg}\meta{false arg}&&\meta{result}}
 
   \meta{result} is \meta{true arg} is \meta{condition} is true (non-zero), otherwise \meta{false
@@ -5548,13 +5680,13 @@ Before we finally list the available instructions, some notes:
   where the winner is left as well.
 \end{indexitemprocessinstruction}
 
-\begin{indexitemprocessinstruction}[form={=},index key={=}]{equal}{comparison: $\meta{arg$_{1}$}=\meta{arg$_{2}$}$?}*{}
+\begin{indexitemprocessinstruction}[index key={=}]{equal}[=]{comparison: $\protect\meta{arg$_{1}$}=\protect\meta{arg$_{2}$}$?}*{}
 \end{indexitemprocessinstruction}
 \itemnosep[1pt]
-\begin{indexitemprocessinstruction}[form={<},index key={<}]{lt}{comparison: $\meta{arg$_{1}$}<\meta{arg$_{2}$}$?}*{}
+\begin{indexitemprocessinstruction}[index key={<}]{lt}[<]{comparison: $\protect\meta{arg$_{1}$}<\protect\meta{arg$_{2}$}$?}*{}
 \end{indexitemprocessinstruction}
 \itemnosep[1pt]
-\begin{indexitemprocessinstruction}[form={\protect\greaterthan},index key={<<}]{gt}{comparison: $\meta{arg$_{1}$}>\meta{arg$_{2}$}$?}
+\begin{indexitemprocessinstruction}[index key={<<}]{gt}[\protect\greaterthan]{comparison: $\protect\meta{arg$_{1}$}\protect\greaterthan\protect\meta{arg$_{2}$}$?}
   {\meta{arg$_{1}$}\meta{arg$_{2}$}&&\meta{result}&}
 
   Compare \meta{arg$_{1}$} and \meta{arg$_{2}$}, returning |1| (true) if \meta{arg$_{1}$} is equal
@@ -5588,7 +5720,7 @@ Before we finally list the available instructions, some notes:
 
 \end{indexitemprocessinstruction}
 
-\begin{indexitemprocessinstruction}{t}{mark as \emph{t}ext}
+\begin{indexitemprocessinstruction}{t}{mark as \protect\emph{t}ext}
   {&\meta{arg}&\meta{arg}&}
 
   The result is not changed, only its type is changed to text.  This is relevant only for
@@ -5616,18 +5748,18 @@ Before we finally list the available instructions, some notes:
   For generic type arguments, this operation is a no-op.
 \end{indexitemprocessinstruction}
 
-\begin{indexitemprocessinstruction}{u}{\emph{u}ngroup}
+\begin{indexitemprocessinstruction}{u}{\protect\emph{u}ngroup}
   {&\meta{arg}&&\meta{item$_1$}\dots\meta{item$_n$}}
 
   As every \TeX\ undelimited macro argument, \meta{arg} is a list of tokens or braced token lists.
   This instruction puts those items back to the right as ``separate arguments''.
 \end{indexitemprocessinstruction}
 
-\begin{indexitemprocessinstruction}{s}([$n$]){(consuming) \emph{s}ave}
+\begin{indexitemprocessinstruction}{s}([$n$]){(consuming) \protect\emph{s}ave}
   {\meta{arg$_{1}$}\dots\meta{arg$_{n}$}&&&}
 \end{indexitemprocessinstruction}
 \itemnosep[2pt]
-\begin{indexitemprocessinstruction}{S}([$n$]){(non-consuming) \emph{s}ave}
+\begin{indexitemprocessinstruction}{S}([$n$]){(non-consuming) \protect\emph{s}ave}
   {\meta{arg$_{1}$}\dots\meta{arg$_{n}$}&&\meta{arg$_{1}$}\dots\meta{arg$_{n}$}&}
 
   Saves the last $n$ arguments from the left into a ``special place''.  
@@ -5638,14 +5770,14 @@ Before we finally list the available instructions, some notes:
   Default $n$ is 1.
 \end{indexitemprocessinstruction}
 
-\begin{indexitemprocessinstruction}{l}([$n$]){(consuming) \emph{l}oad}
+\begin{indexitemprocessinstruction}{l}([$n$]){(consuming) \protect\emph{l}oad}
   {&&\meta{arg$_{1}$}\dots\meta{arg$_{n}$}&}
 \end{indexitemprocessinstruction}
 \itemnosep[2pt]
-\begin{indexitemprocessinstruction}{L}([$n$]){(non-consuming) \emph{l}oad}
+\begin{indexitemprocessinstruction}{L}([$n$]){(non-consuming) \protect\emph{l}oad}
   {&&\meta{arg$_{1}$}\dots\meta{arg$_{n}$}&}
 
-  Loads $n$ arguments from the ``special place'' to the left.
+  Loads last $n$ arguments from the ``special place'' to the left.
 
   With |l|, \meta{arg$_{1}$}\dots\meta{arg$_{n}$} are ``consumed'', i.e.\ they are removed from the
   special place.  |S| keeps \meta{arg$_{1}$}\dots\meta{arg$_{n}$} in the special place.
@@ -5653,7 +5785,7 @@ Before we finally list the available instructions, some notes:
   The default $n$ is 0 and indicates that the entire special place should be loaded.
 \end{indexitemprocessinstruction}
 
-\begin{indexitemprocessinstruction}{r}{\emph{r}everse (key)list}
+\begin{indexitemprocessinstruction}{r}{\protect\emph{r}everse (key)list}
   {&\meta{list}&\meta{result}&}
 
   \meta{list} should be a comma-separated list (\emph{not} a name of a keylist option or register).
@@ -6254,6 +6386,23 @@ in |-all| styles.
 \subsubsection{v2.1}
 
 \begin{description}
+\item[v2.1.1 (2016/12/18)] \mbox{}
+  
+  Minor improvements:
+  \begin{itemize}
+  \item Implemented argument processor instruction \index{processor>p}.
+  \end{itemize}
+  
+  Bugfixes:
+  \begin{itemize}
+  \item Argument processor instruction \index{processor>u} introduced an extra layer of braces
+    around each result item.
+  \item Argument processor instructions \index{processor>l} and \index{processor>L} did not always
+    load the desided number of arguments.
+  \item Argument processor instructions \index{processor>and} and \index{processor>or} were taking
+    the arguments from the start of the left side instead of its end.
+  \end{itemize}
+
 \item[v2.1 (2016/12/05)] \mbox{}
 
   Backward incompatible changes (with a \index{compat} key):
