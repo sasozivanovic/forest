@@ -1,4 +1,4 @@
-% \CheckSum{16606}
+% \CheckSum{16610}
 % \iffalse meta-comment
 % forest.dtx
 %% `forest' is a `pgf/tikz'-based package for drawing (linguistic) trees.
@@ -83,7 +83,7 @@
 %
 % \section{Identification}
 %    \begin{macrocode}
-\ProvidesPackage{forest}[2016/12/18 v2.1.1 Drawing (linguistic) trees]
+\ProvidesPackage{forest}[2016/12/31 v2.1.2 Drawing (linguistic) trees]
 
 \RequirePackage{tikz}[2013/12/13]
 \usetikzlibrary{shapes}
@@ -318,18 +318,18 @@
 %    \begin{macrocode}
 \def\newsafeloop#1{%
   \csdef{safeloop@#1}##1\saferepeat{%
-    \edef\safeloop@marshal{%
-      \noexpand\csdef{safeiterate@#1}{%
-        \unexpanded{##1}\relax
-        \noexpand\expandafter
-        \expandonce{\csname safeiterate@#1\endcsname}%
-        \noexpand\fi
-      }%
-    }\safeloop@marshal
+    \forest@temp@toks{##1}%
+    \csedef{safeiterate@#1}{%
+      \the\forest@temp@toks\relax
+      \noexpand\expandafter
+      \expandonce{\csname safeiterate@#1\endcsname}%
+      \noexpand\fi
+    }%
     \csuse{safeiterate@#1}%
     \advance\noexpand\safeloop@depth-1\relax
     \cslet{safeiterate@#1}\relax
   }%
+  \expandafter\newif\csname ifsafebreak@\the\safeloop@depth\endcsname
 }%
 \newcount\safeloop@depth
 \def\safeloop{%
@@ -347,14 +347,13 @@
 %    \begin{macrocode}
 \def\newsafeRKloop#1{%
   \csdef{safeRKloop@#1}##1\safeRKrepeat{%
-    \edef\safeRKloop@marshal{%
-      \noexpand\csdef{safeRKiterate@#1}{%
-        \unexpanded{##1}\relax
-        \noexpand\expandafter
-        \expandonce{\csname safeRKiterate@#1\endcsname}%
-        \noexpand\fi
-      }%
-    }\safeRKloop@marshal
+    \forest@temp@toks{##1}%
+    \csedef{safeRKiterate@#1}{%
+      \the\forest@temp@toks\relax
+      \noexpand\expandafter
+      \expandonce{\csname safeRKiterate@#1\endcsname}%
+      \noexpand\fi
+    }%
     \csuse{safeRKiterate@#1}%
     \advance\noexpand\safeRKloop@depth-1\relax
     \cslet{safeRKiterate@#1}\relax
@@ -4036,15 +4035,16 @@
   \expandafter\forest@processor@r@\expandafter{\forest@temp}%
 }
 \def\forest@processor@r@#1{%
-  \forest@temp@toks{}%
+  \forest@process@left@esetappend{}%
   \def\forest@tempcomma{}%
   \pgfqkeys{/forest}{split={#1}{,}{process@rk}}%
-  \forest@process@left@esetappend{\the\forest@temp@toks}%
   \let\forestmathresulttype\forestmathtype@generic
 }
 \forestset{%
   process@rk/.code={%
-    \epretotoks\forest@temp@toks{#1\forest@tempcomma}%
+    \forest@process@left@toppop\forest@temp
+    \forest@temp@toks{#1}%
+    \forest@process@left@esetappend{\the\forest@temp@toks\forest@tempcomma\expandonce{\forest@temp}}%
     \def\forest@tempcomma{,}%
   }%
 }
@@ -4515,6 +4515,7 @@
   TeX'/.code={\appto\forest@externalize@loadimages{#1}#1},
   TeX''/.code={\appto\forest@externalize@loadimages{#1}},
   options/.code={\forestset{#1}},
+  also/.code={\pgfkeysalso{#1}},
   typeout/.style={TeX={\typeout{#1}}},
   declare toks={name}{},
   name/.code={% override the default setter
@@ -5758,10 +5759,8 @@
     save and restore register={branched@nodewalk}{
       branch@temp@toks={},
       split/.process={r}{#1}{,}{#2},
-      branch@temp@style/.style/.register=branch@temp@toks,
-      branch@temp@style,
-      branch@temp@style/.style/.register=branched@nodewalk,
-      branch@temp@style,
+      also/.register=branch@temp@toks,
+      also/.register=branched@nodewalk,
     }
   },
   nodewalk/branch@build@realstep/.style={% #1 = nodewalk for this branch
@@ -6232,14 +6231,11 @@
 \pgfqkeys{/forest/nodewalk}{
   .unknown/.code={%
     \forest@nodewalk@areshortstepsfalse
-    \pgfkeysifdefined{/forest/\pgfkeyscurrentname/@.cmd}{%
-    }{%
-      \ifx\pgfkeyscurrentvalue\pgfkeysnovalue@text % no value, so possibly short steps
-        \forest@nodewalk@shortsteps@resolution{}%
-        \forest@nodewalk@areshortstepstrue
-        \expandafter\forest@nodewalk@shortsteps\pgfkeyscurrentname==========,% "=" and "," cannot be short steps, so they are good as delimiters
-      \fi
-    }%
+    \ifx\pgfkeyscurrentvalue\pgfkeysnovalue@text % no value, so possibly short steps
+      \forest@nodewalk@shortsteps@resolution{}%
+      \forest@nodewalk@areshortstepstrue
+      \expandafter\forest@nodewalk@shortsteps\pgfkeyscurrentname==========,% "=" and "," cannot be short steps, so they are good as delimiters
+    \fi
     \ifforest@nodewalk@areshortsteps
       \@escapeif{\expandafter\pgfkeysalso\expandafter{\the\forest@nodewalk@shortsteps@resolution}}%
     \else

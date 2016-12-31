@@ -402,7 +402,7 @@ other kinds of) trees.  Its main features are
   key--value interface to option-setting;
 \item many tree-formatting options, with control over option values of individual nodes and
   mechanisms for their manipulation;
-\item a powerful mechanism for travesing the tree;
+\item a powerful mechanism for traversing the tree;
 \item the possibility to decorate the tree using the full power of \PGF;/\TikZ;;
 \item an externalization mechanism sensitive to code-changes.
 \end{enumerate*}
@@ -2685,6 +2685,14 @@ Configures and executes the \meta{nodewalk}.  This key is a nodekey-space copy o
   interpreted as (cumulative) \TikZ; code.  If you'd like to use afterthoughts for some other
   purpose, redefine this style --- this will take effect even if you do it in the tree preamble.
 
+\indexitem{node key>also}|=|\meta{keylist} Execute the keys in the given \meta{keylist}.
+
+If we are currently processing node keys, \meta{keylist} should contain node keys.  If we are
+in a nodewalk, \meta{keylist} should (or rather, may also) contain nodewalk keys.
+
+For example, to execute, during a nodewalk, a nodewalk keylist stored in register |tempkeylista|,
+write |also/.register=|\indexex{tempkeylista}. Note that no embedded nodewalk will be introduced.
+  
 \indexitem{node key>autoforward}|=|\meta{option}\meta{keylist}, \indexdef{node key>autoforward register}|=|\meta{register}\meta{keylist}
 \itemnosep
 \indexitem{node key>autoforward'}|=|\meta{option}\meta{keylist}, \indexdef{node key>autoforward register'}|=|\meta{register}\meta{keylist}
@@ -3804,8 +3812,8 @@ value.  Use an empty argument to reset the node's name to its default value.
   aligned to the anchor of the current node.
 
   Behind the scenes, this style sets the alias of the current node to \keyname{forest@baseline@node}.
-\begin{forestexample}[index={baseline,use as bounding box'}]
   {\tikzexternaldisable
+\begin{forestexample}[index={baseline,use as bounding box'}]
   Baseline at the
   \begin{forest}
     [parent,~baseline~,use as bounding box'
@@ -3815,8 +3823,8 @@ value.  Use an empty argument to reset the node's name to its default value.
   \begin{forest}
     [parent
       [child,~baseline~,use as bounding box']]
-  \end{forest}.}
-\end{forestexample}
+  \end{forest}.
+\end{forestexample}}
 
 \indexitem>{tikz key>fit to}|=|\meta{nodewalk} Fits the \TikZ; node to the nodes in the given
   \meta{nodewalk}.
@@ -5370,9 +5378,12 @@ argument processor is invoked this way, any number of items can be returned.\foo
     },
     draw tree stage/.style={
       for root'={
-        draw tree processing order/.nodewalk style={branch={{from to={1}{round(n_children()/3)}},tree}}, draw tree, TeX={~~},
-        draw tree processing order/.nodewalk style={branch={{from to={1+round(n_children()/3)}{2*round(n_children()/3)}},tree}}, draw tree, TeX={~~},
-        draw tree processing order/.nodewalk style={branch={{from to={1+2*round(n_children()/3)}{n_children()}},tree}}, draw tree,
+        if n children=0{% so that we don't get an error on the first run
+        }{
+          draw tree processing order/.nodewalk style={branch={{from to={1}{round(n_children()/3)}},tree}}, draw tree, TeX={~~},
+          draw tree processing order/.nodewalk style={branch={{from to={1+round(n_children()/3)}{2*round(n_children()/3)}},tree}}, draw tree, TeX={~~},
+          draw tree processing order/.nodewalk style={branch={{from to={1+2*round(n_children()/3)}{n_children()}},tree}}, draw tree,
+        }
       }
     }
     [!\bigbadprocesslist]
@@ -5524,7 +5535,7 @@ Before we finally list the available instructions, some notes:
   
 \end{indexitemprocessinstruction}
 
-\begin{indexitemprocessinstruction}{p}([$n$]){\protect\emph{p}process}
+\begin{indexitemprocessinstruction}{p}([$n$]){\protect\emph{p}rocess}
   {&\index{meta>process}&\meta{result}&}
 
   Execute an embedded call of the argument processor.
@@ -6386,6 +6397,21 @@ in |-all| styles.
 \subsubsection{v2.1}
 
 \begin{description}
+\item[v2.1.2 (2016/12/31)] \mbox{}
+
+  Bugfixes:
+  \begin{syntax}
+  \compatitem{all}{2.1.1-loops}
+    A level of hash doubling was unnecessarily introduced for the \meta{keylist} argument of all
+    loops (\S\ref{ref:loops}), and the \meta{nodewalk} argument of \index{process keylist'} and
+    \index{process delayed}. Use this key to revert to the old behaviour.
+  \end{syntax}
+
+  Minor improvements:
+  \begin{itemize}
+  \item Implemented key \index{also}.
+  \end{itemize}
+  
 \item[v2.1.1 (2016/12/18)] \mbox{}
   
   Minor improvements:
@@ -6855,7 +6881,7 @@ bug reports and ideas, \foRest; would be a much poorer package indeed.
 %\addtocontents{toc}{\protect\iffalse{\protect\fi}}
 %http://tex.stackexchange.com/questions/10291/addtocontents-at-end-of-document-not-getting-written-to-toc-file
 \makeatletter
-\write\@auxout{\noexpand\@writefile{toc}{\noexpand\iffalse{\noexpand\fi}}}
+\immediate\write\@auxout{\noexpand\@writefile{toc}{\noexpand\iffalse{\noexpand\fi}}}
 \makeatother
 
 

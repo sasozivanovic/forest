@@ -1,4 +1,4 @@
-LaTeX package: forest [2016/12/18 v2.1.1 Drawing (linguistic) trees]
+LaTeX package: forest [2016/12/31 v2.1.2 Drawing (linguistic) trees]
 
 Copyright (c) 2016 Saso Zivanovic
                    (Sa\v{s}o \v{Z}ivanovi\'{c})
@@ -14,7 +14,7 @@ kinds of) trees. Its main features are:
 encoding of trees plus the key--value interface to option-setting;
 - many tree-formatting options, with control over option values of
 individual nodes and mechanisms for their manipulation;
-- a powerful mechanism for travesing the tree;
+- a powerful mechanism for traversing the tree;
 - the possibility to decorate the tree using the full power of pgf/tikz;
 - an externalization mechanism sensitive to code-changes.
 

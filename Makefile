@@ -35,6 +35,7 @@ forest-doc.pdf: forest-doc.tex forest-doc.tex.success $(dtx) $(doc-sty) $(doc-ot
 	@echo Pass 1 ...
 	$(call compile, $(<:.success=))
 ifneq ($(SINGLEPASS),yes)
+	@rm forest-doc.memo
 	@echo
 	@echo Pass 2 ...
 	$(call compile, $(<:.success=))

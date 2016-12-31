@@ -30,36 +30,39 @@
 }
 \forestset{@@deprecated/.code={\forest@deprecated{#1}}}
 \def\forestcompat#1{\pgfqkeys{/forest/@compat}{#1}}
+\def\forestcompat@patchfailed{%
+  \pgfkeys@split@path
+  \PackageError{forest}{Patching in compat=\pgfkeyscurrentname\space failed}{}%
+}
 \forestcompat{
   silent/.code={\def\forest@deprecated##1{}},
   %%% begin listing region: compat_keys
   most/.style={1.0-most},
   all/.style={1.0-all},
   none/.style={},
-  1.0-most/.style={
+  1.0-harmless/.style={
     1.0-triangle,1.0-linear,1.0-nodewalk,1.0-ancestors,
     1.0-fittotree,1.0-for,1.0-forall,
-    2.0.2-most,
   },
-  1.0-all/.style={
-    1.0-most,
+  1.0-most/.style={1.0-harmless,2.0.2-most},
+  1.0-all/.style={1.0-harmless,
     1.0-forstep,1.0-rotate,1.0-stages,1.0-name,
     2.0.2-all,
   },
-  2.0.2-most/.style={
-    2.0-most,
-  },
+  2.0.2-most/.style={2.0-most},
   2.0.2-all/.style={
     2.0.2-delayn,2.0.2-wrapnpgfmathargs,
     2.0-all,
   },
-  2.0-most/.style={},
+  2.0-edges/.style={2.0-anchors,2.0-forkededge,2.0-folder},
+  2.0-most/.style={2.1.1-most},
   2.0-all/.style={
-    2.0-most,
     2.0-delayn,
     2.0-edges,
+    2.1.1-all,
   },
-  2.0-edges/.style={2.0-anchors,2.0-forkededge,2.0-folder},
+  2.1.1-most/.style={},
+  2.1.1-all/.style={2.1.1-loops},
   %%% end listing region: compat_keys
   1.0-triangle/.style={
     /forest/triangle/.style={
@@ -239,13 +242,30 @@
   },
   2.0-folder/.code={%
     \forest@iflibraryloaded{edges}{%
-      \expandafter\patchcmd\csname @pgfk@/forest/folder/.@cmd\endcsname
-        {parent anchor=-children last}{parent anchor=parent last}{}{}%
-      \expandafter\patchcmd\csname @pgfk@/forest/folder/.@cmd\endcsname
-        {edge={rotate/.option=!parent.grow},}{edge={rotate/.pgfmath=grow()}}{}{}%
+      \expandafter\patchcmd\csname pgfk@/forest/folder/.@cmd\endcsname
+        {parent anchor=-children last}
+        {parent anchor=parent last}
+        {}{\forestcompat@patchfailed}%
+      \expandafter\patchcmd\csname pgfk@/forest/folder/.@cmd\endcsname
+        {edge={rotate/.option=!parent.grow},}
+        {edge={rotate/.pgfmath=grow()}}
+        {}{\forestcompat@patchfailed}%
     }{%
       \appto\forest@compat@libraries@edges{\forestcompat{2.0-folder}}%
     }%
+  },
+  2.1.1-loops/.code={%
+    \patchcmd\newsafeRKloop % pre-{##1}
+      {\forest@temp@toks}%
+      {%
+        \forest@deprecated{hash-doubling loops from pre-2.1.2}%
+        \def\forest@temp
+      }%
+      {}{\forestcompat@patchfailed}%
+    \patchcmd\newsafeRKloop % post-{##1}
+      {\csedef}%
+      {\forest@temp@toks\expandafter{\forest@temp}\csedef}%
+      {}{\forestcompat@patchfailed}%
   },
 }
 \expandafter\forestcompat\expandafter{\forest@compat}
