@@ -56,9 +56,8 @@
 \let\forest@isbaredim\forest@isdim
 
 
-\newcount\mynum
-\mbox{}\\\testnumdim{num}{42}{true}
-\\\testnumdim{num}{\the\mynum}{true}
+\testnumdim{num}{42}{true}
+\\\newcount\mynum\testnumdim{num}{\the\mynum}{true}
 \\\testnumdim{num}{42 }{true}
 \\\testnumdim{num}{ 42}{true}
 \\\testnumdim{num}{ 42  }{true}
@@ -114,7 +113,7 @@
 \\\testnumdim{baredim}{.42}{true}
 \\\testnumdim{dim}{cm}{false}
 \\\testnumdim{dim}{.cm}{true}
-\\\testnumdim{dim}{.}{true}% pgfmath is inconsistent here: accepts this as a dimension but not as a count
+\\\testnumdim{baredim}{.}{true}% pgfmath is inconsistent here: accepts this as a dimension but not as a count
 \\\testnumdim{dim}{ 1.  pt}{true}
 \\\testnumdim{baredim}{42}{true}
 \\\testnumdim{baredim}{42.0}{true}

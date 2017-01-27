@@ -1,8 +1,8 @@
 %% forest-doc.tex
 %% `forest-doc.tex` is a main documentation source of package `forest`.
 %%
-%% Copyright (c) 2016 Saso Zivanovic
-%%                    (Sa\v{s}o \v{Z}ivanovi\'{c})
+%% Copyright (c) 2012-2017 Saso Zivanovic
+%%                         (Sa\v{s}o \v{Z}ivanovi\'{c})
 %% saso.zivanovic@guest.arnes.si
 %%
 %% This work may be distributed and/or modified under the
@@ -812,7 +812,19 @@ matter) being that they get processed before all other root node options, even t
 
 If you find yourself writing the same preamble for every tree in your document,
 consider modifying \index{default preamble}, which is implicitely included at the beginning
-of every preamble.  
+of every preamble.
+
+\begin{forestexample}[index={default preamble}]
+  \forestset{
+    ~default preamble~={
+      font=\Huge,
+      for tree={circle,draw}
+    }
+  }
+  \begin{forest}                   [A[B][C]] \end{forest}
+  \begin{forest} red               [D[E][F]] \end{forest}
+  \begin{forest} for tree={dotted} [G[H][I]] \end{forest}
+\end{forestexample}
 
 \subsection{Decorating the tree}
 \label{tut:decorating}
@@ -6397,6 +6409,12 @@ in |-all| styles.
 \subsubsection{v2.1}
 
 \begin{description}
+\item[v2.1.3 (2017/01/27)] \mbox{}
+  Bugfixes:
+  \begin{itemize}
+  \item Update \index{nice empty nodes} to use \index{for step=\index{current and siblings}}.
+  \end{itemize}
+
 \item[v2.1.2 (2016/12/31)] \mbox{}
 
   Bugfixes:

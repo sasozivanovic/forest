@@ -3,7 +3,7 @@
 % forest-libs.dtx
 %% `forest-libs' is a collection of libraries for package `forest'.
 %%
-%% Copyright (c) 2016 Saso Zivanovic
+%% Copyright (c) 2012-2017 Saso Zivanovic
 %%                    (Sa\v{s}o \v{Z}ivanovi\'{c})
 %% saso.zivanovic@guest.arnes.si
 %%
@@ -45,7 +45,7 @@
 %\fi
 % \librarysection{linguistics}
 %    \begin{macrocode}
-\ProvidesForestLibrary{linguistics}[2015/11/14 v0.1]
+\ProvidesForestLibrary{linguistics}[2017/01/27 v0.1.1]
 %    \end{macrocode}
 %
 % Defaults:
@@ -214,8 +214,8 @@
 \forestset{
   nice empty nodes/.style={
     for tree={calign=fixed edge angles},
-    delay={where content={}{shape=coordinate,for parent={
-          for children={anchor=north}}}{}}
+    delay={where content={}{shape=coordinate,
+                            for current and siblings={anchor=north}}{}}
   },
 }
 %    \end{macrocode}

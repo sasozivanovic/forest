@@ -19,7 +19,7 @@ doc-tex = forest-doc.tex
 doc-nonderived-sty = forest-doc.sty
 doc-derived-sty = $(shell grep -Poh '\\file{(.*?)}' $(doc-ins) | sed 's/\\file{\(.*\)}/\1/;')
 doc-sty = $(doc-nonderived-sty) $(doc-derived-sty)
-doc-other = forest-doc.ist ~/texmf/bibtex/bib/local/tex.bib
+doc-other = forest-doc.ist tex.bib
 doc-pdf = forest-doc.pdf
 
 tex = $(package-tex) $(doc-tex)
@@ -124,7 +124,16 @@ checkexternalization :
 
 checksums: $(patsubst %.dtx,%.dtx.checksum,$(dtx))
 
-zip: versiondir nocheckexternalization checksums \
+# Sometimes this will be too strict (e.g. when updating only one library).
+# In such a case, temporarily rename "checkreleasedate" to "nocheckreleasedate" in "zip:".
+checkreleasedate: $(ins) $(dtx) $(sty) $(tex) $(other)
+	@echo Checking release dates ...
+	@! grep "Copyright (c) 2012-.*Saso Zivanovic" $^ | grep -v `date +%Y`
+	@touch checkreleasedate.temp ; for f in $^ ; do ! grep -H "\\Provides[a-zA-Z]*{.*}\[[0-9]" $$f | grep -v \\[`git log -1 --format=%cd --date=format:%Y/%m/%d $$f` || ( echo "  Should be `git log -1 --format=%cd --date=format:%Y/%m/%d $$f`" && rm -f checkreleasedate.temp ) ; done ; ( test -e checkreleasedate.temp && rm checkreleasedate.temp )
+
+nocheckreleasedate:
+
+zip: versiondir nocheckexternalization checksums checkreleasedate \
 	README LICENCE $(ins) $(dtx) $(sty) $(tex) $(other) $(pdf) 
 	@echo Copying files to the version `cat VERSION` directory ...
 	@cp README LICENCE $(ins) $(dtx) $(doc-nonderived-sty) $(package-nonderived-sty) $(tex) $(pdf) $(other) versions/`cat VERSION`/forest
