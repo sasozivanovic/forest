@@ -2,7 +2,48 @@
 \usepackage[margin=1cm,landscape,twocolumn]{geometry}
 \usepackage{forest}
 
+\usepackage{titlesec}
+\newcommand{\sectionbreak}{\clearpage}
+
+\parindent 0pt
+
 \makeatletter
+
+\def\testmacro#1#2{% #1 = result, #2 = expected
+  \def\test@result{#1}%
+  \def\test@expected{#2}%
+  \ifx\test@result\test@expected
+    {#1}%
+  \else
+    {\textcolor{red}{#1} (expected: #2)}%
+  \fi
+}
+
+\newcount\test@result@count
+\newcount\test@expected@count
+\def\testcount#1#2{% #1 = result, #2 = expected
+  \test@result@count=#1\relax
+  \test@expected@count=#2\relax
+  \ifnum\test@result@count=\test@expected@count
+    {#1}%
+  \else
+    {\textcolor{red}{#1} (expected: #2)}%
+  \fi
+}
+
+
+\newdimen\test@result@dimen
+\newdimen\test@expected@dimen
+\def\testdimen#1#2{% #1 = result, #2 = expected
+  \test@result@dimen=#1\relax
+  \test@expected@dimen=#2\relax
+  \ifdim\test@result@dimen=\test@expected@dimen
+    {#1}%
+  \else
+    {\textcolor{red}{#1} (expected: #2)}%
+  \fi
+}
+
 
 \begin{document}
 
@@ -129,5 +170,70 @@
 \\\testnumdim{dim}{21cm+21cm}{false}
 \\\testnumdim{dim}{4. 2cm}{false}
 \\\testnumdim{dim}{  4.2  cm }{true}
+
+\section{Aggregate functions}
+\label{sec:aggregate-functions}
+
+\begin{forest}(stages={
+    for root'={
+      process keylist=given options,
+      TeX={%
+        \def\forestdebugtypeouttreenodeinfo{\forestoption{content}}%
+        {\tt\forestdebug@typeouttree\forest@cn\temp\temp\\}
+      },
+      %
+      tempcounta/.count=children,
+      TeX/.process=Rw{tempcounta}{Number of root's children: \testcount{##1}{3}\\},
+      %
+      tempcounta/.sum={>O+n{content}}{tree},
+      TeX/.process=Rw{tempcounta}{Sum of all nodes: \testcount{##1}{21}\\},
+      %
+      tempcounta/.average={>O+n{content}}{fake=2,1n},
+      TeX/.process=Rw{tempcounta}{Average (rounded) of bottom nodes: \testcount{##1}{5}\\},
+      %
+      tempcounta/.product={>O+n{content}}{fake={21},current and ancestors},
+      TeX/.process=Rw{tempcounta}{Product from root to 5: \testcount{##1}{15}\\},
+      %
+      tempcounta/.min={>O+n{content}}{tree},
+      TeX/.process=Rw{tempcounta}{Minimum in tree: \testcount{##1}{1}\\},
+      %
+      tempcounta/.max={>O+n{content}}{tree},
+      TeX/.process=Rw{tempcounta}{Maximum in tree: \testcount{##1}{6}\\},
+      %
+      TeX={Again: now interpret content as dimensions in points.\\},
+      tempdima/.sum={>O+n{content}}{tree},
+      TeX/.process=Rw{tempdima}{Sum of all nodes: \testdimen{##1}{21pt}\\},
+      %
+      tempdima/.average={>O+n{content}}{fake=2,1n},
+      TeX/.process=Rw{tempdima}{Average (rounded) of bottom nodes: \testdimen{##1}{5.5pt}\\},
+      %
+      tempdima/.product={>O+n{content}}{fake={21},current and ancestors},
+      TeX/.process=Rw{tempdima}{Product from root to 5: \testdimen{##1}{15pt}\\},
+      %
+      tempdima/.min={>O+n{content}}{tree},
+      TeX/.process=Rw{tempdima}{Minimum in tree: \testdimen{##1}{1pt}\\},
+      %
+      tempdima/.max={>O+n{content}}{tree},
+      TeX/.process=Rw{tempdima}{Maximum in tree: \testdimen{##1}{6pt}\\},
+      %
+      TeX={Sums again. Now sum using pgfmath:\\},
+      temptoksa/.sum={content}{tree},
+      TeX/.process=Rw{temptoksa}{Assign to toks: \testmacro{##1}{21.0}\\},
+      tempdima/.sum={content}{tree},
+      TeX/.process=Rw{tempdima}{Assign to dimen: \testdimen{##1}{21pt}\\},
+      tempcounta/.sum={content}{tree},
+      TeX/.process=Rw{tempcounta}{Assign to count: \testcount{##1}{21}\\},
+    }
+  })
+  [1
+    [2]
+    [3
+      [5]
+      [6]
+    ]
+    [4]
+  ]
+\end{forest}
+
 
 \end{document}
