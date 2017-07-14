@@ -45,12 +45,15 @@
 %\fi
 % \librarysection{linguistics}
 %    \begin{macrocode}
-\ProvidesForestLibrary{linguistics}[2017/01/27 v0.1.1]
+\ProvidesForestLibrary{linguistics}[2017/07/14 v0.1.2]
 %    \end{macrocode}
 %
 % Defaults:
 %    \begin{macrocode}
 \forestset{
+  linguistics@set@baseline/.style={
+    if phantom={for next node=linguistics@set@baseline}{baseline}
+  },
   libraries/linguistics/defaults/.style={
     default preamble={
 %    \end{macrocode}
@@ -59,8 +62,12 @@
      sn edges,
 %    \end{macrocode}
 % The root of the tree will be aligned with the text \dots\ or, more commonly, the example number.
+% More precisely, we actually align the first (in linear order) non-phantom node.  This covers the
+% common case of side-by-side trees joined with a phantom root.
 %    \begin{macrocode}
-     baseline,
+    before drawing tree={
+      if nodewalk valid={name=forest@baseline@node}{}{linguistics@set@baseline},
+    },
 %    \end{macrocode}
 % Enable (centered) multi-line nodes.
 %    \begin{macrocode}

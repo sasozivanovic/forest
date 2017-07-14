@@ -1,4 +1,4 @@
-% \CheckSum{16623}
+% \CheckSum{16651}
 % \iffalse meta-comment
 % forest.dtx
 %% `forest' is a `pgf/tikz'-based package for drawing (linguistic) trees.
@@ -83,7 +83,7 @@
 %
 % \section{Identification}
 %    \begin{macrocode}
-\ProvidesPackage{forest}[2017/02/02 v2.1.4 Drawing (linguistic) trees]
+\ProvidesPackage{forest}[2017/07/14 v2.1.5 Drawing (linguistic) trees]
 
 \RequirePackage{tikz}[2013/12/13]
 \usetikzlibrary{shapes}
@@ -4079,7 +4079,7 @@
   \pgfkeyssetvalue{#1'/option@name}{#3}%
   \forest@copycommandkey{#1+}{#1}%
   \pgfkeysalso{#1-/.code={%
-      \forest@fornode{register}{%
+      \forest@fornode{}{%
         \forest@node@removekeysfromkeylist{##1}{#3}%
       }}}%
   \pgfkeyssetvalue{#1-/option@name}{#3}%
@@ -5178,7 +5178,7 @@
   #4%
   \let\forest@temp@pgfmathpostparse\pgfmathpostparse
   \let\pgfmathpostparse\forest@aggregate@pgfmathpostparse
-  \forestmath@convert@to\forestmathtype@dimen{\forestmathresult}
+  \forestmath@convert@to\forestmathtype@dimen{\forestmathresult}%
   \pgfmathqparse{\forestmathresult}%
   \let\pgfmathpostparse\forest@temp@pgfmathpostparse
   \forestrlet{aggregate result}\pgfmathresult
@@ -5359,7 +5359,7 @@
   \ifx\forest@nodewalk@config@oninvalid\forest@nodewalk@oninvalid@inherited@text
     \edef\forest@nodewalk@config@oninvalid{\forest@nodewalk@oninvalid}%
   \fi
-  \edef\forest@marshal{%
+  \edef\forest@nw@marshal{%
     \noexpand\pgfqkeys{/forest/nodewalk}{\unexpanded{#1}}%
     \csname forest@nodewalk@config@everystep@\forest@nodewalk@config@everystep@method @after\endcsname
     \csname forest@nodewalk@config@history@\forest@nodewalk@config@history@method @after\endcsname
@@ -5368,8 +5368,10 @@
   \csname forest@nodewalk@config@everystep@\forest@nodewalk@config@everystep@method @before\endcsname{#2}%
   \csname forest@nodewalk@config@history@\forest@nodewalk@config@history@method @before\endcsname
   \edef\forest@nodewalk@oninvalid{\forest@nodewalk@config@oninvalid}%
-  \forest@nodewalk@fakefalse
-  \forest@marshal
+  \forest@saveandrestoreifcs{forest@nodewalk@fake}{%
+    \forest@nodewalk@fakefalse
+    \forest@nw@marshal
+  }%
 }
 \pgfmathdeclarefunction{valid}{1}{%
   \forest@forthis{%
@@ -5488,15 +5490,15 @@
     \expandafter\forest@temp@toks\expandafter{\expandafter\forest@saveandrestoremacro\expandafter\forest@nodewalk@currentstepname\expandafter{\the\forest@temp@toks}}%
     \ifforestdebugnodewalks
       \epretotoks\forest@temp@toks{\noexpand\typeout{Starting step "#1" from id=\noexpand\forest@cn
-          \ifnum\forest@nodewalkstephandler@nargs>0 \space with args ####1\fi
-          \ifnum\forest@nodewalkstephandler@nargs>1 ,####2\fi
-          \ifnum\forest@nodewalkstephandler@nargs>2 ,####3\fi
-          \ifnum\forest@nodewalkstephandler@nargs>3 ,####4\fi
-          \ifnum\forest@nodewalkstephandler@nargs>4 ,####5\fi
-          \ifnum\forest@nodewalkstephandler@nargs>5 ,####6\fi
-          \ifnum\forest@nodewalkstephandler@nargs>6 ,####7\fi
-          \ifnum\forest@nodewalkstephandler@nargs>7 ,####8\fi
-          \ifnum\forest@nodewalkstephandler@nargs>8 ,####9\fi
+          \ifnum\forest@nodewalkstephandler@nargs>0 \space with args \noexpand\unexpanded{####1}\fi
+          \ifnum\forest@nodewalkstephandler@nargs>1 ,\noexpand\unexpanded{####2}\fi
+          \ifnum\forest@nodewalkstephandler@nargs>2 ,\noexpand\unexpanded{####3}\fi
+          \ifnum\forest@nodewalkstephandler@nargs>3 ,\noexpand\unexpanded{####4}\fi
+          \ifnum\forest@nodewalkstephandler@nargs>4 ,\noexpand\unexpanded{####5}\fi
+          \ifnum\forest@nodewalkstephandler@nargs>5 ,\noexpand\unexpanded{####6}\fi
+          \ifnum\forest@nodewalkstephandler@nargs>6 ,\noexpand\unexpanded{####7}\fi
+          \ifnum\forest@nodewalkstephandler@nargs>7 ,\noexpand\unexpanded{####8}\fi
+          \ifnum\forest@nodewalkstephandler@nargs>8 ,\noexpand\unexpanded{####9}\fi
         }}%
     \fi
     \def\forest@temp{/forest/nodewalk/#1/.code}%
@@ -8642,16 +8644,21 @@
   }%
   \forest@node@Ifnamedefined{forest@baseline@node}{%
     \edef\forest@baseline@id{\forest@node@Nametoid{forest@baseline@node}}%
-    \ifcsdef{forest@drawn@\forest@baseline@id}{%
-      \edef\forest@marshal{%
-        \noexpand\pgfsetbaselinepointlater{%
-          \noexpand\pgfpointanchor
-            {\forestOve{\forest@baseline@id}{name}}%
-            {\forestOve{\forest@baseline@id}{anchor}}%
-        }%
-      }\forest@marshal
-    }{}%
-  }{}%
+    \ifnum\forest@baseline@id=0
+    \else
+      \ifcsdef{forest@drawn@\forest@baseline@id}{%
+        \edef\forest@marshal{%
+          \noexpand\pgfsetbaselinepointlater{%
+            \noexpand\pgfpointanchor
+              {\forestOve{\forest@baseline@id}{name}}%
+              {\forestOve{\forest@baseline@id}{anchor}}%
+          }%
+        }\forest@marshal
+      }{%
+        \PackageWarning{forest}{Baseline node (id=\forest@cn) was not drawn (most likely it's a phantom node)}%
+      }%
+    \fi
+  }%
   \forest@clear@drawn
 }
 \def\forest@draw@node{%
@@ -10885,7 +10892,10 @@
   \forest@global@marshal
 }
 %    \end{macrocode}
-%    
+% Fill in the values of the invalid node. (It's now easy to test for |id=0|.)
+%    \begin{macrocode}
+\forest@node@init
+%    \end{macrocode}
 % \section{Compatibility with previous versions}
 %    \begin{macrocode}
 \ifdefempty{\forest@compat}{}{%

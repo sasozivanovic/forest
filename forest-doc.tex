@@ -1838,7 +1838,7 @@ preamble or in the document body. Its effect is local to the current \TeX\ scope
 
 For example, the |linguistics| library defines c-command related nodewalks, changes the default
 parent--child edges to south--north (the main package default is border--border) and sets the
-baseline to the root node.  Thus, if you write |\usepackage[linguistics]{forest}| in your preamble,
+baseline to the root\footnote{For details, see \S\ref{sec:library-linguistics}.} node.  Thus, if you write |\usepackage[linguistics]{forest}| in your preamble,
 or use macro \cmdname{forestapplylibrarydefaults} like below, you get the following:
 
 \begin{forestexample}[tree bin=minipage,index={for step,c-commanded}]
@@ -2015,6 +2015,15 @@ To customize the bracket parser, call
         ]}}}}){bracket key>closing bracket}|=|\meta{character}
 \indexitem(none){bracket key>action character}|=|\meta{character}
 \end{syntax}
+
+\begin{advise}
+\item Careful when setting the \index{opening bracket} to |(|, %)
+  as an initial |(| %)
+  is understood as the delimiter of the optional \meta{config} argument of the
+  \index{environment>forest} environment or \index{macro>Forest} macro.  The workaround is to either
+  provide an empty \meta{config} argument |()|, or put some whitespace (e.g.\ a newline) before the
+  tree specification.
+\end{advise}
 
 By redefining the following two keys, the bracket parser can be used outside \foRest;.
 \begin{syntax}
@@ -6409,6 +6418,14 @@ in |-all| styles.
 \subsubsection{v2.1}
 
 \begin{description}
+\item[v2.1.5 (2017/07/14)] \mbox{}
+  Minor improvements:
+  \begin{itemize}
+  \item Smarter \index{baseline} defaults for the \reflibrary{linguistics} library.
+  \item Yield warning when the \index{baseline} is set to a node that is not drawn (e.g.\ a
+    \index{phantom} node).
+  \end{itemize}
+  
 \item[v2.1.4 (2017/02/02)] \mbox{}
   
   Performance:

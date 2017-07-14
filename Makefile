@@ -164,8 +164,8 @@ v=current
 use: currentruntime
 	echo Trying to switch to forest v$(v) ...
 	@if ! [[ -d runtime/$(v) && -f runtime/$(v)/forest.sty ]] ; then echo Runtimes files for forest v$(v) don\'t exist! Available versions: `ls runtime | grep -v zip`; false ; fi
-	@if [[ ! -h $(HOME)/texmf/tex/latex/forest ]] ; then echo Something is wrong with directory $(HOME)/texmf/tex/latex/forest ... it should be a symlink to some version\'s runtime directory. ; false ; fi
-	ln -sfT $(abspath runtime/$(v)) $(HOME)/texmf/tex/latex/forest
+	@if [[ ! -h $(HOME)/texmf/tex/latex/forest/latex ]] ; then echo Something is wrong with directory $(HOME)/texmf/tex/latex/forest/latex ... it should be a symlink to some version\'s runtime directory. ; false ; fi
+	ln -sfT $(abspath runtime/$(v)) $(HOME)/texmf/tex/latex/forest/latex
 	@texhash 2> /dev/null
 
 used:
